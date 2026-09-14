@@ -1,34 +1,41 @@
 {
-	"name": "@pixel-wall/frontend",
-	"private": true,
-	"version": "0.0.0",
-	"type": "module",
-	"scripts": {
-		"dev": "vite",
-		"build": "tsc -b && vite build",
-		"preview": "vite preview",
-		"test:unit": "vitest run --config ./tests/unit/vitest.config.ts",
-		"test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
-		"test:a11y": "playwright test --config=tests/a11y/playwright.config.ts"
-	},
-	"dependencies": {
-		"react": "18.3.1",
-		"react-dom": "18.3.1"
-	},
-	"devDependencies": {
-		"@axe-core/playwright": "4.10.0",
-		"@playwright/test": "1.47.2",
-		"@types/react": "18.3.10",
-		"@types/react-dom": "18.3.0",
-		"@vitejs/plugin-react": "4.3.2",
-		"autoprefixer": "10.4.20",
-		"eslint-plugin-react": "7.37.1",
-		"eslint-plugin-react-hooks": "5.1.0-rc.0",
-		"eslint-plugin-react-refresh": "0.4.12",
-		"globals": "15.10.0",
-		"postcss": "8.4.47",
-		"tailwindcss": "3.4.13",
-		"vite": "5.4.8",
-		"vitest": "2.1.1"
-	}
+  "name": "@pixel-wall/frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test:unit": "vitest run --config ./tests/unit/vitest.config.ts",
+    "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
+    "test:a11y": "playwright test --config=tests/a11y/playwright.config.ts"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.0",
+    "@playwright/test": "1.47.2",
+    "@types/react": "18.3.10",
+    "@types/react-dom": "18.3.0",
+    "@vitejs/plugin-react": "4.3.2",
+    "autoprefixer": "10.4.20",
+    "eslint-plugin-react": "7.37.1",
+    "eslint-plugin-react-hooks": "5.1.0-rc.0",
+    "eslint-plugin-react-refresh": "0.4.12",
+    "globals": "15.10.0",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
+    "postcss": "8.4.47",
+    "tailwindcss": "3.4.13",
+    "vite": "5.4.8",
+    "vitest": "2.1.1"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
 }

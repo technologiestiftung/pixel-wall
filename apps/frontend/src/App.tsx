@@ -1,8 +1,19 @@
+import { Header } from "./components/Header/Header";
+import { Menu } from "./components/Menu/Menu";
+import { Preview } from "./components/Preview/Preview";
+import { WallProvider } from "./state/WallProvider";
+
 function App() {
 	return (
-		<main>
-			<h1 className="font-bold w-fit mx-auto mt-12">Template</h1>
-		</main>
+		<WallProvider>
+			<div className="flex h-screen flex-col">
+				<Header />
+				<main className="flex flex-1 overflow-hidden">
+					<Menu />
+					<Preview />
+				</main>
+			</div>
+		</WallProvider>
 	);
 }
 
