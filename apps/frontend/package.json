@@ -12,7 +12,6 @@
 		"test:a11y": "playwright test --config=tests/a11y/playwright.config.ts"
 	},
 	"dependencies": {
-		"@pixel-wall/shared": "*",
 		"react": "18.3.1",
 		"react-dom": "18.3.1"
 	},

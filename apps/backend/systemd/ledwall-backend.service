@@ -1,0 +1,25 @@
+[Unit]
+Description=Pixel Wall backend API
+Documentation=http://localhost:5000/docs
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=ledwall
+UMask=0002
+WorkingDirectory=/home/pi/ledwall/backend
+EnvironmentFile=-/etc/ledwall/backend.env
+ExecStart=/home/pi/ledwall/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 5000
+Restart=always
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/ledwall
+
+[Install]
+WantedBy=multi-user.target

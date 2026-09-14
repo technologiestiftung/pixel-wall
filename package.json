@@ -4,18 +4,15 @@
 	"version": "0.0.0",
 	"type": "module",
 	"workspaces": [
-		"packages/*",
-		"apps/*"
+		"apps/frontend"
 	],
 	"scripts": {
-		"dev": "npm run dev --workspaces --if-present",
-		"dev:frontend": "npm run dev --workspace @pixel-wall/frontend",
-		"dev:backend": "npm run dev --workspace @pixel-wall/backend",
-		"build": "npm run build --workspaces --if-present",
-		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"{apps,packages}/*/src/**/*\"",
-		"prettier": "prettier --write --ignore-unknown \"{apps,packages}/*/{src,tests}/**/*\"",
-		"prettier:ci": "prettier --check --ignore-unknown \"{apps,packages}/*/{src,tests}/**/*\"",
-		"test:unit": "npm run test:unit --workspaces --if-present",
+		"dev": "npm run dev --workspace @pixel-wall/frontend",
+		"build": "npm run build --workspace @pixel-wall/frontend",
+		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"apps/frontend/src/**/*\"",
+		"prettier": "prettier --write --ignore-unknown \"apps/frontend/{src,tests}/**/*\"",
+		"prettier:ci": "prettier --check --ignore-unknown \"apps/frontend/{src,tests}/**/*\"",
+		"test:unit": "npm run test:unit --workspace @pixel-wall/frontend",
 		"test:e2e": "npm run test:e2e --workspace @pixel-wall/frontend",
 		"test:a11y": "npm run test:a11y --workspace @pixel-wall/frontend"
 	},

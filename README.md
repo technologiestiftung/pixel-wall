@@ -46,23 +46,26 @@ You can use it on GitHub just by commenting on PRs and issues:
 
 This is an npm workspaces monorepo:
 
-| Package                                | Description                                                                      |
-| -------------------------------------- | -------------------------------------------------------------------------------- |
-| [`apps/backend`](./apps/backend)       | Node service running on the Raspberry Pi that drives the wall and serves the API |
-| [`apps/frontend`](./apps/frontend)     | Vite + React web interface, built as a static bundle and hosted separately       |
-| [`packages/shared`](./packages/shared) | Types and constants shared by both, consumed as TypeScript source                |
+| Package                            | Description                                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`apps/backend`](./apps/backend)   | Python/FastAPI service on the Raspberry Pi: state API, MQTT fan-out, HUB75 display driver |
+| [`apps/frontend`](./apps/frontend) | Vite + React web interface, built as a static bundle and hosted separately                |
 
 ## Prerequisites
 
-Node.js as pinned in [.nvmrc](./.nvmrc), and npm 7+ for workspace support.
+- Node.js as pinned in [.nvmrc](./.nvmrc) for the frontend
+- Python 3.11+ for the backend, on a Raspberry Pi 4 with the HUB75 panels wired up
 
 ## Installation
 
-```bash
-npm install
-```
+The two halves install independently — the frontend is Node, the backend is Python
+and only runs on the Pi.
 
-One install at the root covers every package.
+```bash
+npm install                                    # frontend
+cd apps/backend && python3 -m venv .venv \
+  && .venv/bin/pip install -r requirements.txt # backend
+```
 
 ## Usage or Deployment
 
@@ -74,17 +77,17 @@ to a static bundle and hosted; see
 ## Development
 
 ```bash
-npm run dev:backend
-npm run dev:frontend
+npm run dev                                    # frontend on :5173
+
+cd apps/backend                                # backend on :5000
+LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 \
+  .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
 ```
 
-Root scripts fan out across the workspaces, and each can be run for a single one:
-
-```bash
-npm run build
-npm run lint
-npm run build --workspace @pixel-wall/frontend
-```
+The backend runs off the Pi for development — point `VITE_API_URL` at it, or at
+the real Pi. The API contract is documented in
+[apps/backend/README.md](./apps/backend/README.md) and served live at
+`/docs`.
 
 ## Tests
 
@@ -94,7 +97,7 @@ npm run test:e2e
 npm run test:a11y
 ```
 
-End-to-end and accessibility tests run against the frontend.
+Frontend only; CI does not yet run anything against the Python backend.
 
 ## Contributing
 
