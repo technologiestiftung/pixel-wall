@@ -1,0 +1,22 @@
+{
+	"name": "@pixel-wall/backend",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"main": "./dist/index.js",
+	"engines": {
+		"node": ">=22"
+	},
+	"scripts": {
+		"dev": "node --watch --experimental-strip-types src/index.ts",
+		"build": "tsc -b",
+		"start": "node dist/index.js",
+		"test:unit": "vitest run --config ./tests/unit/vitest.config.ts"
+	},
+	"dependencies": {
+		"@pixel-wall/shared": "*"
+	},
+	"devDependencies": {
+		"vitest": "2.1.1"
+	}
+}

@@ -1,43 +1,30 @@
 {
-	"name": "template-vite-react",
+	"name": "pixel-wall",
 	"private": true,
 	"version": "0.0.0",
 	"type": "module",
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
 	"scripts": {
-		"dev": "vite",
-		"build": "tsc -b && vite build",
-		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"src/**/*\"",
-		"prettier": "prettier --write src tests",
-		"prettier:ci": "prettier --check src tests",
-		"test:unit": "vitest run --config ./tests/unit/vitest.config.ts",
-		"test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
-		"test:a11y": "playwright test --config=tests/a11y/playwright.config.ts",
-		"preview": "vite preview"
-	},
-	"dependencies": {
-		"react": "18.3.1",
-		"react-dom": "18.3.1"
+		"dev": "npm run dev --workspaces --if-present",
+		"dev:frontend": "npm run dev --workspace @pixel-wall/frontend",
+		"dev:backend": "npm run dev --workspace @pixel-wall/backend",
+		"build": "npm run build --workspaces --if-present",
+		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"{apps,packages}/*/src/**/*\"",
+		"prettier": "prettier --write --ignore-unknown \"{apps,packages}/*/{src,tests}/**/*\"",
+		"prettier:ci": "prettier --check --ignore-unknown \"{apps,packages}/*/{src,tests}/**/*\"",
+		"test:unit": "npm run test:unit --workspaces --if-present",
+		"test:e2e": "npm run test:e2e --workspace @pixel-wall/frontend",
+		"test:a11y": "npm run test:a11y --workspace @pixel-wall/frontend"
 	},
 	"devDependencies": {
-		"@axe-core/playwright": "4.10.0",
-		"@playwright/test": "1.47.2",
 		"@technologiestiftung/eslint-config": "0.3.1",
 		"@technologiestiftung/prettier-config": "1.0.0",
 		"@types/node": "22.7.4",
-		"@types/react": "18.3.10",
-		"@types/react-dom": "18.3.0",
-		"@vitejs/plugin-react": "4.3.2",
-		"autoprefixer": "10.4.20",
 		"eslint": "9.11.1",
-		"eslint-plugin-react": "7.37.1",
-		"eslint-plugin-react-hooks": "5.1.0-rc.0",
-		"eslint-plugin-react-refresh": "0.4.12",
-		"globals": "15.10.0",
-		"postcss": "8.4.47",
 		"prettier": "3.3.3",
-		"tailwindcss": "3.4.13",
-		"typescript": "5.5.4",
-		"vite": "5.4.8",
-		"vitest": "2.1.1"
+		"typescript": "5.5.4"
 	}
 }

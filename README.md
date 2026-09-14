@@ -42,25 +42,59 @@ You can use it on GitHub just by commenting on PRs and issues:
 - [ ] Add your project description
 - [ ] Get fancy shields at https://shields.io
 
+## Repository structure
+
+This is an npm workspaces monorepo:
+
+| Package                                | Description                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------------- |
+| [`apps/backend`](./apps/backend)       | Node service running on the Raspberry Pi that drives the wall and serves the API |
+| [`apps/frontend`](./apps/frontend)     | Vite + React web interface, built as a static bundle and hosted separately       |
+| [`packages/shared`](./packages/shared) | Types and constants shared by both, consumed as TypeScript source                |
+
 ## Prerequisites
 
-tbd...
+Node.js as pinned in [.nvmrc](./.nvmrc), and npm 7+ for workspace support.
 
 ## Installation
 
-tbd...
+```bash
+npm install
+```
+
+One install at the root covers every package.
 
 ## Usage or Deployment
 
-tbd...
+The backend is deployed onto the Raspberry Pi; see
+[apps/backend/README.md](./apps/backend/README.md). The frontend is built
+to a static bundle and hosted; see
+[apps/frontend/README.md](./apps/frontend/README.md).
 
 ## Development
 
-tbd...
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+Root scripts fan out across the workspaces, and each can be run for a single one:
+
+```bash
+npm run build
+npm run lint
+npm run build --workspace @pixel-wall/frontend
+```
 
 ## Tests
 
-tbd...
+```bash
+npm run test:unit
+npm run test:e2e
+npm run test:a11y
+```
+
+End-to-end and accessibility tests run against the frontend.
 
 ## Contributing
 

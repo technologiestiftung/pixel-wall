@@ -59,7 +59,7 @@ jobs:
 #        if: ${{ failure() && !cancelled() }}
 #        with:
 #          name: playwright-e2e-test-results
-#          path: tests/e2e/test-results
+#          path: apps/frontend/tests/e2e/test-results
 #          retention-days: 30
 #
 #      - name: Run A11y tests ♿️
@@ -75,7 +75,7 @@ jobs:
 #        if: ${{ failure() && !cancelled() }}
 #        with:
 #          name: playwright-a11y-test-results
-#          path: tests/a11y/test-results
+#          path: apps/frontend/tests/a11y/test-results
 #
 #      - name: Create a release 🚢
 #        run: npx semantic-release --ci

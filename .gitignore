@@ -25,3 +25,7 @@ dist-ssr
 **/test-results/
 /blob-report/
 /playwright/.cache/
+
+CLAUDE.md
+.env
+.env.local
