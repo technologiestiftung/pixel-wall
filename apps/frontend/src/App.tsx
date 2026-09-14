@@ -1,31 +1,23 @@
-import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { AuthProvider } from "./auth/AuthContext";
 import { PasswordGate } from "./auth/PasswordGate";
-
-function WallControls() {
-	const { password, signOut } = useAuth();
-
-	return (
-		<main className="p-6 flex flex-col gap-4 items-start">
-			<h1 className="text-2xl font-bold">Pixel Wall</h1>
-			<p>Signed in. Build the wall controls here.</p>
-			{password !== null && (
-				<button
-					type="button"
-					onClick={signOut}
-					className="border rounded px-3 py-2"
-				>
-					Sign out
-				</button>
-			)}
-		</main>
-	);
-}
+import { Header } from "./components/Header/Header";
+import { Menu } from "./components/Menu/Menu";
+import { Preview } from "./components/Preview/Preview";
+import { WallProvider } from "./state/WallProvider";
 
 function App() {
 	return (
 		<AuthProvider>
 			<PasswordGate>
-				<WallControls />
+				<WallProvider>
+					<div className="flex h-screen flex-col">
+						<Header />
+						<main className="flex flex-1 overflow-hidden">
+							<Menu />
+							<Preview />
+						</main>
+					</div>
+				</WallProvider>
 			</PasswordGate>
 		</AuthProvider>
 	);
