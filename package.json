@@ -8,6 +8,7 @@
 	],
 	"scripts": {
 		"dev": "npm run dev --workspace @pixel-wall/frontend",
+		"dev:api": "cd apps/backend && LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 5001 --reload",
 		"build": "npm run build --workspace @pixel-wall/frontend",
 		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"apps/frontend/src/**/*\"",
 		"prettier": "prettier --write --ignore-unknown \"apps/frontend/{src,tests}/**/*\"",

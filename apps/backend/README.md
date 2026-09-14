@@ -59,9 +59,24 @@ sudo usermod -aG ledwall pi
 sudo install -d -o root -g ledwall -m 2775 /var/lib/ledwall
 ```
 
-Log out and back in so `pi` picks up the new group. Optionally drop overrides in
-`/etc/ledwall/backend.env` (see [.env.example](./.env.example)); every setting
-has a working default.
+Log out and back in so `pi` picks up the new group.
+
+Set the API password. The unit requires this file to exist, so a missing or
+unreadable one fails the service loudly rather than quietly starting an open
+API:
+
+```bash
+sudo install -d -m 755 /etc/ledwall
+sudo tee /etc/ledwall/backend.env >/dev/null <<'EOF'
+LEDWALL_PASSWORD=pick-something-long
+EOF
+sudo chmod 600 /etc/ledwall/backend.env
+```
+
+`0600 root:root` is enough: systemd reads the file as root before dropping to
+`pi`, so the password never needs to be readable by the account the API runs
+as. Every other setting in [.env.example](./.env.example) can go in the same
+file; all of them have working defaults.
 
 Install the units:
 
@@ -75,9 +90,12 @@ Verify:
 
 ```bash
 systemctl status ledwall-display ledwall-backend
-curl -s http://localhost:5000/api/health | python3 -m json.tool
+curl -su :pick-something-long http://localhost:5000/api/health | python3 -m json.tool
 mosquitto_sub -h localhost -t ledwall/message -v -C 1   # blocks until a state change
 ```
+
+A `401` from that curl means the password is wrong; check
+`sudo systemctl show ledwall-backend -p EnvironmentFiles`.
 
 `state_file_writable: false` in the health output means `pi` has not picked up
 the `ledwall` group yet — log out and back in, or `sudo systemctl restart
@@ -106,9 +124,59 @@ put — the frontend has to hardcode it somewhere.
 
 ## API contract
 
-Base URL `http://<pi-ip>:5000`. JSON in, JSON out, no auth. CORS is open (`*`)
-so the frontend can be hosted anywhere on the LAN. Interactive docs at `/docs`,
+Base URL `http://<pi-ip>:5000`. JSON in, JSON out, HTTP Basic auth on every
+route (see [Authentication](#authentication)). CORS is open (`*`) so the
+frontend can be hosted anywhere on the LAN. Interactive docs at `/docs`,
 machine-readable schema at `/openapi.json`.
+
+### Authentication
+
+Every route — the API, `/docs`, `/openapi.json` and `/` — is behind a single
+shared password. Open `http://<pi-ip>:5000` in a browser and it prompts; the
+browser then caches it for the rest of the session.
+
+**There is no username.** The transport is HTTP Basic, so the browser's prompt
+still draws a username box — leave it empty. Whatever is typed there is
+ignored. The password must go in the password box; putting it in the username
+box returns a `401` whose body says so.
+
+Set the password in `/etc/ledwall/backend.env`:
+
+```
+LEDWALL_PASSWORD=something-long
+```
+
+Restart with `sudo systemctl restart ledwall-backend` to pick up a change. If
+`LEDWALL_PASSWORD` is unset the middleware is bypassed entirely and the API is
+open to the whole LAN — the service logs a warning at startup and
+`/api/health` reports `auth.enabled: false`.
+
+**Calling it from the frontend.** A browser only shows its own password prompt
+for a navigation, not for a cross-origin `fetch()`. A frontend served from
+anywhere other than the Pi itself must collect the password and send the header
+itself:
+
+```js
+const auth = "Basic " + btoa(`:${password}`); // empty username, colon required
+const res = await fetch(`${apiUrl}/api/state`, {
+	headers: { Authorization: auth },
+});
+if (res.status === 401) {
+	// wrong or missing password — prompt again
+}
+```
+
+Do not pass `credentials: "include"`; these are plain headers, not cookies, and
+that mode is incompatible with the wildcard CORS origin. `Authorization` is
+listed explicitly in `allow_headers` because the Fetch spec excludes it from
+the `*` wildcard — a frontend would otherwise fail preflight.
+
+**What this is and isn't.** Basic auth over plain HTTP sends the password
+base64-encoded, which is encoding, not encryption: anyone who can sniff traffic
+on your LAN can read it. That is an accepted trade for a LAN-only wall with no
+TLS. It stops casual access from other people on the network, and nothing more.
+Don't reuse a password you use elsewhere, and don't port-forward this to the
+internet.
 
 ### The state object
 
@@ -140,7 +208,7 @@ Full replacement. Every field is optional and falls back to its default, so a
 `PUT` is always a complete, known state.
 
 ```bash
-curl -X PUT http://raspberrypi.local:5000/api/state \
+curl -u :your-password -X PUT http://raspberrypi.local:5000/api/state \
   -H 'Content-Type: application/json' \
   -d '{"text":"HELLO BERLIN","color":"#ff0080","brightness":60,"speed_ms":30}'
 ```
@@ -151,7 +219,7 @@ Partial update, merged onto current state. Omitted fields keep their value. Use
 this for a brightness slider that shouldn't touch the message.
 
 ```bash
-curl -X PATCH http://raspberrypi.local:5000/api/state \
+curl -u :your-password -X PATCH http://raspberrypi.local:5000/api/state \
   -H 'Content-Type: application/json' -d '{"brightness":85}'
 ```
 
@@ -200,6 +268,7 @@ hardcoding numbers that might change:
 	"state_file": "/var/lib/ledwall/state.json",
 	"state_file_writable": true,
 	"updated_at": "2026-09-14T10:38:20Z",
+	"auth": { "enabled": true },
 	"mqtt": {
 		"enabled": true,
 		"connected": true,
@@ -217,12 +286,13 @@ the HUB75 panels are fine.
 
 ### Status codes
 
-| Code  | When                                                          |
-| ----- | ------------------------------------------------------------- |
-| `200` | success                                                       |
-| `404` | unknown path                                                  |
-| `422` | body failed type validation (never for out-of-range numbers)  |
-| `500` | state file could not be written — check `state_file_writable` |
+| Code  | When                                                              |
+| ----- | ----------------------------------------------------------------- |
+| `200` | success                                                           |
+| `404` | unknown path                                                      |
+| `422` | body failed type validation (never for out-of-range numbers)      |
+| `401` | missing or wrong credentials; response carries `WWW-Authenticate` |
+| `500` | state file could not be written — check `state_file_writable`     |
 
 `GET /` redirects to `/docs` with a `307`; it is not part of the API.
 
@@ -292,6 +362,7 @@ happens after the state file write and its failure is logged, not raised.
 | `app/models.py`    | request/response models, clamping, colour coercion       |
 | `app/state.py`     | atomic read/write of the shared state file               |
 | `app/mqtt.py`      | fire-and-forget publisher                                |
+| `app/auth.py`      | HTTP Basic middleware                                    |
 | `app/config.py`    | environment configuration and ranges                     |
 | `systemd/`         | both units and the file-permission rationale             |
 | `pi_display.py`    | display driver, run in place as root by the display unit |
@@ -306,3 +377,13 @@ Away from the Pi, point the state file somewhere writable and turn MQTT off:
 LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 \
   .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
 ```
+
+On macOS, port 5000 is taken by the AirPlay Receiver (it shows up as
+`ControlCenter` in `lsof -nP -iTCP:5000`), and uvicorn will fail to bind while
+requests appear to succeed against the wrong server. Use another port locally,
+or turn the receiver off in System Settings → General → AirDrop & Handoff.
+
+Settings can also go in a `.env` file next to this README (or `app/.env`); it
+is loaded at import time and never overrides a real environment variable. Both
+are gitignored. Leaving `LEDWALL_PASSWORD` out of it runs the API without auth,
+which is usually what you want locally.

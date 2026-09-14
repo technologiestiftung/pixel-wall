@@ -82,9 +82,14 @@ class MqttStatus(BaseModel):
     last_error: Optional[str] = None
 
 
+class AuthStatus(BaseModel):
+    enabled: bool
+
+
 class HealthResponse(BaseModel):
     status: str
     state_file: str
     state_file_writable: bool
     updated_at: Optional[str] = None
+    auth: AuthStatus
     mqtt: MqttStatus

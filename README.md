@@ -77,12 +77,23 @@ to a static bundle and hosted; see
 ## Development
 
 ```bash
-npm run dev                                    # frontend on :5173
-
-cd apps/backend                                # backend on :5000
-LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 \
-  .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
+npm run dev        # frontend on :5173
+npm run dev:api    # backend on :5001, no MQTT, state in /tmp
 ```
+
+The backend uses **5001** locally, not the 5000 it uses on the Pi: on macOS the
+AirPlay Receiver holds port 5000 and answers requests without CORS headers,
+which looks exactly like a backend that is down. `apps/frontend/.env` points at
+5001 to match.
+
+To exercise the login screen, set a password in `apps/backend/app/.env`:
+
+```
+LEDWALL_PASSWORD=demo123
+```
+
+With that line empty or absent the backend runs unauthenticated and the
+frontend skips its password gate on purpose.
 
 The backend runs off the Pi for development — point `VITE_API_URL` at it, or at
 the real Pi. The API contract is documented in

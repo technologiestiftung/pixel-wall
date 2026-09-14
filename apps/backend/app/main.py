@@ -5,7 +5,8 @@ from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import config, state as state_store
-from .models import HealthResponse, MqttStatus, StateResponse, WallState, WallStateUpdate
+from .auth import BasicAuthMiddleware
+from .models import AuthStatus, HealthResponse, MqttStatus, StateResponse, WallState, WallStateUpdate
 from .mqtt import publisher
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -14,6 +15,10 @@ logger = logging.getLogger("ledwall.backend")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not config.AUTH_ENABLED:
+        logger.warning(
+            "LEDWALL_PASSWORD is not set: the API is reachable by anyone on the LAN"
+        )
     publisher.start()
     yield
     publisher.stop()
@@ -26,11 +31,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(BasicAuthMiddleware)
+
+# Added after the auth middleware so it wraps it: Starlette runs the
+# last-added middleware outermost, and a 401 still needs CORS headers for the
+# browser to read it. "Authorization" is listed explicitly because the Fetch
+# spec excludes it from the "*" wildcard.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["GET", "PUT", "PATCH", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -55,6 +66,7 @@ def health() -> HealthResponse:
         state_file=str(config.STATE_FILE),
         state_file_writable=state_store.state_file_writable(),
         updated_at=current["updated_at"],
+        auth=AuthStatus(enabled=config.AUTH_ENABLED),
         mqtt=MqttStatus(
             enabled=config.MQTT_ENABLED,
             connected=publisher.connected,
