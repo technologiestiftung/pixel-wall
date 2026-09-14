@@ -9,9 +9,9 @@ Type=simple
 User=pi
 Group=ledwall
 UMask=0002
-WorkingDirectory=/home/pi/ledwall/backend
+WorkingDirectory=/home/pi/ledwall/apps/backend
 EnvironmentFile=-/etc/ledwall/backend.env
-ExecStart=/home/pi/ledwall/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 5000
+ExecStart=/home/pi/ledwall/apps/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 5000
 Restart=always
 RestartSec=3
 

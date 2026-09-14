@@ -17,9 +17,10 @@ message the wall is showing — and hands it to two consumers:
 ```
 
 The two paths are deliberately decoupled. `pi_display.py` re-reads the state
-file every scroll cycle and never talks to the backend, so **the wall keeps
-running when the backend is stopped, crashed, or being upgraded**. A broker
-outage is logged and ignored; the API still returns 200.
+file between scroll cycles and every 200 ms during one, and never talks to the
+backend, so **the wall keeps running when the backend is stopped, crashed, or
+being upgraded**. A broker outage is logged and ignored; the API still
+returns 200.
 
 ## Why FastAPI
 
@@ -34,15 +35,16 @@ websocket endpoint rather than a rewrite. Cost is one extra dependency
 
 ## Install
 
-On the Pi, as `pi`. This assumes the repo is at `/home/pi/ledwall` and the
-existing display script is at `/home/pi/ledwall/pi_display.py`.
+On the Pi, as `pi`. This assumes the repo is cloned to `/home/pi/ledwall`, so
+this directory is `/home/pi/ledwall/apps/backend`. That path is baked into both
+systemd units — change it there if you clone elsewhere.
 
 ```bash
 sudo apt update
 sudo apt install -y python3-venv mosquitto mosquitto-clients
 sudo systemctl enable --now mosquitto
 
-cd /home/pi/ledwall/backend
+cd /home/pi/ledwall/apps/backend
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
@@ -72,9 +74,14 @@ sudo systemctl enable --now ledwall-display ledwall-backend
 Verify:
 
 ```bash
+systemctl status ledwall-display ledwall-backend
 curl -s http://localhost:5000/api/health | python3 -m json.tool
-mosquitto_sub -h localhost -t ledwall/message -v -C 1
+mosquitto_sub -h localhost -t ledwall/message -v -C 1   # blocks until a state change
 ```
+
+`state_file_writable: false` in the health output means `pi` has not picked up
+the `ledwall` group yet — log out and back in, or `sudo systemctl restart
+ledwall-backend` after a reboot.
 
 ## Finding the Pi's IP
 
@@ -105,13 +112,13 @@ machine-readable schema at `/openapi.json`.
 
 ### The state object
 
-| Field        | Type        | Range                    | Meaning                          |
-| ------------ | ----------- | ------------------------ | -------------------------------- |
-| `text`       | string      | 0–256 chars              | message shown on the wall        |
-| `color`      | `[r, g, b]` | each 0–255               | text colour                      |
-| `brightness` | integer     | 5–100                    | panel brightness                 |
-| `speed_ms`   | integer     | 5–500                    | milliseconds per pixel of scroll |
-| `updated_at` | string      | RFC 3339 UTC, read-only  | when the state was last written  |
+| Field        | Type        | Range                   | Meaning                          |
+| ------------ | ----------- | ----------------------- | -------------------------------- |
+| `text`       | string      | 0–256 chars             | message shown on the wall        |
+| `color`      | `[r, g, b]` | each 0–255              | text colour                      |
+| `brightness` | integer     | 5–100                   | panel brightness                 |
+| `speed_ms`   | integer     | 5–500                   | milliseconds per pixel of scroll |
+| `updated_at` | string      | RFC 3339 UTC, read-only | when the state was last written  |
 
 ### `GET /api/state` → `200`
 
@@ -176,7 +183,12 @@ hardcoding numbers that might change:
 	"color": { "min": 0, "max": 255, "length": 3 },
 	"brightness": { "min": 5, "max": 100 },
 	"speed_ms": { "min": 5, "max": 500 },
-	"defaults": { "text": "PIXEL WALL", "color": [255, 255, 255], "brightness": 60, "speed_ms": 30 }
+	"defaults": {
+		"text": "PIXEL WALL",
+		"color": [255, 255, 255],
+		"brightness": 60,
+		"speed_ms": 30
+	}
 }
 ```
 
@@ -205,12 +217,14 @@ the HUB75 panels are fine.
 
 ### Status codes
 
-| Code  | When                                                              |
-| ----- | ----------------------------------------------------------------- |
-| `200` | success                                                           |
-| `404` | unknown path                                                      |
-| `422` | body failed type validation (never for out-of-range numbers)       |
-| `500` | state file could not be written — check `state_file_writable`      |
+| Code  | When                                                          |
+| ----- | ------------------------------------------------------------- |
+| `200` | success                                                       |
+| `404` | unknown path                                                  |
+| `422` | body failed type validation (never for out-of-range numbers)  |
+| `500` | state file could not be written — check `state_file_writable` |
+
+`GET /` redirects to `/docs` with a `307`; it is not part of the API.
 
 MQTT failures never produce an error status. The state file is the source of
 truth; the broker is a fan-out for the ESP32.
@@ -237,15 +251,20 @@ file. Three changes from the original worth knowing about:
 The matrix config is untouched: `rows=64`, `cols=64`, `chain_length=2`,
 `parallel=2`, `adafruit-hat-pwm`, `gpio_slowdown=4`, `drop_privileges=False`.
 
-Install it alongside the backend:
+`ledwall-display.service` runs it straight out of the repo at
+`/home/pi/ledwall/apps/backend/pi_display.py` rather than from a copy at
+`/home/pi/ledwall/pi_display.py`, so a `git pull` followed by
 
 ```bash
-sudo cp pi_display.py /home/pi/ledwall/pi_display.py
-sudo chmod +x /home/pi/ledwall/pi_display.py
+sudo systemctl restart ledwall-display
 ```
 
-It needs `rgbmatrix` importable by the *system* Python (root, outside the
-backend venv) and the BDF font at `FONT_PATH` — both already true on your Pi.
+is the whole update path and there is no second copy to drift. If you prefer
+the old location, copy the file there and edit `ExecStart` in the unit.
+
+It needs `rgbmatrix` importable by the _system_ Python — it runs as root,
+outside the backend venv — and the BDF font at `FONT_PATH`. Both are already
+true on your Pi.
 
 ## MQTT
 
@@ -254,7 +273,12 @@ On every successful state change the backend publishes to `ledwall/message` with
 subscribe:
 
 ```json
-{ "brightness": 60, "color": [255, 0, 128], "speed_ms": 30, "text": "HELLO BERLIN" }
+{
+	"brightness": 60,
+	"color": [255, 0, 128],
+	"speed_ms": 30,
+	"text": "HELLO BERLIN"
+}
 ```
 
 Keys are sorted, so `ArduinoJson` with a fixed document size is safe. Publishing
@@ -262,15 +286,17 @@ happens after the state file write and its failure is logged, not raised.
 
 ## Layout
 
-| Path                | Purpose                                                    |
-| ------------------- | ---------------------------------------------------------- |
-| `app/main.py`       | endpoints                                                  |
-| `app/models.py`     | request/response models, clamping, colour coercion         |
-| `app/state.py`      | atomic read/write of the shared state file                 |
-| `app/mqtt.py`       | fire-and-forget publisher                                  |
-| `app/config.py`     | environment configuration and ranges                       |
-| `systemd/`          | both units and the file-permission rationale               |
-| `pi_display.py`     | display driver, installed to `/home/pi/ledwall/`            |
+| Path               | Purpose                                                  |
+| ------------------ | -------------------------------------------------------- |
+| `app/main.py`      | endpoints                                                |
+| `app/models.py`    | request/response models, clamping, colour coercion       |
+| `app/state.py`     | atomic read/write of the shared state file               |
+| `app/mqtt.py`      | fire-and-forget publisher                                |
+| `app/config.py`    | environment configuration and ranges                     |
+| `systemd/`         | both units and the file-permission rationale             |
+| `pi_display.py`    | display driver, run in place as root by the display unit |
+| `requirements.txt` | pinned runtime dependencies                              |
+| `.env.example`     | every setting, with its default                          |
 
 ## Local development
 

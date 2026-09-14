@@ -5,9 +5,9 @@ After=multi-user.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/pi/ledwall
+WorkingDirectory=/home/pi/ledwall/apps/backend
 Environment=LEDWALL_STATE_FILE=/var/lib/ledwall/state.json
-ExecStart=/usr/bin/python3 /home/pi/ledwall/pi_display.py
+ExecStart=/usr/bin/python3 /home/pi/ledwall/apps/backend/pi_display.py
 Restart=always
 RestartSec=3
 
