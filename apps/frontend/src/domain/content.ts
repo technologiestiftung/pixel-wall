@@ -27,12 +27,16 @@ const DEFAULT_TEXT: TextContent = {
 	fontWeight: "700",
 	direction: "left",
 	speedPxPerSec: 60,
+	hAlign: "center",
+	vAlign: "center",
 };
 
 const DEFAULT_ANIMATION: AnimationContent = {
 	type: "animation",
 	templateId: TEMPLATES[0].id,
 	scalePercent: 100,
+	hAlign: "center",
+	vAlign: "center",
 };
 
 const DEFAULT_COLOR: ColorContent = {

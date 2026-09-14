@@ -2,6 +2,7 @@ import { TEMPLATES } from "../../domain/content";
 import type { AnimationContent } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
 import { TemplateIcon } from "../../render/TemplateIcon";
+import { AlignmentPicker } from "./AlignmentPicker";
 
 interface AnimationPanelProps {
 	content: AnimationContent;
@@ -57,6 +58,13 @@ export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
 					<span className="w-12 shrink-0 text-right text-[13px] text-[#6b6b66]">{content.scalePercent}%</span>
 				</div>
 			</div>
+
+			<AlignmentPicker
+				hAlign={content.hAlign}
+				vAlign={content.vAlign}
+				onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
+				onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
+			/>
 		</div>
 	);
 }

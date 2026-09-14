@@ -18,6 +18,9 @@ export interface LayoutPosition {
 
 export type ContentType = "text" | "animation" | "color";
 
+export type HorizontalAlign = "left" | "center" | "right";
+export type VerticalAlign = "top" | "center" | "bottom";
+
 export interface TextContent {
 	type: "text";
 	mode: "static" | "scrolling";
@@ -27,12 +30,19 @@ export interface TextContent {
 	fontWeight: string;
 	direction?: "left" | "right";
 	speedPxPerSec?: number;
+	/** Where the text sits within the (possibly multi-screen) composite.
+	 * Horizontal alignment only applies to static text — scrolling text's
+	 * horizontal position is driven by the animation itself. */
+	hAlign: HorizontalAlign;
+	vAlign: VerticalAlign;
 }
 
 export interface AnimationContent {
 	type: "animation";
 	templateId: string;
 	scalePercent: number;
+	hAlign: HorizontalAlign;
+	vAlign: VerticalAlign;
 }
 
 export interface ColorContent {

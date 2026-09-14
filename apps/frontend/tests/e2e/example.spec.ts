@@ -64,23 +64,68 @@ test("editing text and saving renders it on the screen, and it persists after de
 	await expect(screen03.locator("img")).toHaveCount(1);
 });
 
+test("composite bitmaps render at their true natural size, not shrunk by the browser's default img sizing (regression)", async ({
+	page,
+}) => {
+	// Tailwind's preflight reset applies `img { max-width: 100%; height:
+	// auto }` globally, which silently shrinks a composite bitmap down to
+	// its single-screen container whenever the composite spans more than
+	// one screen — breaking the negative-offset slicing technique this
+	// whole preview relies on. It stayed hidden because a flat color still
+	// "looks right" even when cropped wrong — this checks the actual root
+	// cause (rendered size vs. natural size) directly, for content that
+	// does vary spatially, so a regression here can't hide the same way.
+	await page.goto("/");
+
+	await page.getByRole("button", { name: /Bildschirm 04/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 05/ }).click({ modifiers: ["Shift"] });
+	await page.getByLabel("Text", { exact: true }).fill("HALLO WELT");
+
+	for (const id of ["04", "05"]) {
+		const img = page.getByRole("button", { name: new RegExp(`Bildschirm ${id}`) }).locator("img");
+		const sizes = await img.evaluate((el: HTMLImageElement) => ({
+			offsetWidth: el.offsetWidth,
+			naturalWidth: el.naturalWidth,
+		}));
+		expect(sizes.naturalWidth).toBeGreaterThan(64); // a genuinely wide composite, not a fluke
+		expect(sizes.offsetWidth).toBe(sizes.naturalWidth);
+	}
+});
+
+test("shift+click adds an adjacent large screen; a plain click on either replaces the selection", async ({ page }) => {
+	await page.goto("/");
+
+	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+
+	await screen04.click();
+	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+
+	await screen07.click({ modifiers: ["Shift"] });
+	await expect(page.getByText("2 Bildschirme ausgewählt")).toBeVisible();
+
+	// A plain click (no shift) on either replaces the whole selection.
+	await screen04.click();
+	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+});
+
 test("a large-screen selection splits a solid color across both screens", async ({ page }) => {
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 02/ }).click();
-	await page.getByRole("button", { name: /Bildschirm 06/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 04/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 07/ }).click({ modifiers: ["Shift"] });
 	await expect(page.getByText("2 Bildschirme ausgewählt")).toBeVisible();
 
 	await page.getByRole("tab", { name: "Farbe" }).click();
 	await page.getByLabel("#FE4441").click();
 
-	const screen02 = page.getByRole("button", { name: /Bildschirm 02/ });
-	const screen06 = page.getByRole("button", { name: /Bildschirm 06/ });
-	await expect(screen02.locator("img")).toHaveCount(1);
-	await expect(screen06.locator("img")).toHaveCount(1);
+	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	await expect(screen04.locator("img")).toHaveCount(1);
+	await expect(screen07.locator("img")).toHaveCount(1);
 
-	const [r1, g1, b1] = await samplePixel(screen02.locator("img"));
-	const [r2, g2, b2] = await samplePixel(screen06.locator("img"));
+	const [r1, g1, b1] = await samplePixel(screen04.locator("img"));
+	const [r2, g2, b2] = await samplePixel(screen07.locator("img"));
 	expect([r1, g1, b1]).toEqual([254, 68, 65]);
 	expect([r2, g2, b2]).toEqual([254, 68, 65]);
 });
@@ -109,15 +154,17 @@ test("saving goes through a real network round-trip, not just local state", asyn
 	expect(state.screens["03"].content.bitmap).toBe(body.content.bitmap);
 });
 
-test("selecting a small and a large screen together is rejected as mixed-kind", async ({ page }) => {
+test("shift+clicking a screen of the other kind is rejected, not merged", async ({ page }) => {
 	await page.goto("/");
 
 	await page.getByRole("button", { name: /Bildschirm 01/ }).click();
 	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
 
-	// 02 is large, 01 is small — this must start a fresh selection, not extend it.
-	await page.getByRole("button", { name: /Bildschirm 02/ }).click();
+	// 04 is large, 01 is small — shift+click can't mix kinds, so this is a
+	// no-op: the small-screen selection is left exactly as it was.
+	await page.getByRole("button", { name: /Bildschirm 04/ }).click({ modifiers: ["Shift"] });
 	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await expect(page.getByRole("button", { name: /Bildschirm 01/ })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("layout edit mode disables selection and shows the drag instructions", async ({ page }) => {

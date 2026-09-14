@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { displayScaleForKind, pitchMmPerPx } from "../../domain/layout";
 import type { LayoutPosition, ScreenSpec } from "../../domain/types";
 import { ContentLayer } from "../../render/ContentLayer";
@@ -12,7 +12,7 @@ interface ScreenTileProps {
 	render: AppliedRender | null;
 	draggable: boolean;
 	dragging: boolean;
-	onToggle: (screenId: string) => void;
+	onToggle: (screenId: string, additive: boolean) => void;
 	onDragStart: (clientXPx: number, clientYPx: number) => void;
 	onDragMove: (clientXPx: number, clientYPx: number) => void;
 	onDragEnd: () => void;
@@ -64,15 +64,26 @@ export function ScreenTile({
 		onDragEnd();
 	}
 
+	function handleClick(e: ReactMouseEvent<HTMLButtonElement>) {
+		if (draggable) {
+			return;
+		}
+		onToggle(spec.id, e.shiftKey);
+	}
+
 	return (
 		<button
 			type="button"
-			onClick={() => !draggable && onToggle(spec.id)}
+			onClick={handleClick}
 			onPointerDown={handlePointerDown}
 			onPointerMove={handlePointerMove}
 			onPointerUp={handlePointerUp}
 			aria-pressed={selected}
-			title={`${spec.physicalSizeMm}×${spec.physicalSizeMm} mm · ${spec.pixelSize}×${spec.pixelSize} px`}
+			title={
+				draggable
+					? undefined
+					: `${spec.physicalSizeMm}×${spec.physicalSizeMm} mm · ${spec.pixelSize}×${spec.pixelSize} px (Shift+Klick für Mehrfachauswahl)`
+			}
 			className={`absolute overflow-hidden rounded-sm border-2 bg-neutral-900 transition-colors ${
 				selected ? "border-blue-500" : "border-transparent"
 			} ${dragCursorClass(draggable, dragging)}`}

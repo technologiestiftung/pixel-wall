@@ -1,5 +1,6 @@
 import type { TextContent } from "../../domain/types";
 import { ChevronDownIcon } from "../../render/TabIcons";
+import { AlignmentPicker } from "./AlignmentPicker";
 
 interface TextPanelProps {
 	content: TextContent;
@@ -93,6 +94,17 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 					</div>
 				</div>
 			</div>
+
+			{content.mode === "static" ? (
+				<AlignmentPicker
+					hAlign={content.hAlign}
+					vAlign={content.vAlign}
+					onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
+					onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
+				/>
+			) : (
+				<AlignmentPicker vAlign={content.vAlign} onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })} />
+			)}
 
 			{content.mode === "scrolling" && (
 				<>

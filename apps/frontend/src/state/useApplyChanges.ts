@@ -1,11 +1,13 @@
 import { applyChanges } from "../api/client";
 import { buildApplyRequest } from "../domain/apply";
+import { draftHasChanges } from "./selectors";
 import { useWallDispatch, useWallState } from "./WallProvider";
 
 export function useApplyChanges() {
-	const { specs, layout, selection, draft, applyStatus, applyError } = useWallState();
+	const state = useWallState();
+	const { specs, layout, selection, draft, applyStatus, applyError } = state;
 	const dispatch = useWallDispatch();
-	const canApply = selection !== null && draft !== null && applyStatus !== "pending";
+	const canApply = applyStatus !== "pending" && draftHasChanges(state);
 
 	async function handleApply() {
 		if (!selection || !draft) {
