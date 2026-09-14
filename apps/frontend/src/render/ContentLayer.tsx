@@ -10,7 +10,13 @@ interface ContentLayerProps {
 	render: AppliedRender;
 }
 
-const PIXELATED: CSSProperties = { imageRendering: "pixelated" };
+// Tailwind's preflight reset applies `img { max-width: 100%; height: auto }`
+// globally, which silently shrinks these bitmaps to fit their (much
+// smaller) single-screen container whenever a composite spans more than
+// one screen — exactly the case this whole mechanism exists for. Explicit
+// width/height + maxWidth: "none" defeats that reset so the negative-offset
+// slicing technique actually gets the true, natural-pixel-sized image.
+const PIXELATED: CSSProperties = { imageRendering: "pixelated", maxWidth: "none" };
 
 /**
  * Renders one screen's slice of a (possibly multi-screen) composite content

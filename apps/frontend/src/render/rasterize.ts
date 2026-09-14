@@ -1,11 +1,36 @@
-import type { Content } from "../domain/types";
+import type { Content, HorizontalAlign, VerticalAlign } from "../domain/types";
 
-/** Same geometry as render/TemplateIcon.tsx, kept in sync with the Figma
- * source — see that file's comment. Each icon's own viewBox size is used
- * to compute its scale (they aren't all drawn on a uniform grid). */
-const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContext2D) => void }> = {
+/** Position of a `size`-long span within a `containerSize`-long axis, for a
+ * given alignment — shared by both the animation icon and static text. */
+function alignOffset(align: "left" | "center" | "right" | "top" | "bottom", containerSize: number, size: number): number {
+	if (align === "left" || align === "top") {
+		return 0;
+	}
+	if (align === "right" || align === "bottom") {
+		return containerSize - size;
+	}
+	return (containerSize - size) / 2;
+}
+
+interface IconBBox {
+	x0: number;
+	y0: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Same path geometry as render/TemplateIcon.tsx, kept in sync with the
+ * Figma source. `bbox` is the glyph's *tight* drawn bounding box, not its
+ * nominal Figma viewBox — several of these (pfeil especially) have
+ * significant uneven padding baked into their original viewBox (e.g.
+ * pfeil's glyph sits at x:[3,25] in a 0–27.8 box), so scaling/centering
+ * against the viewBox left them visibly off-center. Centering against the
+ * tight bbox instead makes the visible glyph itself centered.
+ */
+const ICONS: Record<string, { bbox: IconBBox; draw: (ctx: CanvasRenderingContext2D) => void }> = {
 	pfeil: {
-		viewBox: 27.8,
+		bbox: { x0: 3, y0: 5, width: 22, height: 22 },
 		draw: (ctx) => {
 			ctx.lineWidth = 1.6;
 			ctx.lineCap = "round";
@@ -14,7 +39,7 @@ const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContex
 		},
 	},
 	baer: {
-		viewBox: 22,
+		bbox: { x0: 3.7, y0: 3.2, width: 14.6, height: 16.8 },
 		draw: (ctx) => {
 			ctx.lineWidth = 1.5;
 			ctx.stroke(
@@ -37,7 +62,7 @@ const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContex
 		},
 	},
 	raute: {
-		viewBox: 25.8,
+		bbox: { x0: 3, y0: 3, width: 22, height: 22 },
 		draw: (ctx) => {
 			ctx.lineWidth = 1.6;
 			ctx.lineJoin = "round";
@@ -45,7 +70,7 @@ const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContex
 		},
 	},
 	herz: {
-		viewBox: 25,
+		bbox: { x0: 3, y0: 3, width: 22, height: 22 },
 		draw: (ctx) => {
 			ctx.fill(
 				new Path2D(
@@ -55,7 +80,7 @@ const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContex
 		},
 	},
 	stern: {
-		viewBox: 24.92,
+		bbox: { x0: 2.92, y0: 2.5, width: 22, height: 22 },
 		draw: (ctx) => {
 			ctx.fill(
 				new Path2D(
@@ -65,7 +90,7 @@ const ICONS: Record<string, { viewBox: number; draw: (ctx: CanvasRenderingContex
 		},
 	},
 	sonne: {
-		viewBox: 23.7,
+		bbox: { x0: 1, y0: 1, width: 22, height: 22 },
 		draw: (ctx) => {
 			ctx.lineWidth = 1.5;
 			ctx.beginPath();
@@ -88,9 +113,12 @@ function drawTemplateIcon(
 	box: { x: number; y: number; size: number },
 ) {
 	const icon = ICONS[templateId] ?? ICONS.pfeil;
+	const scale = box.size / Math.max(icon.bbox.width, icon.bbox.height);
 	ctx.save();
-	ctx.translate(box.x, box.y);
-	const scale = box.size / icon.viewBox;
+	// Shift so the glyph's own tight bbox (not the raw path's 0,0 origin)
+	// lands exactly at box.x/box.y — this is what makes centering land on
+	// the visible glyph instead of the uneven padding in its source viewBox.
+	ctx.translate(box.x - icon.bbox.x0 * scale, box.y - icon.bbox.y0 * scale);
 	ctx.scale(scale, scale);
 	ctx.fillStyle = "#ffffff";
 	ctx.strokeStyle = "#ffffff";
@@ -121,10 +149,16 @@ export function rasterizeContent(content: Content, widthPx: number, heightPx: nu
 	}
 
 	if (content.type === "animation") {
-		const size = Math.min(canvas.width, canvas.height) * (content.scalePercent / 100);
+		// "Cover" sizing: scale uniformly by the *larger* composite dimension
+		// so a multi-screen composite gets filled/spanned rather than fitting
+		// a single-screen-sized icon into whichever axis is narrower (which
+		// left it stranded at the seam between screens — see CONTEXT.md
+		// "Content"). Matches the already-established "scaling beyond the
+		// canvas crops" behavior for the smaller axis.
+		const size = Math.max(canvas.width, canvas.height) * (content.scalePercent / 100);
 		drawTemplateIcon(ctx, content.templateId, {
-			x: (canvas.width - size) / 2,
-			y: (canvas.height - size) / 2,
+			x: alignOffset(content.hAlign, canvas.width, size),
+			y: alignOffset(content.vAlign, canvas.height, size),
 			size,
 		});
 		return canvas.toDataURL("image/png");
@@ -132,13 +166,49 @@ export function rasterizeContent(content: Content, widthPx: number, heightPx: nu
 
 	ctx.fillStyle = "#ffffff";
 	ctx.font = `${content.fontWeight} ${content.fontSizePx}px ${content.fontFamily}`;
-	ctx.textBaseline = "middle";
+
 	if (content.mode === "static") {
-		ctx.textAlign = "center";
-		ctx.fillText(content.value, canvas.width / 2, canvas.height / 2);
+		drawStaticText(ctx, {
+			value: content.value,
+			widthPx: canvas.width,
+			heightPx: canvas.height,
+			fontSizePx: content.fontSizePx,
+			hAlign: content.hAlign,
+			vAlign: content.vAlign,
+		});
 	} else {
 		ctx.textAlign = "left";
-		ctx.fillText(content.value, 0, canvas.height / 2);
+		ctx.textBaseline = "middle";
+		const y = alignOffset(content.vAlign, canvas.height, content.fontSizePx) + content.fontSizePx / 2;
+		ctx.fillText(content.value, 0, y);
 	}
 	return canvas.toDataURL("image/png");
+}
+
+/** Static text supports multiple lines (the editor's textarea allows them);
+ * the whole text block is positioned as a unit per hAlign/vAlign. */
+function drawStaticText(
+	ctx: CanvasRenderingContext2D,
+	options: {
+		value: string;
+		widthPx: number;
+		heightPx: number;
+		fontSizePx: number;
+		hAlign: HorizontalAlign;
+		vAlign: VerticalAlign;
+	},
+) {
+	const { value, widthPx, heightPx, fontSizePx, hAlign, vAlign } = options;
+	const lines = value.split("\n");
+	const lineHeight = fontSizePx * 1.2;
+	const blockHeight = lines.length * lineHeight;
+	const blockTop = alignOffset(vAlign, heightPx, blockHeight);
+
+	ctx.textAlign = hAlign;
+	ctx.textBaseline = "middle";
+	const x = alignOffset(hAlign, widthPx, 0);
+
+	lines.forEach((line, i) => {
+		ctx.fillText(line, x, blockTop + i * lineHeight + lineHeight / 2);
+	});
 }

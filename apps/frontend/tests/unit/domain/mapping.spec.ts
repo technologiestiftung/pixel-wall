@@ -12,18 +12,18 @@ describe("validateSelection", () => {
 	});
 
 	test("mixing small and large screens is invalid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "02"])).toEqual({
+		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "04"])).toEqual({
 			valid: false,
 			reason: "mixed-kind",
 		});
 	});
 
 	test("multiple small screens are always valid (never combined)", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "03", "07"])).toEqual({ valid: true });
+		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "02", "03"])).toEqual({ valid: true });
 	});
 
-	test("adjacent large screens (02 + 06 in the default layout) are valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["02", "06"])).toEqual({ valid: true });
+	test("adjacent large screens (04 + 07 in the default layout) are valid", () => {
+		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04", "07"])).toEqual({ valid: true });
 	});
 
 	test("non-contiguous large screens are invalid", () => {
@@ -103,10 +103,10 @@ describe("computeDisplayComposite", () => {
 	test("uses the real default-layout geometry end to end", () => {
 		const composite = computeDisplayComposite(
 			{ specs: SCREEN_SPECS, positions: DEFAULT_LAYOUT },
-			{ kind: "large", screenIds: ["02", "06"] },
+			{ kind: "large", screenIds: ["04", "07"] },
 			MM_TO_PX,
 		);
-		expect(composite.slots.map((s) => s.screenId)).toEqual(["02", "06"]);
+		expect(composite.slots.map((s) => s.screenId)).toEqual(["04", "07"]);
 		expect(composite.heightPx).toBeGreaterThan(192 * MM_TO_PX);
 	});
 });

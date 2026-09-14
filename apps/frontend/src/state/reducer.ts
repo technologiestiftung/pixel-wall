@@ -52,7 +52,7 @@ export const initialWallState: WallState = {
 };
 
 export type WallAction =
-	| { type: "toggle-screen"; screenId: string }
+	| { type: "toggle-screen"; screenId: string; additive: boolean }
 	| { type: "clear-selection" }
 	| { type: "set-active-tab"; tab: ContentType }
 	| { type: "set-draft-content"; content: Content }
@@ -130,11 +130,18 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		}
 
 		case "toggle-screen": {
-			const { screenId } = action;
-			const current = state.selection?.screenIds ?? [];
+			const { screenId, additive } = action;
 			const { kind } = specById(state.specs, screenId);
 
-			// Clicking an already-selected screen removes it from the selection.
+			// Plain click always selects just this screen, deselecting any
+			// others — shift+click is required to build a multi-selection.
+			if (!additive) {
+				return { ...state, selection: { kind, screenIds: [screenId] }, draft: null };
+			}
+
+			const current = state.selection?.screenIds ?? [];
+
+			// Shift+clicking an already-selected screen removes it.
 			if (current.includes(screenId)) {
 				const remaining = current.filter((id) => id !== screenId);
 				return {
@@ -151,8 +158,9 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			}
 
 			// Adding this screen to the current selection isn't valid (different
-			// kind, or breaks contiguity) — start a fresh selection with just it.
-			return { ...state, selection: { kind, screenIds: [screenId] }, draft: null };
+			// kind, or breaks contiguity) — ignore the shift+click rather than
+			// silently replacing what the user was deliberately building up.
+			return state;
 		}
 
 		case "toggle-layout-edit-mode":

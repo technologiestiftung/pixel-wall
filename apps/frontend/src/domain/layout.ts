@@ -22,29 +22,35 @@ export function displayScaleForKind(kind: ScreenKind, mmToPx: number): number {
 	return mmToPx * PITCH_MM_PER_PX[kind];
 }
 
+/** Small screens are numbered 01–03, large screens 04–07 (not interleaved —
+ * the two kinds are visually/behaviorally distinct enough that grouping the
+ * numbering by kind reads more clearly than the arbitrary Figma badge order
+ * this originally matched). */
 export const SCREEN_SPECS: ScreenSpec[] = [
 	{ id: "01", kind: "small", pixelSize: 32, physicalSizeMm: 128 },
-	{ id: "02", kind: "large", pixelSize: 64, physicalSizeMm: 192 },
+	{ id: "02", kind: "small", pixelSize: 32, physicalSizeMm: 128 },
 	{ id: "03", kind: "small", pixelSize: 32, physicalSizeMm: 128 },
 	{ id: "04", kind: "large", pixelSize: 64, physicalSizeMm: 192 },
 	{ id: "05", kind: "large", pixelSize: 64, physicalSizeMm: 192 },
 	{ id: "06", kind: "large", pixelSize: 64, physicalSizeMm: 192 },
-	{ id: "07", kind: "small", pixelSize: 32, physicalSizeMm: 128 },
+	{ id: "07", kind: "large", pixelSize: 64, physicalSizeMm: 192 },
 ];
 
 /**
  * Default wall arrangement, derived from the Figma "State — Text" stage
  * (node 10:134), converting its px coordinates to millimeters using the
  * design's own px-per-mm scale (176px / 128mm = 264px / 192mm = 1.375).
+ * Each screen keeps its original physical position — only the id numbering
+ * changed (small 01–03, large 04–07) from the Figma source's badge order.
  */
 export const DEFAULT_LAYOUT: LayoutPosition[] = [
 	{ screenId: "01", xMm: 508, yMm: 3 },
-	{ screenId: "02", xMm: 269, yMm: 91 },
-	{ screenId: "03", xMm: 7, yMm: 91 },
-	{ screenId: "04", xMm: 482, yMm: 140 },
-	{ screenId: "05", xMm: 57, yMm: 246 },
-	{ screenId: "06", xMm: 269, yMm: 308 },
-	{ screenId: "07", xMm: 482, yMm: 399 },
+	{ screenId: "02", xMm: 7, yMm: 91 },
+	{ screenId: "03", xMm: 482, yMm: 399 },
+	{ screenId: "04", xMm: 269, yMm: 91 },
+	{ screenId: "05", xMm: 482, yMm: 140 },
+	{ screenId: "06", xMm: 57, yMm: 246 },
+	{ screenId: "07", xMm: 269, yMm: 308 },
 ];
 
 export function specById(specs: ScreenSpec[], id: string): ScreenSpec {

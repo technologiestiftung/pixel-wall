@@ -43,6 +43,8 @@ describe("buildApplyRequest", () => {
 				fontWeight: "700",
 				direction: "left",
 				speedPxPerSec: 40,
+				hAlign: "center",
+				vAlign: "center",
 			},
 		);
 
@@ -60,6 +62,8 @@ describe("buildApplyRequest", () => {
 				fontSizePx: 16,
 				fontFamily: "monospace",
 				fontWeight: "700",
+				hAlign: "center",
+				vAlign: "center",
 			},
 		);
 

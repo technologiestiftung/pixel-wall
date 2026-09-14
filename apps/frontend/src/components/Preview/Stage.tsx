@@ -95,7 +95,7 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 						render={resolveScreenRender(state, spec.id)}
 						draggable={layoutEditMode}
 						dragging={isDragging}
-						onToggle={(screenId) => dispatch({ type: "toggle-screen", screenId })}
+						onToggle={(screenId, additive) => dispatch({ type: "toggle-screen", screenId, additive })}
 						onDragStart={(clientXPx, clientYPx) => handleDragStart(spec.id, clientXPx, clientYPx)}
 						onDragMove={handleDragMove}
 						onDragEnd={handleDragEnd}

@@ -2,7 +2,7 @@
 
 ## Screen (Bildschirm)
 
-One of the 7 physical LED panels mounted on the wall. Two distinct hardware kinds, both fixed in count and pixel resolution but user-repositionable in the layout (see **Layout**):
+7 physical LED panels mounted on the wall. Two distinct hardware kinds, both fixed in count and pixel resolution but user-repositionable in the layout (see **Layout**):
 
 - **Small screen** (`kleiner Bildschirm`): 32×32px, 128×128mm. Driven individually by its own ESP32 + bonnet. Always shows its own independent content — never combined with another screen to form a shared canvas, even when selected together with others.
 - **Large screen** (`großer Bildschirm`): 64×64px, 192×192mm. Driven via HUB75. Cabled with enough slack to be repositioned somewhat freely relative to other screens. Two large screens that are adjacent and selected together combine into one continuous canvas (see **Selection**).
