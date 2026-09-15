@@ -50,10 +50,10 @@ export const DEFAULT_LAYOUT: LayoutPosition[] = [
 	{ screenId: "01", xMm: 508, yMm: 3 },
 	{ screenId: "02", xMm: 7, yMm: 91 },
 	{ screenId: "03", xMm: 482, yMm: 399 },
-	{ screenId: "04", xMm: 269, yMm: 91 },
-	{ screenId: "05", xMm: 482, yMm: 140 },
+	{ screenId: "04", xMm: 255, yMm: 91 },
+	{ screenId: "05", xMm: 453, yMm: 140 },
 	{ screenId: "06", xMm: 57, yMm: 246 },
-	{ screenId: "07", xMm: 269, yMm: 308 },
+	{ screenId: "07", xMm: 255, yMm: 290 },
 ];
 
 export function specById(specs: ScreenSpec[], id: string): ScreenSpec {
