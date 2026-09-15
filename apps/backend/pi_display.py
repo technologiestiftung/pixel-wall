@@ -96,12 +96,12 @@ def build_matrix(brightness):
     # Panel geometry. All four panels are 64x64 at 1/32 scan.
     options.rows = 64
     options.cols = 64
-    options.chain_length = 2        # two panels per chain
-    options.parallel = 2            # two chains in use
+    options.chain_length = 4
+    options.parallel = 1
 
     # Bonnet-specific. Use "adafruit-hat-pwm" only if the GPIO4-GPIO18
     # solder bridge is made; otherwise fall back to "adafruit-hat".
-    options.hardware_mapping = "adafruit-hat-pwm"
+    options.hardware_mapping = "regular"
 
     # Quality and stability.
     options.brightness = brightness
@@ -151,7 +151,9 @@ def main():
 
         while pos + text_width > 0:
             canvas.Clear()
-            graphics.DrawText(canvas, font, pos, canvas.height // 2, colour, text)
+            row = canvas.height // 2
+            graphics.DrawText(canvas, font, pos, row // 2 + 10, colour, text)
+            graphics.DrawText(canvas, font, pos, row + row // 2 + 10, colour, text)
             canvas = matrix.SwapOnVSync(canvas)
             pos -= 1
             time.sleep(state["speed_ms"] / 1000)
