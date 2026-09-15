@@ -97,7 +97,7 @@ export function ScreenTile({
 		>
 			{render && (
 				<div
-					className="absolute left-0 top-0"
+					className="pointer-events-none absolute left-0 top-0"
 					style={{ width: spec.pixelSize, height: spec.pixelSize, transform: `scale(${scale})`, transformOrigin: "top left" }}
 				>
 					<ContentLayer render={render} />

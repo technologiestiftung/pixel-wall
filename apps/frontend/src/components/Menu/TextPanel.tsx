@@ -142,9 +142,9 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 								max={500}
 								value={content.speedPxPerSec}
 								onChange={(e) => onChange({ ...content, speedPxPerSec: Number(e.target.value) })}
-								className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+								className="w-full min-w-16 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
 							/>
-							<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">px/s</span>
+							<span className="shrink-0 border-l border-[#edede9] px-1 py-2.5 text-[12.5px] text-[#767671]">px/s</span>
 						</div>
 					</div>
 				</>

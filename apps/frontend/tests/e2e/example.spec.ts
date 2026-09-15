@@ -215,6 +215,35 @@ test("dragging a screen moves it and persists the new layout to the backend", as
 	expect(persistedNow).toEqual(persisted);
 });
 
+test("dragging a screen that has saved content moves the tile itself, not just its bitmap (regression)", async ({ page }) => {
+	// The content-layer bitmap sits visually on top of the draggable tile
+	// button. Without `pointer-events: none` on it, a mousedown there is
+	// captured by the (natively draggable) <img> instead of reaching the
+	// button's pointer handlers — so the user ends up dragging a ghost image
+	// instead of moving the screen.
+	await page.goto("/");
+
+	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	await screen07.click();
+	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByLabel("#FE4441").click();
+	await page.getByRole("button", { name: "Speichern" }).click();
+	await expect(screen07.locator("img")).toHaveCount(1);
+
+	await page.getByRole("button", { name: "Layout bearbeiten" }).click();
+	const before = (await screen07.boundingBox())!;
+
+	// Press down on the bitmap image itself, not just the empty tile chrome.
+	await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(before.x + before.width / 2 - 80, before.y + before.height / 2 - 80, { steps: 10 });
+	await page.mouse.up();
+
+	const after = (await screen07.boundingBox())!;
+	expect(after.x).toBeLessThan(before.x);
+	expect(after.y).toBeLessThan(before.y);
+});
+
 test("dragging a screen onto another screen's position is prevented (no overlap)", async ({ page }) => {
 	await page.goto("/");
 	await page.getByRole("button", { name: "Layout bearbeiten" }).click();
@@ -254,4 +283,50 @@ test("the preview never needs to scroll, even in a fairly small window", async (
 	for (const id of ["01", "02", "03", "04", "05", "06", "07"]) {
 		await expect(page.getByRole("button", { name: new RegExp(`Bildschirm ${id}`) })).toBeVisible();
 	}
+});
+
+test("switching tabs with an unsaved draft asks whether to save or discard it", async ({ page }) => {
+	// The draft is a single value shared across all three tabs (see
+	// state/reducer.ts "set-draft-content"): editing another tab's fields
+	// overwrites it outright, so leaving a tab with unsaved changes needs
+	// confirmation or the edit is silently lost.
+	await page.goto("/");
+
+	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
+	await page.getByLabel("Text", { exact: true }).fill("HALLO");
+
+	await page.getByRole("tab", { name: "Farbe" }).click();
+	const dialog = page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" });
+	await expect(dialog).toBeVisible();
+	// Switching didn't happen yet — still on the Text tab underneath the dialog.
+	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("HALLO");
+
+	// "Abbrechen" just closes the dialog, keeping the draft and the tab.
+	await dialog.getByRole("button", { name: "Abbrechen" }).click();
+	await expect(dialog).not.toBeVisible();
+	await expect(page.getByRole("tab", { name: "Text", exact: true })).toHaveAttribute("aria-selected", "true");
+
+	// "Verwerfen" drops the draft and completes the switch.
+	await page.getByRole("tab", { name: "Farbe" }).click();
+	await dialog.getByRole("button", { name: "Verwerfen" }).click();
+	await expect(dialog).not.toBeVisible();
+	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute("aria-selected", "true");
+});
+
+test("switching tabs can save the draft first, then completes the switch", async ({ page }) => {
+	await page.goto("/");
+
+	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
+	await page.getByLabel("Text", { exact: true }).fill("HALLO");
+
+	await page.getByRole("tab", { name: "Farbe" }).click();
+	const dialog = page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" });
+	await expect(dialog).toBeVisible();
+
+	const applyRequestPromise = page.waitForRequest((req) => req.url().includes("/api/apply") && req.method() === "POST");
+	await dialog.getByRole("button", { name: "Speichern" }).click();
+	await applyRequestPromise;
+
+	await expect(dialog).not.toBeVisible();
+	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute("aria-selected", "true");
 });

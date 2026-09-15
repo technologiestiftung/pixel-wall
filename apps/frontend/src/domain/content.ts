@@ -26,7 +26,7 @@ const DEFAULT_TEXT: TextContent = {
 	fontFamily: "Pixel Grotesk, ui-monospace, monospace",
 	fontWeight: "700",
 	direction: "left",
-	speedPxPerSec: 60,
+	speedPxPerSec: 40,
 	hAlign: "center",
 	vAlign: "center",
 };

@@ -9,17 +9,21 @@ export function useApplyChanges() {
 	const dispatch = useWallDispatch();
 	const canApply = applyStatus !== "pending" && draftHasChanges(state);
 
-	async function handleApply() {
+	/** Returns whether the save actually succeeded, so callers that need to
+	 * sequence further action afterwards (e.g. switching tabs) can wait for it. */
+	async function handleApply(): Promise<boolean> {
 		if (!selection || !draft) {
-			return;
+			return false;
 		}
 		dispatch({ type: "apply-pending" });
 		try {
 			const request = buildApplyRequest({ specs, positions: layout }, selection, draft);
 			await applyChanges(request);
 			dispatch({ type: "apply-success", selection, content: draft, specs, layout });
+			return true;
 		} catch {
 			dispatch({ type: "apply-error", message: "Änderungen konnten nicht übertragen werden." });
+			return false;
 		}
 	}
 
