@@ -50,11 +50,14 @@ This is an npm workspaces monorepo:
 | ---------------------------------- | ----------------------------------------------------------------------------------------- |
 | [`apps/backend`](./apps/backend)   | Python/FastAPI service on the Raspberry Pi: state API, MQTT fan-out, HUB75 display driver |
 | [`apps/frontend`](./apps/frontend) | Vite + React web interface, built as a static bundle and hosted separately                |
+| [`apps/esp32`](./apps/esp32)       | Arduino sketch for the ESP32 driving 3x 32x32 panels over MQTT                            |
 
 ## Prerequisites
 
 - Node.js as pinned in [.nvmrc](./.nvmrc) for the frontend
 - Python 3.11+ for the backend, on a Raspberry Pi 4 with the HUB75 panels wired up
+- Arduino IDE for the ESP32, if you are flashing that half — see
+  [apps/esp32/README.md](./apps/esp32/README.md)
 
 ## Installation
 
