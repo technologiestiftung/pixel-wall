@@ -333,8 +333,10 @@ is the whole update path and there is no second copy to drift. If you prefer
 the old location, copy the file there and edit `ExecStart` in the unit.
 
 It needs `rgbmatrix` importable by the _system_ Python — it runs as root,
-outside the backend venv — and the BDF font at `FONT_PATH`. Both are already
-true on your Pi.
+outside the backend venv — and a BDF font. The font defaults to
+`/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf`; set `LEDWALL_FONT` in the
+display unit if your `rpi-rgb-led-matrix` checkout lives elsewhere, which it
+does whenever the Pi's login user is not `pi`.
 
 ## MQTT
 

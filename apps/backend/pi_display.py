@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+
 Drives the four 64x64 P3 panels from a Raspberry Pi 4 with an Adafruit-style
 triple HUB75 bonnet.
 
@@ -34,7 +35,9 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 
 STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.json"))
 
-FONT_PATH = "/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf"
+FONT_PATH = os.environ.get(
+    "LEDWALL_FONT", "/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf"
+)
 MAX_BRIGHTNESS = 100         # hard ceiling on current draw
 POLL_INTERVAL = 0.2          # seconds between state re-reads mid-scroll
 IDLE_SLEEP = 0.5             # seconds to wait when there is nothing to show
