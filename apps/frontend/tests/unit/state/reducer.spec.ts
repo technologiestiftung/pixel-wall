@@ -106,3 +106,17 @@ describe("wallReducer: toggle-screen", () => {
 		expect(afterShiftClick.draft).toBeNull();
 	});
 });
+
+describe("wallReducer: discard-draft", () => {
+	test("clears the draft without touching the selection", () => {
+		const withFour = wallReducer(initialWallState, { type: "toggle-screen", screenId: "04", additive: false });
+		const withDraft = wallReducer(withFour, {
+			type: "set-draft-content",
+			content: { type: "color", hex: "#FE4441" },
+		});
+
+		const next = wallReducer(withDraft, { type: "discard-draft" });
+		expect(next.draft).toBeNull();
+		expect(next.selection).toEqual({ kind: "large", screenIds: ["04"] });
+	});
+});

@@ -56,6 +56,7 @@ export type WallAction =
 	| { type: "clear-selection" }
 	| { type: "set-active-tab"; tab: ContentType }
 	| { type: "set-draft-content"; content: Content }
+	| { type: "discard-draft" }
 	| { type: "apply-pending" }
 	| {
 			type: "apply-success";
@@ -82,6 +83,9 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 
 		case "set-draft-content":
 			return { ...state, draft: action.content };
+
+		case "discard-draft":
+			return { ...state, draft: null };
 
 		case "apply-pending":
 			return { ...state, applyStatus: "pending", applyError: null };

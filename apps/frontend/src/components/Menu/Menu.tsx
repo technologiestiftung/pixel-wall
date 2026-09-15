@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { defaultContentFor } from "../../domain/content";
 import type { AnimationContent, ColorContent, ContentType, TextContent } from "../../domain/types";
+import { draftHasChanges } from "../../state/selectors";
+import { useApplyChanges } from "../../state/useApplyChanges";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
 import { FarbePanel } from "./FarbePanel";
@@ -7,15 +10,56 @@ import { SaveButton } from "./SaveButton";
 import { SelectionStatus } from "./SelectionStatus";
 import { TabBar } from "./TabBar";
 import { TextPanel } from "./TextPanel";
+import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 export function Menu() {
-	const { selection, activeTab, draft, layoutEditMode } = useWallState();
+	const state = useWallState();
+	const { selection, activeTab, draft, layoutEditMode } = state;
 	const dispatch = useWallDispatch();
+	const { handleApply } = useApplyChanges();
+	const [pendingTab, setPendingTab] = useState<ContentType | null>(null);
 
 	const current = draft && draft.type === activeTab ? draft : defaultContentFor(activeTab);
 
+	// The draft is a single value shared across tabs (see domain/apply.ts):
+	// editing another tab's fields overwrites whatever was drafted for the
+	// current one. So switching away while the current tab has an unsaved
+	// draft needs confirmation, or the change is silently lost.
+	const currentTabHasUnsavedDraft = draft !== null && draft.type === activeTab && draftHasChanges(state);
+
 	function handleTabChange(tab: ContentType) {
+		if (tab === activeTab) {
+			return;
+		}
+		if (currentTabHasUnsavedDraft) {
+			setPendingTab(tab);
+			return;
+		}
 		dispatch({ type: "set-active-tab", tab });
+	}
+
+	function handleCancelTabChange() {
+		setPendingTab(null);
+	}
+
+	function handleDiscardAndSwitchTab() {
+		if (pendingTab === null) {
+			return;
+		}
+		dispatch({ type: "discard-draft" });
+		dispatch({ type: "set-active-tab", tab: pendingTab });
+		setPendingTab(null);
+	}
+
+	async function handleSaveAndSwitchTab() {
+		if (pendingTab === null) {
+			return;
+		}
+		const saved = await handleApply();
+		if (saved) {
+			dispatch({ type: "set-active-tab", tab: pendingTab });
+			setPendingTab(null);
+		}
 	}
 
 	function handleContentChange(content: TextContent | AnimationContent | ColorContent) {
@@ -56,6 +100,14 @@ export function Menu() {
 			)}
 
 			<SaveButton />
+
+			{pendingTab !== null && (
+				<UnsavedChangesDialog
+					onSave={handleSaveAndSwitchTab}
+					onDiscard={handleDiscardAndSwitchTab}
+					onCancel={handleCancelTabChange}
+				/>
+			)}
 		</aside>
 	);
 }
