@@ -18,14 +18,28 @@ export function useWallSync(dispatch: Dispatch<WallAction>) {
 
 		async function sync() {
 			try {
-				const [screens, layout, state] = await Promise.all([getScreens(), getLayout(), getState()]);
+				const [screens, layout, state] = await Promise.all([
+					getScreens(),
+					getLayout(),
+					getState(),
+				]);
 				if (cancelled) {
 					return;
 				}
-				dispatch({ type: "hydrated", specs: screens.screens, layout: layout.positions, remote: state.screens });
+				dispatch({
+					type: "hydrated",
+					specs: screens.screens,
+					layout: layout.positions,
+					remote: state.screens,
+				});
 			} catch {
 				if (!cancelled) {
-					dispatch({ type: "hydrated", specs: SCREEN_SPECS, layout: DEFAULT_LAYOUT, remote: {} });
+					dispatch({
+						type: "hydrated",
+						specs: SCREEN_SPECS,
+						layout: DEFAULT_LAYOUT,
+						remote: {},
+					});
 				}
 			}
 		}

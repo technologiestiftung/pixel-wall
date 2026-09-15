@@ -1,4 +1,7 @@
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+	MouseEvent as ReactMouseEvent,
+	PointerEvent as ReactPointerEvent,
+} from "react";
 import { displayScaleForKind, pitchMmPerPx } from "../../domain/layout";
 import type { LayoutPosition, ScreenSpec } from "../../domain/types";
 import { ContentLayer } from "../../render/ContentLayer";
@@ -98,7 +101,12 @@ export function ScreenTile({
 			{render && (
 				<div
 					className="pointer-events-none absolute left-0 top-0"
-					style={{ width: spec.pixelSize, height: spec.pixelSize, transform: `scale(${scale})`, transformOrigin: "top left" }}
+					style={{
+						width: spec.pixelSize,
+						height: spec.pixelSize,
+						transform: `scale(${scale})`,
+						transformOrigin: "top left",
+					}}
 				>
 					<ContentLayer render={render} />
 				</div>

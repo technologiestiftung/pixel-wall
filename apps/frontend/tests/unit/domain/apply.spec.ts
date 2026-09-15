@@ -3,8 +3,18 @@ import { describe, expect, test } from "vitest";
 import { buildApplyRequest } from "../../../src/domain/apply";
 import type { LayoutPosition, ScreenSpec } from "../../../src/domain/types";
 
-const largeA: ScreenSpec = { id: "a", kind: "large", pixelSize: 64, physicalSizeMm: 192 };
-const largeB: ScreenSpec = { id: "b", kind: "large", pixelSize: 64, physicalSizeMm: 192 };
+const largeA: ScreenSpec = {
+	id: "a",
+	kind: "large",
+	pixelSize: 64,
+	physicalSizeMm: 192,
+};
+const largeB: ScreenSpec = {
+	id: "b",
+	kind: "large",
+	pixelSize: 64,
+	physicalSizeMm: 192,
+};
 const positions: LayoutPosition[] = [
 	{ screenId: "a", xMm: 0, yMm: 0 },
 	{ screenId: "b", xMm: 201, yMm: 0 }, // 9mm real gap → 3 device px at 3mm pitch
@@ -20,8 +30,14 @@ describe("buildApplyRequest", () => {
 
 		expect(request.selectionKind).toBe("large");
 		expect(request.screens).toEqual([
-			{ screenId: "a", geometry: { offsetXPx: 0, offsetYPx: 0, widthPx: 64, heightPx: 64 } },
-			{ screenId: "b", geometry: { offsetXPx: 67, offsetYPx: 0, widthPx: 64, heightPx: 64 } },
+			{
+				screenId: "a",
+				geometry: { offsetXPx: 0, offsetYPx: 0, widthPx: 64, heightPx: 64 },
+			},
+			{
+				screenId: "b",
+				geometry: { offsetXPx: 67, offsetYPx: 0, widthPx: 64, heightPx: 64 },
+			},
 		]);
 		// Actual PNG rendering is only meaningful in a real browser canvas
 		// (jsdom has no canvas backend) — geometry and contract shape is what
@@ -48,7 +64,11 @@ describe("buildApplyRequest", () => {
 			},
 		);
 
-		expect(request.content.scroll).toEqual({ direction: "left", speedPxPerSec: 40, pauseMs: 2000 });
+		expect(request.content.scroll).toEqual({
+			direction: "left",
+			speedPxPerSec: 40,
+			pauseMs: 2000,
+		});
 	});
 
 	test("static content has no scroll metadata", () => {

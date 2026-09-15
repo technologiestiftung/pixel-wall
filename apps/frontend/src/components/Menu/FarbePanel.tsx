@@ -27,9 +27,15 @@ export function FarbePanel({ content, onChange }: FarbePanelProps) {
 								className={`relative block size-[58px] rounded-[12px] ${selected ? "border-2 border-[#20201b]" : ""}`}
 								style={{ backgroundColor: hex }}
 							>
-								{selected && <SelectedBadge className="absolute -right-2 -top-2.5 h-[18px] w-[18px]" />}
+								{selected && (
+									<SelectedBadge className="absolute -right-2 -top-2.5 h-[18px] w-[18px]" />
+								)}
 							</span>
-							<span className={`font-mono text-[10.5px] ${selected ? "text-[#20201b]" : "text-[#767671]"}`}>{hex}</span>
+							<span
+								className={`font-mono text-[10.5px] ${selected ? "text-[#20201b]" : "text-[#767671]"}`}
+							>
+								{hex}
+							</span>
 						</button>
 					);
 				})}

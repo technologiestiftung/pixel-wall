@@ -1,4 +1,10 @@
-import type { AnimationContent, ColorContent, Content, ContentType, TextContent } from "./types";
+import type {
+	AnimationContent,
+	ColorContent,
+	Content,
+	ContentType,
+	TextContent,
+} from "./types";
 
 export interface Template {
 	id: string;

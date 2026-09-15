@@ -13,11 +13,18 @@ function stateWith(overrides: Partial<WallState>): WallState {
 describe("draftHasChanges", () => {
 	test("false with no selection or no draft", () => {
 		expect(draftHasChanges(stateWith({}))).toBe(false);
-		expect(draftHasChanges(stateWith({ selection: { kind: "large", screenIds: ["04"] } }))).toBe(false);
+		expect(
+			draftHasChanges(
+				stateWith({ selection: { kind: "large", screenIds: ["04"] } }),
+			),
+		).toBe(false);
 	});
 
 	test("true for a freshly-selected screen with no applied baseline yet", () => {
-		const state = stateWith({ selection: { kind: "large", screenIds: ["04"] }, draft: colorA });
+		const state = stateWith({
+			selection: { kind: "large", screenIds: ["04"] },
+			draft: colorA,
+		});
 		expect(draftHasChanges(state)).toBe(true);
 	});
 
@@ -26,7 +33,14 @@ describe("draftHasChanges", () => {
 			selection: { kind: "large", screenIds: ["04"] },
 			draft: colorA,
 			applied: {
-				"04": { source: "local", content: colorA, compositeWidthPx: 64, compositeHeightPx: 64, offsetXPx: 0, offsetYPx: 0 },
+				"04": {
+					source: "local",
+					content: colorA,
+					compositeWidthPx: 64,
+					compositeHeightPx: 64,
+					offsetXPx: 0,
+					offsetYPx: 0,
+				},
 			},
 		});
 		expect(draftHasChanges(state)).toBe(false);
@@ -37,7 +51,14 @@ describe("draftHasChanges", () => {
 			selection: { kind: "large", screenIds: ["04"] },
 			draft: colorB,
 			applied: {
-				"04": { source: "local", content: colorA, compositeWidthPx: 64, compositeHeightPx: 64, offsetXPx: 0, offsetYPx: 0 },
+				"04": {
+					source: "local",
+					content: colorA,
+					compositeWidthPx: 64,
+					compositeHeightPx: 64,
+					offsetXPx: 0,
+					offsetYPx: 0,
+				},
 			},
 		});
 		expect(draftHasChanges(state)).toBe(true);
@@ -47,7 +68,14 @@ describe("draftHasChanges", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04"] },
 			draft: colorA,
-			applied: { "04": { source: "remote", bitmap: "data:image/png;base64,x", offsetXPx: 0, offsetYPx: 0 } },
+			applied: {
+				"04": {
+					source: "remote",
+					bitmap: "data:image/png;base64,x",
+					offsetXPx: 0,
+					offsetYPx: 0,
+				},
+			},
 		});
 		expect(draftHasChanges(state)).toBe(true);
 	});
@@ -57,8 +85,22 @@ describe("draftHasChanges", () => {
 			selection: { kind: "large", screenIds: ["04", "07"] },
 			draft: colorA,
 			applied: {
-				"04": { source: "local", content: colorA, compositeWidthPx: 64, compositeHeightPx: 64, offsetXPx: 0, offsetYPx: 0 },
-				"07": { source: "local", content: colorB, compositeWidthPx: 64, compositeHeightPx: 64, offsetXPx: 0, offsetYPx: 0 },
+				"04": {
+					source: "local",
+					content: colorA,
+					compositeWidthPx: 64,
+					compositeHeightPx: 64,
+					offsetXPx: 0,
+					offsetYPx: 0,
+				},
+				"07": {
+					source: "local",
+					content: colorB,
+					compositeWidthPx: 64,
+					compositeHeightPx: 64,
+					offsetXPx: 0,
+					offsetYPx: 0,
+				},
 			},
 		});
 		expect(draftHasChanges(state)).toBe(true);

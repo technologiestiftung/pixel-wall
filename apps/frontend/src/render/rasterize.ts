@@ -2,7 +2,11 @@ import type { Content, HorizontalAlign, VerticalAlign } from "../domain/types";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
  * given alignment — shared by both the animation icon and static text. */
-function alignOffset(align: "left" | "center" | "right" | "top" | "bottom", containerSize: number, size: number): number {
+function alignOffset(
+	align: "left" | "center" | "right" | "top" | "bottom",
+	containerSize: number,
+	size: number,
+): number {
 	if (align === "left" || align === "top") {
 		return 0;
 	}
@@ -28,7 +32,10 @@ interface IconBBox {
  * against the viewBox left them visibly off-center. Centering against the
  * tight bbox instead makes the visible glyph itself centered.
  */
-const ICONS: Record<string, { bbox: IconBBox; draw: (ctx: CanvasRenderingContext2D) => void }> = {
+const ICONS: Record<
+	string,
+	{ bbox: IconBBox; draw: (ctx: CanvasRenderingContext2D) => void }
+> = {
 	pfeil: {
 		bbox: { x0: 3, y0: 5, width: 22, height: 22 },
 		draw: (ctx) => {
@@ -133,7 +140,11 @@ function drawTemplateIcon(
  * Unlike the live DOM/CSS preview in render/ContentLayer.tsx, sizes here are
  * literal device pixels, not display-scaled.
  */
-export function rasterizeContent(content: Content, widthPx: number, heightPx: number): string {
+export function rasterizeContent(
+	content: Content,
+	widthPx: number,
+	heightPx: number,
+): string {
 	const canvas = document.createElement("canvas");
 	canvas.width = Math.max(1, Math.round(widthPx));
 	canvas.height = Math.max(1, Math.round(heightPx));
@@ -155,7 +166,8 @@ export function rasterizeContent(content: Content, widthPx: number, heightPx: nu
 		// left it stranded at the seam between screens — see CONTEXT.md
 		// "Content"). Matches the already-established "scaling beyond the
 		// canvas crops" behavior for the smaller axis.
-		const size = Math.max(canvas.width, canvas.height) * (content.scalePercent / 100);
+		const size =
+			Math.max(canvas.width, canvas.height) * (content.scalePercent / 100);
 		drawTemplateIcon(ctx, content.templateId, {
 			x: alignOffset(content.hAlign, canvas.width, size),
 			y: alignOffset(content.vAlign, canvas.height, size),
@@ -179,7 +191,9 @@ export function rasterizeContent(content: Content, widthPx: number, heightPx: nu
 	} else {
 		ctx.textAlign = "left";
 		ctx.textBaseline = "middle";
-		const y = alignOffset(content.vAlign, canvas.height, content.fontSizePx) + content.fontSizePx / 2;
+		const y =
+			alignOffset(content.vAlign, canvas.height, content.fontSizePx) +
+			content.fontSizePx / 2;
 		ctx.fillText(content.value, 0, y);
 	}
 	return canvas.toDataURL("image/png");

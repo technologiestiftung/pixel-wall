@@ -22,7 +22,12 @@ interface AlignmentPickerProps {
 /** Where content sits within its (possibly multi-screen) composite —
  * defaults to center. Horizontal alignment is omitted for Lauftext, whose
  * horizontal position is driven by the scroll animation itself. */
-export function AlignmentPicker({ hAlign, vAlign, onChangeHAlign, onChangeVAlign }: AlignmentPickerProps) {
+export function AlignmentPicker({
+	hAlign,
+	vAlign,
+	onChangeHAlign,
+	onChangeVAlign,
+}: AlignmentPickerProps) {
 	return (
 		<div className="flex flex-col gap-2">
 			<span className="text-[12px] text-[#767671]">Position</span>

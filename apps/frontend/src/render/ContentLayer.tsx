@@ -16,7 +16,10 @@ interface ContentLayerProps {
 // one screen — exactly the case this whole mechanism exists for. Explicit
 // width/height + maxWidth: "none" defeats that reset so the negative-offset
 // slicing technique actually gets the true, natural-pixel-sized image.
-const PIXELATED: CSSProperties = { imageRendering: "pixelated", maxWidth: "none" };
+const PIXELATED: CSSProperties = {
+	imageRendering: "pixelated",
+	maxWidth: "none",
+};
 
 /**
  * Renders one screen's slice of a (possibly multi-screen) composite content
@@ -37,10 +40,17 @@ const PIXELATED: CSSProperties = { imageRendering: "pixelated", maxWidth: "none"
  */
 export function ContentLayer({ render }: ContentLayerProps) {
 	if (render.source === "remote") {
-		return <Bitmap src={render.bitmap} offsetXPx={render.offsetXPx} offsetYPx={render.offsetYPx} />;
+		return (
+			<Bitmap
+				src={render.bitmap}
+				offsetXPx={render.offsetXPx}
+				offsetYPx={render.offsetYPx}
+			/>
+		);
 	}
 
-	const { content, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } = render;
+	const { content, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
+		render;
 
 	if (content.type === "text" && content.mode === "scrolling") {
 		return (
@@ -65,10 +75,27 @@ export function ContentLayer({ render }: ContentLayerProps) {
 	);
 }
 
-function Bitmap({ src, offsetXPx, offsetYPx }: { src: string; offsetXPx: number; offsetYPx: number }) {
+function Bitmap({
+	src,
+	offsetXPx,
+	offsetYPx,
+}: {
+	src: string;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
 	return (
 		<div className="absolute inset-0 overflow-hidden">
-			<img src={src} alt="" style={{ ...PIXELATED, position: "absolute", left: -offsetXPx, top: -offsetYPx }} />
+			<img
+				src={src}
+				alt=""
+				style={{
+					...PIXELATED,
+					position: "absolute",
+					left: -offsetXPx,
+					top: -offsetYPx,
+				}}
+			/>
 		</div>
 	);
 }
@@ -86,7 +113,10 @@ function StaticBitmap({
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
-	const bitmap = useMemo(() => rasterizeContent(content, widthPx, heightPx), [JSON.stringify(content), widthPx, heightPx]);
+	const bitmap = useMemo(
+		() => rasterizeContent(content, widthPx, heightPx),
+		[JSON.stringify(content), widthPx, heightPx],
+	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
 
@@ -103,13 +133,15 @@ function ScrollingBitmap({
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
-	const font = { fontSizePx: content.fontSizePx, fontWeight: content.fontWeight, fontFamily: content.fontFamily };
-	const textWidthPx = useMemo(() => Math.max(1, Math.round(measureTextWidthPx(content.value, font))), [
-		content.value,
-		content.fontSizePx,
-		content.fontWeight,
-		content.fontFamily,
-	]);
+	const font = {
+		fontSizePx: content.fontSizePx,
+		fontWeight: content.fontWeight,
+		fontFamily: content.fontFamily,
+	};
+	const textWidthPx = useMemo(
+		() => Math.max(1, Math.round(measureTextWidthPx(content.value, font))),
+		[content.value, content.fontSizePx, content.fontWeight, content.fontFamily],
+	);
 	const bitmap = useMemo(
 		() => rasterizeContent(content, textWidthPx, compositeHeightPx),
 		[JSON.stringify(content), textWidthPx, compositeHeightPx],
@@ -124,8 +156,20 @@ function ScrollingBitmap({
 
 	return (
 		<div className="absolute inset-0 overflow-hidden">
-			<div className="absolute overflow-hidden" style={{ left: -offsetXPx, top: -offsetYPx, width: compositeWidthPx, height: compositeHeightPx }}>
-				<img src={bitmap} alt="" style={{ ...PIXELATED, position: "absolute", left: offset, top: 0 }} />
+			<div
+				className="absolute overflow-hidden"
+				style={{
+					left: -offsetXPx,
+					top: -offsetYPx,
+					width: compositeWidthPx,
+					height: compositeHeightPx,
+				}}
+			>
+				<img
+					src={bitmap}
+					alt=""
+					style={{ ...PIXELATED, position: "absolute", left: offset, top: 0 }}
+				/>
 			</div>
 		</div>
 	);

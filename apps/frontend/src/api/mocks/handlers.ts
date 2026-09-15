@@ -14,9 +14,13 @@ const applied: StateResponse["screens"] = {};
 export const API_BASE = "/api";
 
 export const handlers = [
-	http.get(`${API_BASE}/screens`, () => HttpResponse.json({ screens: SCREEN_SPECS })),
+	http.get(`${API_BASE}/screens`, () =>
+		HttpResponse.json({ screens: SCREEN_SPECS }),
+	),
 
-	http.get(`${API_BASE}/layout`, () => HttpResponse.json({ positions: layout })),
+	http.get(`${API_BASE}/layout`, () =>
+		HttpResponse.json({ positions: layout }),
+	),
 
 	http.put(`${API_BASE}/layout`, async ({ request }) => {
 		const body = (await request.json()) as { positions: LayoutPositionDto[] };
@@ -29,7 +33,10 @@ export const handlers = [
 	http.post(`${API_BASE}/apply`, async ({ request }) => {
 		const body = (await request.json()) as ApplyRequest;
 		for (const screen of body.screens) {
-			applied[screen.screenId] = { geometry: screen.geometry, content: body.content };
+			applied[screen.screenId] = {
+				geometry: screen.geometry,
+				content: body.content,
+			};
 		}
 		return HttpResponse.json({ appliedAt: new Date().toISOString() });
 	}),

@@ -30,7 +30,10 @@ async function startMocking() {
 		// certain embedded/sandboxed views). The app must still render —
 		// useWallSync already falls back to local defaults when the network
 		// layer is unreachable.
-		console.warn("Mock service worker failed to start; falling back to a real network call.", error);
+		console.warn(
+			"Mock service worker failed to start; falling back to a real network call.",
+			error,
+		);
 	}
 }
 

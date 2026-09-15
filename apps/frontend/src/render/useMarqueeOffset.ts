@@ -7,8 +7,13 @@ import { marqueeOffsetPx, type MarqueeParams } from "../domain/scroll";
  * tile rendering the same marquee stays in sync automatically — see
  * domain/scroll.ts.
  */
-export function useMarqueeOffset(enabled: boolean, params: MarqueeParams): number {
-	const [offset, setOffset] = useState(() => marqueeOffsetPx(performance.now(), params));
+export function useMarqueeOffset(
+	enabled: boolean,
+	params: MarqueeParams,
+): number {
+	const [offset, setOffset] = useState(() =>
+		marqueeOffsetPx(performance.now(), params),
+	);
 
 	useEffect(() => {
 		if (!enabled) {

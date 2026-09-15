@@ -17,15 +17,34 @@ export function useApplyChanges() {
 		}
 		dispatch({ type: "apply-pending" });
 		try {
-			const request = buildApplyRequest({ specs, positions: layout }, selection, draft);
+			const request = buildApplyRequest(
+				{ specs, positions: layout },
+				selection,
+				draft,
+			);
 			await applyChanges(request);
-			dispatch({ type: "apply-success", selection, content: draft, specs, layout });
+			dispatch({
+				type: "apply-success",
+				selection,
+				content: draft,
+				specs,
+				layout,
+			});
 			return true;
 		} catch {
-			dispatch({ type: "apply-error", message: "Änderungen konnten nicht übertragen werden." });
+			dispatch({
+				type: "apply-error",
+				message: "Änderungen konnten nicht übertragen werden.",
+			});
 			return false;
 		}
 	}
 
-	return { canApply, applyStatus, applyError, handleApply, hasSelection: selection !== null };
+	return {
+		canApply,
+		applyStatus,
+		applyError,
+		handleApply,
+		hasSelection: selection !== null,
+	};
 }

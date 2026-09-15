@@ -9,7 +9,10 @@ import type { LayoutPosition, ScreenKind, ScreenSpec } from "./types";
 export const MM_TO_PX = 1.375;
 
 /** Device pixel pitch per screen kind — 192mm/64px and 128mm/32px respectively. */
-export const PITCH_MM_PER_PX: Record<ScreenKind, number> = { large: 3, small: 4 };
+export const PITCH_MM_PER_PX: Record<ScreenKind, number> = {
+	large: 3,
+	small: 4,
+};
 
 /**
  * Font sizes, scroll speeds etc. that the user sets (e.g. "Textgröße") are
@@ -102,10 +105,14 @@ export function gapBetweenMm(a: RectMm, b: RectMm): number | null {
 	const yOverlaps = a.yMm < b.yMm + b.heightMm && b.yMm < a.yMm + a.heightMm;
 
 	if (xOverlaps && !yOverlaps) {
-		return a.yMm < b.yMm ? b.yMm - (a.yMm + a.heightMm) : a.yMm - (b.yMm + b.heightMm);
+		return a.yMm < b.yMm
+			? b.yMm - (a.yMm + a.heightMm)
+			: a.yMm - (b.yMm + b.heightMm);
 	}
 	if (yOverlaps && !xOverlaps) {
-		return a.xMm < b.xMm ? b.xMm - (a.xMm + a.widthMm) : a.xMm - (b.xMm + b.widthMm);
+		return a.xMm < b.xMm
+			? b.xMm - (a.xMm + a.widthMm)
+			: a.xMm - (b.xMm + b.widthMm);
 	}
 	if (xOverlaps && yOverlaps) {
 		return 0;
@@ -139,15 +146,23 @@ export function wouldOverlapAny(
 ): boolean {
 	const { specs, positions } = wall;
 	const movingSpec = specById(specs, movingScreenId);
-	const candidateRect = rectFor(movingSpec, { screenId: movingScreenId, ...candidate });
+	const candidateRect = rectFor(movingSpec, {
+		screenId: movingScreenId,
+		...candidate,
+	});
 
 	return positions
 		.filter((p) => p.screenId !== movingScreenId)
-		.some((p) => rectsOverlap(candidateRect, rectFor(specById(specs, p.screenId), p)));
+		.some((p) =>
+			rectsOverlap(candidateRect, rectFor(specById(specs, p.screenId), p)),
+		);
 }
 
 /** Smallest axis-aligned box (in mm, from the wall-space origin) containing every screen. */
-export function boundingBoxMm(specs: ScreenSpec[], positions: LayoutPosition[]): { widthMm: number; heightMm: number } {
+export function boundingBoxMm(
+	specs: ScreenSpec[],
+	positions: LayoutPosition[],
+): { widthMm: number; heightMm: number } {
 	let maxX = 0;
 	let maxY = 0;
 	for (const position of positions) {

@@ -10,8 +10,18 @@ import {
 } from "../../../src/domain/layout";
 import type { ScreenSpec } from "../../../src/domain/types";
 
-const large: ScreenSpec = { id: "02", kind: "large", pixelSize: 64, physicalSizeMm: 192 };
-const small: ScreenSpec = { id: "01", kind: "small", pixelSize: 32, physicalSizeMm: 128 };
+const large: ScreenSpec = {
+	id: "02",
+	kind: "large",
+	pixelSize: 64,
+	physicalSizeMm: 192,
+};
+const small: ScreenSpec = {
+	id: "01",
+	kind: "small",
+	pixelSize: 32,
+	physicalSizeMm: 128,
+};
 
 describe("pitchMmPerPx", () => {
 	test("large screens are 3mm per pixel", () => {
@@ -28,8 +38,12 @@ describe("displayScaleForKind", () => {
 		// A device-px quantity (e.g. a chosen font size) scaled up by this
 		// factor must land in the same space as MM_TO_PX-based display
 		// geometry — verified end to end via each screen kind's own numbers.
-		expect(small.pixelSize * displayScaleForKind("small", MM_TO_PX)).toBeCloseTo(small.physicalSizeMm * MM_TO_PX);
-		expect(large.pixelSize * displayScaleForKind("large", MM_TO_PX)).toBeCloseTo(large.physicalSizeMm * MM_TO_PX);
+		expect(
+			small.pixelSize * displayScaleForKind("small", MM_TO_PX),
+		).toBeCloseTo(small.physicalSizeMm * MM_TO_PX);
+		expect(
+			large.pixelSize * displayScaleForKind("large", MM_TO_PX),
+		).toBeCloseTo(large.physicalSizeMm * MM_TO_PX);
 	});
 });
 
@@ -98,14 +112,20 @@ describe("wouldOverlapAny", () => {
 	];
 
 	test("true when the candidate position would overlap another screen", () => {
-		expect(wouldOverlapAny({ specs, positions }, "b", { xMm: 100, yMm: 0 })).toBe(true);
+		expect(
+			wouldOverlapAny({ specs, positions }, "b", { xMm: 100, yMm: 0 }),
+		).toBe(true);
 	});
 
 	test("false when the candidate position is clear", () => {
-		expect(wouldOverlapAny({ specs, positions }, "b", { xMm: 500, yMm: 500 })).toBe(false);
+		expect(
+			wouldOverlapAny({ specs, positions }, "b", { xMm: 500, yMm: 500 }),
+		).toBe(false);
 	});
 
 	test("a screen never overlaps against its own current position", () => {
-		expect(wouldOverlapAny({ specs, positions }, "a", { xMm: 0, yMm: 0 })).toBe(false);
+		expect(wouldOverlapAny({ specs, positions }, "a", { xMm: 0, yMm: 0 })).toBe(
+			false,
+		);
 	});
 });

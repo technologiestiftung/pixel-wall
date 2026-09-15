@@ -1,5 +1,16 @@
-import { createContext, useContext, useReducer, type Dispatch, type ReactNode } from "react";
-import { initialWallState, wallReducer, type WallAction, type WallState } from "./reducer";
+import {
+	createContext,
+	useContext,
+	useReducer,
+	type Dispatch,
+	type ReactNode,
+} from "react";
+import {
+	initialWallState,
+	wallReducer,
+	type WallAction,
+	type WallState,
+} from "./reducer";
 import { useWallSync } from "./useWallSync";
 
 const WallStateContext = createContext<WallState | null>(null);
@@ -11,7 +22,9 @@ export function WallProvider({ children }: { children: ReactNode }) {
 
 	return (
 		<WallStateContext.Provider value={state}>
-			<WallDispatchContext.Provider value={dispatch}>{children}</WallDispatchContext.Provider>
+			<WallDispatchContext.Provider value={dispatch}>
+				{children}
+			</WallDispatchContext.Provider>
 		</WallStateContext.Provider>
 	);
 }

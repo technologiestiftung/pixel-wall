@@ -19,8 +19,12 @@ export interface MarqueeParams {
  * hidden past the other edge, then holds there for `pauseMs` before looping
  * (a fixed 2s pause is used for real Lauftext — see CONTEXT.md "Content").
  */
-export function marqueeOffsetPx(elapsedMs: number, params: MarqueeParams): number {
-	const { compositeWidthPx, textWidthPx, speedPxPerSec, pauseMs, direction } = params;
+export function marqueeOffsetPx(
+	elapsedMs: number,
+	params: MarqueeParams,
+): number {
+	const { compositeWidthPx, textWidthPx, speedPxPerSec, pauseMs, direction } =
+		params;
 	const travelPx = compositeWidthPx + textWidthPx;
 	const durationMs = speedPxPerSec > 0 ? (travelPx / speedPxPerSec) * 1000 : 0;
 	const cycleMs = durationMs + pauseMs;

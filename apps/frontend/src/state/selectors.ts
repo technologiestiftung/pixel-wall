@@ -10,7 +10,10 @@ import type { AppliedRender, WallState } from "./reducer";
  * domain/layout.ts displayScaleForKind and render/ContentLayer.tsx for how
  * that gets magnified for the on-screen preview.
  */
-export function resolveScreenRender(state: WallState, screenId: string): AppliedRender | null {
+export function resolveScreenRender(
+	state: WallState,
+	screenId: string,
+): AppliedRender | null {
 	const inSelection = state.selection?.screenIds.includes(screenId) ?? false;
 
 	if (inSelection && state.draft && state.selection) {

@@ -56,10 +56,14 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 						min={8}
 						max={64}
 						value={content.fontSizePx}
-						onChange={(e) => onChange({ ...content, fontSizePx: Number(e.target.value) })}
+						onChange={(e) =>
+							onChange({ ...content, fontSizePx: Number(e.target.value) })
+						}
 						className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
 					/>
-					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">px</span>
+					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
+						px
+					</span>
 				</div>
 			</div>
 
@@ -72,10 +76,14 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 						<select
 							id="font-family"
 							value={content.fontFamily}
-							onChange={(e) => onChange({ ...content, fontFamily: e.target.value })}
+							onChange={(e) =>
+								onChange({ ...content, fontFamily: e.target.value })
+							}
 							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
 						>
-							<option value="Pixel Grotesk, ui-monospace, monospace">Pixel Grotesk</option>
+							<option value="Pixel Grotesk, ui-monospace, monospace">
+								Pixel Grotesk
+							</option>
 							<option value="ui-monospace, monospace">Monospace</option>
 						</select>
 						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
@@ -84,7 +92,9 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 						<select
 							aria-label="Schriftschnitt"
 							value={content.fontWeight}
-							onChange={(e) => onChange({ ...content, fontWeight: e.target.value })}
+							onChange={(e) =>
+								onChange({ ...content, fontWeight: e.target.value })
+							}
 							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
 						>
 							<option value="400">Regular</option>
@@ -103,7 +113,10 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 					onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
 				/>
 			) : (
-				<AlignmentPicker vAlign={content.vAlign} onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })} />
+				<AlignmentPicker
+					vAlign={content.vAlign}
+					onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
+				/>
 			)}
 
 			{content.mode === "scrolling" && (
@@ -141,10 +154,17 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 								min={5}
 								max={500}
 								value={content.speedPxPerSec}
-								onChange={(e) => onChange({ ...content, speedPxPerSec: Number(e.target.value) })}
+								onChange={(e) =>
+									onChange({
+										...content,
+										speedPxPerSec: Number(e.target.value),
+									})
+								}
 								className="w-full min-w-16 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
 							/>
-							<span className="shrink-0 border-l border-[#edede9] px-1 py-2.5 text-[12.5px] text-[#767671]">px/s</span>
+							<span className="shrink-0 border-l border-[#edede9] px-1 py-2.5 text-[12.5px] text-[#767671]">
+								px/s
+							</span>
 						</div>
 					</div>
 				</>

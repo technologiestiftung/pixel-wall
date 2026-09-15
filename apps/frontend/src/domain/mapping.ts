@@ -70,7 +70,9 @@ export function validateSelection(
 		}
 	}
 
-	return visited.size === screenIds.length ? { valid: true } : { valid: false, reason: "not-contiguous" };
+	return visited.size === screenIds.length
+		? { valid: true }
+		: { valid: false, reason: "not-contiguous" };
 }
 
 export interface DisplayCompositeSlot {
@@ -120,11 +122,17 @@ export function computeDisplayComposite(
 		return {
 			widthPx: sizePx,
 			heightPx: sizePx,
-			slots: selection.screenIds.map((screenId) => ({ screenId, offsetXPx: 0, offsetYPx: 0 })),
+			slots: selection.screenIds.map((screenId) => ({
+				screenId,
+				offsetXPx: 0,
+				offsetYPx: 0,
+			})),
 		};
 	}
 
-	const rects = selection.screenIds.map((id) => rectFor(specById(specs, id), positionOf(id)));
+	const rects = selection.screenIds.map((id) =>
+		rectFor(specById(specs, id), positionOf(id)),
+	);
 	const minXmm = Math.min(...rects.map((r) => r.xMm));
 	const minYmm = Math.min(...rects.map((r) => r.yMm));
 	const maxXmm = Math.max(...rects.map((r) => r.xMm + r.widthMm));

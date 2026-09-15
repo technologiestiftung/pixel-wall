@@ -8,15 +8,27 @@ interface UnsavedChangesDialogProps {
  * unsaved draft — see CONTEXT.md "Apply changes" / state/reducer.ts
  * "discard-draft". The draft is a single value shared across tabs, so
  * editing another tab's fields overwrites it outright. */
-export function UnsavedChangesDialog({ onSave, onDiscard, onCancel }: UnsavedChangesDialogProps) {
+export function UnsavedChangesDialog({
+	onSave,
+	onDiscard,
+	onCancel,
+}: UnsavedChangesDialogProps) {
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-			<div role="alertdialog" aria-labelledby="unsaved-changes-title" className="w-full max-w-sm rounded-[10px] bg-white p-6 shadow-lg">
-				<h3 id="unsaved-changes-title" className="text-[15px] font-semibold text-[#20201b]">
+			<div
+				role="alertdialog"
+				aria-labelledby="unsaved-changes-title"
+				className="w-full max-w-sm rounded-[10px] bg-white p-6 shadow-lg"
+			>
+				<h3
+					id="unsaved-changes-title"
+					className="text-[15px] font-semibold text-[#20201b]"
+				>
 					Ungespeicherte Änderungen
 				</h3>
 				<p className="mt-2 text-[13px] text-[#6b6b66]">
-					Für diesen Inhalt gibt es ungespeicherte Änderungen. Möchtest du sie speichern oder verwerfen?
+					Für diesen Inhalt gibt es ungespeicherte Änderungen. Möchtest du sie
+					speichern oder verwerfen?
 				</p>
 				<div className="mt-5 flex justify-end gap-2">
 					<button

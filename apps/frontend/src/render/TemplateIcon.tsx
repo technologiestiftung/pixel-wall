@@ -8,10 +8,20 @@ interface TemplateIconProps {
 
 /** Exact icon geometry from the Figma design (Menu Animation/Bild panel),
  * parameterized to `currentColor`. */
-export function TemplateIcon({ templateId, className, style }: TemplateIconProps) {
+export function TemplateIcon({
+	templateId,
+	className,
+	style,
+}: TemplateIconProps) {
 	const icon = ICONS[templateId] ?? ICONS.pfeil;
 	return (
-		<svg viewBox={icon.viewBox} className={className} style={style} fill="none" aria-hidden="true">
+		<svg
+			viewBox={icon.viewBox}
+			className={className}
+			style={style}
+			fill="none"
+			aria-hidden="true"
+		>
 			{icon.node}
 		</svg>
 	);
@@ -40,13 +50,27 @@ const ICONS: Record<string, { viewBox: string; node: ReactNode }> = {
 				/>
 				<circle cx="5.5" cy="5" r="1.8" strokeWidth="1.4" />
 				<circle cx="16.5" cy="5" r="1.8" strokeWidth="1.4" />
-				<ellipse cx="11" cy="14.3" rx="1" ry="0.8" fill="currentColor" stroke="none" />
+				<ellipse
+					cx="11"
+					cy="14.3"
+					rx="1"
+					ry="0.8"
+					fill="currentColor"
+					stroke="none"
+				/>
 			</g>
 		),
 	},
 	raute: {
 		viewBox: "0 0 25.8 25.8",
-		node: <path d="M14 3L25 14L14 25L3 14L14 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />,
+		node: (
+			<path
+				d="M14 3L25 14L14 25L3 14L14 3Z"
+				stroke="currentColor"
+				strokeWidth="1.6"
+				strokeLinejoin="round"
+			/>
+		),
 	},
 	herz: {
 		viewBox: "0 0 25 25",

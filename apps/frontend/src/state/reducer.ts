@@ -1,7 +1,18 @@
 import type { StateResponse } from "../api/types";
 import { computeDisplayComposite, validateSelection } from "../domain/mapping";
-import { DEFAULT_LAYOUT, PITCH_MM_PER_PX, SCREEN_SPECS, specById } from "../domain/layout";
-import type { Content, ContentType, LayoutPosition, ScreenSpec, Selection } from "../domain/types";
+import {
+	DEFAULT_LAYOUT,
+	PITCH_MM_PER_PX,
+	SCREEN_SPECS,
+	specById,
+} from "../domain/layout";
+import type {
+	Content,
+	ContentType,
+	LayoutPosition,
+	ScreenSpec,
+	Selection,
+} from "../domain/types";
 
 export type AppliedRender =
 	| {
@@ -69,7 +80,12 @@ export type WallAction =
 			layout: LayoutPosition[];
 	  }
 	| { type: "apply-error"; message: string }
-	| { type: "hydrated"; specs: ScreenSpec[]; layout: LayoutPosition[]; remote: StateResponse["screens"] }
+	| {
+			type: "hydrated";
+			specs: ScreenSpec[];
+			layout: LayoutPosition[];
+			remote: StateResponse["screens"];
+	  }
 	| { type: "toggle-layout-edit-mode" }
 	| { type: "move-screen"; screenId: string; xMm: number; yMm: number };
 
@@ -140,7 +156,11 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			// Plain click always selects just this screen, deselecting any
 			// others — shift+click is required to build a multi-selection.
 			if (!additive) {
-				return { ...state, selection: { kind, screenIds: [screenId] }, draft: null };
+				return {
+					...state,
+					selection: { kind, screenIds: [screenId] },
+					draft: null,
+				};
 			}
 
 			const current = state.selection?.screenIds ?? [];
@@ -150,15 +170,24 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 				const remaining = current.filter((id) => id !== screenId);
 				return {
 					...state,
-					selection: remaining.length > 0 ? { kind, screenIds: remaining } : null,
+					selection:
+						remaining.length > 0 ? { kind, screenIds: remaining } : null,
 					draft: null,
 				};
 			}
 
 			const attempted = [...current, screenId];
-			const validation = validateSelection(state.specs, state.layout, attempted);
+			const validation = validateSelection(
+				state.specs,
+				state.layout,
+				attempted,
+			);
 			if (validation.valid) {
-				return { ...state, selection: { kind, screenIds: attempted }, draft: null };
+				return {
+					...state,
+					selection: { kind, screenIds: attempted },
+					draft: null,
+				};
 			}
 
 			// Adding this screen to the current selection isn't valid (different
@@ -168,12 +197,21 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		}
 
 		case "toggle-layout-edit-mode":
-			return { ...state, layoutEditMode: !state.layoutEditMode, selection: null, draft: null };
+			return {
+				...state,
+				layoutEditMode: !state.layoutEditMode,
+				selection: null,
+				draft: null,
+			};
 
 		case "move-screen":
 			return {
 				...state,
-				layout: state.layout.map((p) => (p.screenId === action.screenId ? { ...p, xMm: action.xMm, yMm: action.yMm } : p)),
+				layout: state.layout.map((p) =>
+					p.screenId === action.screenId
+						? { ...p, xMm: action.xMm, yMm: action.yMm }
+						: p,
+				),
 			};
 
 		default:

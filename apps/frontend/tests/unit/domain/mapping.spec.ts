@@ -1,29 +1,46 @@
 import { describe, expect, test } from "vitest";
-import { DEFAULT_LAYOUT, MM_TO_PX, SCREEN_SPECS } from "../../../src/domain/layout";
-import { computeDisplayComposite, validateSelection } from "../../../src/domain/mapping";
+import {
+	DEFAULT_LAYOUT,
+	MM_TO_PX,
+	SCREEN_SPECS,
+} from "../../../src/domain/layout";
+import {
+	computeDisplayComposite,
+	validateSelection,
+} from "../../../src/domain/mapping";
 
 describe("validateSelection", () => {
 	test("empty selection is valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, [])).toEqual({ valid: true });
+		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, [])).toEqual({
+			valid: true,
+		});
 	});
 
 	test("a single screen is always valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04"])).toEqual({ valid: true });
+		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04"])).toEqual({
+			valid: true,
+		});
 	});
 
 	test("mixing small and large screens is invalid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "04"])).toEqual({
+		expect(
+			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "04"]),
+		).toEqual({
 			valid: false,
 			reason: "mixed-kind",
 		});
 	});
 
 	test("multiple small screens are always valid (never combined)", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "02", "03"])).toEqual({ valid: true });
+		expect(
+			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "02", "03"]),
+		).toEqual({ valid: true });
 	});
 
 	test("adjacent large screens (04 + 07 in the default layout) are valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04", "07"])).toEqual({ valid: true });
+		expect(
+			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04", "07"]),
+		).toEqual({ valid: true });
 	});
 
 	test("non-contiguous large screens are invalid", () => {
@@ -52,7 +69,9 @@ describe("validateSelection", () => {
 			{ screenId: "b", xMm: 192, yMm: 0 },
 			{ screenId: "c", xMm: 384, yMm: 0 },
 		];
-		expect(validateSelection(specs, positions, ["a", "c", "b"])).toEqual({ valid: true });
+		expect(validateSelection(specs, positions, ["a", "c", "b"])).toEqual({
+			valid: true,
+		});
 	});
 });
 
@@ -67,7 +86,11 @@ describe("computeDisplayComposite", () => {
 			{ screenId: "a", xMm: 0, yMm: 0 },
 			{ screenId: "b", xMm: 200, yMm: 0 }, // 8mm real gap after the 192mm-wide screen "a"
 		];
-		const composite = computeDisplayComposite({ specs, positions }, { kind: "large", screenIds: ["a", "b"] }, 2);
+		const composite = computeDisplayComposite(
+			{ specs, positions },
+			{ kind: "large", screenIds: ["a", "b"] },
+			2,
+		);
 
 		expect(composite.widthPx).toBeCloseTo(392 * 2);
 		expect(composite.heightPx).toBeCloseTo(192 * 2);
