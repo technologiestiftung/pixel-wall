@@ -1,9 +1,9 @@
-import json
 import logging
 import threading
 from typing import Any, Optional
 
 from . import config
+from .wire import topic_for
 
 logger = logging.getLogger(__name__)
 
@@ -62,23 +62,18 @@ class MqttPublisher:
         finally:
             self._connected = False
 
-    def publish_state(self, state: dict[str, Any]) -> bool:
+    def publish_screen(self, screen_id: str, payload: bytes) -> bool:
+        """One retained message per screen, so a device that reboots recovers its
+        own content without the backend being up. Binary, not JSON — see
+        docs/wire-format.md "MQTT envelope"."""
         if self._client is None:
             return False
 
-        payload = json.dumps(
-            {
-                "text": state["text"],
-                "color": state["color"],
-                "brightness": state["brightness"],
-                "speed_ms": state["speed_ms"],
-            },
-            sort_keys=True,
-        )
-
         try:
             with self._lock:
-                result = self._client.publish(config.MQTT_TOPIC, payload, qos=1, retain=True)
+                result = self._client.publish(
+                    topic_for(screen_id), payload, qos=1, retain=True
+                )
         except Exception as error:
             self._record_error(str(error))
             return False

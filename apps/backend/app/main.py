@@ -4,10 +4,24 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import config, state as state_store
+from . import compose, config, screens as screen_inventory, state as state_store
 from .auth import BasicAuthMiddleware
-from .models import AuthStatus, HealthResponse, MqttStatus, StateResponse, WallState, WallStateUpdate
+from .models import (
+    ApplyRequest,
+    ApplyResponse,
+    AuthStatus,
+    BrightnessByKind,
+    HealthResponse,
+    LayoutRequest,
+    LayoutResponse,
+    MqttStatus,
+    ScreenStateModel,
+    ScreensResponse,
+    StateResponse,
+    WallState,
+)
 from .mqtt import publisher
+from .wire import encode_frame
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("ledwall.backend")
@@ -26,7 +40,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Pixel Wall API",
-    version="1.0.0",
+    version="2.0.0",
     summary="LAN-only control API for the LED matrix wall.",
     lifespan=lifespan,
 )
@@ -40,22 +54,17 @@ app.add_middleware(BasicAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "PUT", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
 
-def _apply(new_state: WallState) -> dict:
+def _write(new_state: WallState) -> dict:
     try:
-        written = state_store.write_state(new_state)
+        return state_store.write_state(new_state)
     except OSError as error:
         logger.error("state write failed: %s", error)
         raise HTTPException(status_code=500, detail=f"could not write state file: {error}")
-
-    if not publisher.publish_state(written):
-        logger.warning("state written but MQTT publish failed; wall state is still authoritative")
-
-    return written
 
 
 @app.get("/api/health", response_model=HealthResponse, tags=["system"])
@@ -71,37 +80,95 @@ def health() -> HealthResponse:
             enabled=config.MQTT_ENABLED,
             connected=publisher.connected,
             broker=f"{config.MQTT_HOST}:{config.MQTT_PORT}",
-            topic=config.MQTT_TOPIC,
+            topic_prefix=config.MQTT_TOPIC_PREFIX,
             last_error=publisher.last_error,
         ),
     )
 
 
-@app.get("/api/state", response_model=StateResponse, tags=["state"])
+@app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])
+def get_screens() -> ScreensResponse:
+    return ScreensResponse(screens=screen_inventory.SCREEN_SPECS)
+
+
+@app.get("/api/layout", response_model=LayoutResponse, tags=["wall"])
+def get_layout() -> LayoutResponse:
+    return LayoutResponse(positions=state_store.read_state()["layout"])
+
+
+@app.put("/api/layout", response_model=LayoutResponse, tags=["wall"])
+def put_layout(payload: LayoutRequest) -> LayoutResponse:
+    current = WallState.model_validate(state_store.read_state())
+    current.layout = payload.positions
+    written = _write(current)
+    return LayoutResponse(positions=written["layout"])
+
+
+@app.put("/api/brightness", response_model=BrightnessByKind, tags=["wall"])
+def put_brightness(payload: BrightnessByKind) -> BrightnessByKind:
+    """Brightness on its own, for when the user moves only the slider.
+
+    It is not part of a content edit — `POST /api/apply` also accepts it so the
+    common case is one request — but it has to be settable without one.
+    """
+    current = WallState.model_validate(state_store.read_state())
+    current.brightness = payload
+    written = _write(current)
+    return BrightnessByKind(**written["brightness"])
+
+
+@app.get("/api/state", response_model=StateResponse, tags=["wall"])
 def get_state() -> StateResponse:
     return StateResponse(**state_store.read_state())
 
 
-@app.put("/api/state", response_model=StateResponse, tags=["state"])
-def put_state(payload: WallState) -> StateResponse:
-    return StateResponse(**_apply(payload))
+@app.post("/api/apply", response_model=ApplyResponse, tags=["wall"])
+def post_apply(payload: ApplyRequest) -> ApplyResponse:
+    """Applies one content edit to the selected screens only.
+
+    Screens outside the selection keep whatever they were showing — CONTEXT.md
+    "Apply changes" requires that already-applied screens are left untouched.
+    """
+    current = WallState.model_validate(state_store.read_state())
+
+    kinds = {screen_inventory.kind_of(target.screenId) for target in payload.screens}
+    if kinds != {payload.selectionKind}:
+        raise HTTPException(
+            status_code=422,
+            detail=f"selectionKind {payload.selectionKind!r} does not match the selected screens",
+        )
+
+    frames = {}
+    for target in payload.screens:
+        content, window = compose.slice_for_screen(payload.content, target.window)
+        current.screens[target.screenId] = ScreenStateModel(window=window, content=content)
+        frames[target.screenId] = compose.frame_for_screen(content, window)
+
+    if payload.brightness is not None:
+        current.brightness = payload.brightness
+
+    written = _write(current)
+
+    for screen_id, frame in frames.items():
+        if not publisher.publish_screen(screen_id, encode_frame(frame)):
+            logger.warning(
+                "screen %s written but MQTT publish failed; state file is still authoritative",
+                screen_id,
+            )
+
+    return ApplyResponse(appliedAt=written["updated_at"])
 
 
-@app.patch("/api/state", response_model=StateResponse, tags=["state"])
-def patch_state(payload: WallStateUpdate) -> StateResponse:
-    current = state_store.read_state()
-    merged = current | payload.model_dump(exclude_none=True)
-    return StateResponse(**_apply(WallState.model_validate(merged)))
-
-
-@app.get("/api/limits", tags=["state"])
+@app.get("/api/limits", tags=["wall"])
 def limits() -> dict:
     return {
-        "text": {"max_length": config.TEXT_MAX_LENGTH},
-        "color": {"min": 0, "max": 255, "length": 3},
         "brightness": {"min": config.BRIGHTNESS_MIN, "max": config.BRIGHTNESS_MAX},
-        "speed_ms": {"min": config.SPEED_MS_MIN, "max": config.SPEED_MS_MAX},
-        "defaults": config.DEFAULT_STATE,
+        "bitmap": {
+            "maxWidthPx": config.MAX_BITMAP_WIDTH_PX,
+            "maxHeightPx": config.MAX_BITMAP_HEIGHT_PX,
+            "formats": ["mask1", "pal4"],
+        },
+        "screens": screen_inventory.SCREEN_SPECS,
     }
 
 

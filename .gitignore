@@ -30,5 +30,11 @@ CLAUDE.md
 .env
 .env.local
 
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+apps/backend/.venv/
+
 # ESP32 Wi-Fi credentials
 apps/esp32/**/secrets.h

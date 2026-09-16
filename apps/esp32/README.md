@@ -1,25 +1,26 @@
 # Pixel Wall ESP32
 
-Three chained 32x32 HUB75 panels (96x32) driven by an ESP32-WROOM. The board
-subscribes to the backend's MQTT topic and scrolls whatever message is
-published there.
+Three chained 32x32 HUB75 panels (96x32) driven by a single ESP32-WROOM. The
+board subscribes to one MQTT topic per screen and renders the bitmap published
+there — it does not render text or know what a template is; the frontend
+rasterises everything.
 
 ```
-backend (Pi) ──publish retain=true──▶ mosquitto ledwall/message ──▶ ESP32
+backend (Pi) ──publish retain=true──▶ mosquitto ledwall/screen/<id> ──▶ ESP32
 ```
 
-The topic is retained, so the board gets the current message the moment it
-subscribes — no request to the API, and a reboot picks the message back up on
+The topics are retained, so the board gets each screen's current content the
+moment it subscribes — no request to the API, and a reboot picks the message back up on
 its own. Nothing here talks to the HTTP API, and nothing here publishes.
 
 ## Libraries
 
 Install via the Arduino IDE Library Manager:
 
-| Library                          | Author        |
-| -------------------------------- | ------------- |
-| `ESP32-HUB75-MatrixPanel-I2S-DMA` | mrcodetastic  |
-| `PubSubClient`                    | Nick O'Leary  |
+| Library                           | Author               |
+| --------------------------------- | -------------------- |
+| `ESP32-HUB75-MatrixPanel-I2S-DMA` | mrcodetastic         |
+| `PubSubClient`                    | Nick O'Leary         |
 | `ArduinoJson`                     | Benoit Blanchon (v7) |
 
 Board: **ESP32 Dev Module**.
@@ -38,22 +39,31 @@ would rather not reflash the ESP32 when the lease changes.
 
 ## Message contract
 
-The payload is JSON with sorted keys, as documented in
-[../backend/README.md](../backend/README.md):
+Each screen has its own retained topic, `ledwall/screen/<id>`, where `<id>` is
+`01`, `02` or `03`. The board subscribes to all three: a selection can be a
+subset (apply to `01` and `02`, and `03` must keep what it was showing), so one
+shared topic would not work even though a single board drives all three panels.
 
-```json
-{ "brightness": 60, "color": [255, 0, 128], "speed_ms": 30, "text": "HELLO BERLIN" }
-```
+The payload is **binary, not JSON** — a fixed 19-byte header carrying colour,
+window and scroll, followed by a bitmap block. It is specified in full in
+[`docs/wire-format.md`](../../docs/wire-format.md), and the shared test vectors
+in `docs/wire-format-fixtures.json` are what the decoder should be tested
+against.
 
-Ranges are `brightness` 5-100, `speed_ms` 5-500, `text` up to 256 characters.
-The sketch clamps everything again on arrival, so a malformed or out-of-range
-message degrades rather than breaking the display. A change of `text` or
-`color` restarts the scroll from the right edge; `brightness` and `speed_ms`
-apply immediately without interrupting it — the same behaviour as the Pi's
-`pi_display.py`.
+Binary rather than JSON because a worst-case Lauftext filmstrip is ~9 KB;
+parsing that with `ArduinoJson` would need roughly twice that in heap for the
+document plus the decoded base64 string. Decoding the binary form needs neither
+a JSON parser nor a base64 step, so `ArduinoJson` is no longer a dependency.
 
-`PubSubClient`'s default buffer is 256 bytes, which a full-length message
-overflows silently. The sketch calls `setBufferSize(1024)`; don't remove it.
+Two bitmap formats exist. `mask1` is 1 bit per pixel plus one RGB colour and
+carries all text; `pal4` is 4 bits per pixel with a 16-entry palette and carries
+multi-colour template artwork. A decoder dispatches on the block's first byte
+(`0x50` for `mask1`, `0x51` for `pal4`) and **must reject anything else, keeping
+the last good frame** rather than attempting to render it.
+
+`PubSubClient`'s default buffer is 256 bytes. The sketch must call
+`setBufferSize(16384)` — a filmstrip will not fit in less, and an oversized
+message is dropped silently.
 
 ## Broker access
 
@@ -74,10 +84,10 @@ made for the HTTP API, and acceptable only because this is LAN-only.
 Watch the serial monitor at 115200 baud. The sketch logs the Wi-Fi IP, the
 subscribe, and every state change it parses.
 
-| Symptom                        | Cause                                               |
-| ------------------------------ | --------------------------------------------------- |
-| `mqtt: failed, rc=-2`          | broker unreachable — check `MQTT_HOST` and the listener |
+| Symptom                        | Cause                                                             |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `mqtt: failed, rc=-2`          | broker unreachable — check `MQTT_HOST` and the listener           |
 | Connects, but no state logged  | nothing has been published yet; the topic has no retained message |
-| Long messages truncate         | `setBufferSize` was removed or lowered              |
-| Image shifted one pixel across | flip `mxconfig.clkphase`                            |
-| Nothing lights up              | try `mxconfig.driver = HUB75_I2S_CFG::FM6126A`      |
+| Long messages truncate         | `setBufferSize` was removed or lowered                            |
+| Image shifted one pixel across | flip `mxconfig.clkphase`                                          |
+| Nothing lights up              | try `mxconfig.driver = HUB75_I2S_CFG::FM6126A`                    |

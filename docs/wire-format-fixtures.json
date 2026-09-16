@@ -1,0 +1,367 @@
+{
+	"formatVersion": 1,
+	"cases": [
+		{
+			"name": "worked-example",
+			"widthPx": 12,
+			"heightPx": 2,
+			"rows": [
+				"####........",
+				"........####"
+			],
+			"strideBytes": 2,
+			"rawHex": "500100000c0002f00000f0",
+			"rleHex": "500101000c00020004140404",
+			"encodedHex": "500100000c0002f00000f0",
+			"encodedBase64": "UAEAAAwAAvAAAPA=",
+			"encoding": "raw"
+		},
+		{
+			"name": "empty",
+			"widthPx": 16,
+			"heightPx": 2,
+			"rows": [
+				"................",
+				"................"
+			],
+			"strideBytes": 2,
+			"rawHex": "5001000010000200000000",
+			"rleHex": "5001010010000220",
+			"encodedHex": "5001010010000220",
+			"encodedBase64": "UAEBABAAAiA=",
+			"encoding": "rle"
+		},
+		{
+			"name": "full",
+			"widthPx": 8,
+			"heightPx": 1,
+			"rows": [
+				"########"
+			],
+			"strideBytes": 1,
+			"rawHex": "50010000080001ff",
+			"rleHex": "500101000800010008",
+			"encodedHex": "50010000080001ff",
+			"encodedBase64": "UAEAAAgAAf8=",
+			"encoding": "raw"
+		},
+		{
+			"name": "single-pixel",
+			"widthPx": 8,
+			"heightPx": 1,
+			"rows": [
+				"#......."
+			],
+			"strideBytes": 1,
+			"rawHex": "5001000008000180",
+			"rleHex": "50010100080001000107",
+			"encodedHex": "5001000008000180",
+			"encodedBase64": "UAEAAAgAAYA=",
+			"encoding": "raw"
+		},
+		{
+			"name": "checkerboard",
+			"widthPx": 8,
+			"heightPx": 2,
+			"rows": [
+				"#.#.#.#.",
+				".#.#.#.#"
+			],
+			"strideBytes": 1,
+			"rawHex": "50010000080002aa55",
+			"rleHex": "5001010008000200010101010101010201010101010101",
+			"encodedHex": "50010000080002aa55",
+			"encodedBase64": "UAEAAAgAAqpV",
+			"encoding": "raw"
+		},
+		{
+			"name": "non-byte-aligned-width",
+			"widthPx": 13,
+			"heightPx": 2,
+			"rows": [
+				"#############",
+				"............."
+			],
+			"strideBytes": 2,
+			"rawHex": "500100000d0002fff80000",
+			"rleHex": "500101000d0002000d13",
+			"encodedHex": "500101000d0002000d13",
+			"encodedBase64": "UAEBAA0AAgANEw==",
+			"encoding": "rle"
+		},
+		{
+			"name": "wide-sparse",
+			"widthPx": 24,
+			"heightPx": 3,
+			"rows": [
+				"........................",
+				"..........####..........",
+				"........................"
+			],
+			"strideBytes": 3,
+			"rawHex": "50010000180003000000003c00000000",
+			"rleHex": "50010100180003220422",
+			"encodedHex": "50010100180003220422",
+			"encodedBase64": "UAEBABgAAyIEIg==",
+			"encoding": "rle"
+		},
+		{
+			"name": "starts-set",
+			"widthPx": 8,
+			"heightPx": 3,
+			"rows": [
+				"##......",
+				"........",
+				"......##"
+			],
+			"strideBytes": 1,
+			"rawHex": "50010000080003c00003",
+			"rleHex": "5001010008000300021402",
+			"encodedHex": "50010000080003c00003",
+			"encodedBase64": "UAEAAAgAA8AAAw==",
+			"encoding": "raw"
+		}
+	],
+	"pal4Cases": [
+		{
+			"name": "pal4-worked-example",
+			"widthPx": 4,
+			"heightPx": 2,
+			"rows": [
+				"0011",
+				"2200"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					0
+				],
+				[
+					254,
+					241,
+					119
+				],
+				[
+					254,
+					68,
+					65
+				]
+			],
+			"strideBytes": 2,
+			"rawHex": "5101000004000203000000fef177fe444100112200",
+			"rleHex": "5101010004000203000000fef177fe44410002010202020002",
+			"encodedHex": "5101000004000203000000fef177fe444100112200",
+			"encodedBase64": "UQEAAAQAAgMAAAD+8Xf+REEAESIA",
+			"encoding": "raw"
+		},
+		{
+			"name": "pal4-empty",
+			"widthPx": 4,
+			"heightPx": 2,
+			"rows": [
+				"0000",
+				"0000"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					0
+				],
+				[
+					180,
+					185,
+					255
+				]
+			],
+			"strideBytes": 2,
+			"rawHex": "5101000004000202000000b4b9ff00000000",
+			"rleHex": "5101010004000202000000b4b9ff0008",
+			"encodedHex": "5101010004000202000000b4b9ff0008",
+			"encodedBase64": "UQEBAAQAAgIAAAC0uf8ACA==",
+			"encoding": "rle"
+		},
+		{
+			"name": "pal4-odd-width",
+			"widthPx": 3,
+			"heightPx": 2,
+			"rows": [
+				"012",
+				"210"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					0
+				],
+				[
+					254,
+					241,
+					119
+				],
+				[
+					254,
+					68,
+					65
+				]
+			],
+			"strideBytes": 2,
+			"rawHex": "5101000003000203000000fef177fe444101202100",
+			"rleHex": "5101010003000203000000fef177fe44410001010102010001020101010002",
+			"encodedHex": "5101000003000203000000fef177fe444101202100",
+			"encodedBase64": "UQEAAAMAAgMAAAD+8Xf+REEBICEA",
+			"encoding": "raw"
+		},
+		{
+			"name": "pal4-single-run",
+			"widthPx": 16,
+			"heightPx": 1,
+			"rows": [
+				"1111111111111111"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					0
+				],
+				[
+					180,
+					185,
+					255
+				]
+			],
+			"strideBytes": 8,
+			"rawHex": "5101000010000102000000b4b9ff1111111111111111",
+			"rleHex": "5101010010000102000000b4b9ff0110",
+			"encodedHex": "5101010010000102000000b4b9ff0110",
+			"encodedBase64": "UQEBABAAAQIAAAC0uf8BEA==",
+			"encoding": "rle"
+		},
+		{
+			"name": "pal4-alternating",
+			"widthPx": 8,
+			"heightPx": 2,
+			"rows": [
+				"01010101",
+				"10101010"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					0
+				],
+				[
+					180,
+					185,
+					255
+				]
+			],
+			"strideBytes": 4,
+			"rawHex": "5101000008000202000000b4b9ff0101010110101010",
+			"rleHex": "5101010008000202000000b4b9ff000101010001010100010101000101020001010100010101000101010001",
+			"encodedHex": "5101000008000202000000b4b9ff0101010110101010",
+			"encodedBase64": "UQEAAAgAAgIAAAC0uf8BAQEBEBAQEA==",
+			"encoding": "raw"
+		},
+		{
+			"name": "pal4-full-palette",
+			"widthPx": 16,
+			"heightPx": 1,
+			"rows": [
+				"0123456789abcdef"
+			],
+			"palette": [
+				[
+					0,
+					0,
+					255
+				],
+				[
+					16,
+					8,
+					239
+				],
+				[
+					32,
+					16,
+					223
+				],
+				[
+					48,
+					24,
+					207
+				],
+				[
+					64,
+					32,
+					191
+				],
+				[
+					80,
+					40,
+					175
+				],
+				[
+					96,
+					48,
+					159
+				],
+				[
+					112,
+					56,
+					143
+				],
+				[
+					128,
+					64,
+					127
+				],
+				[
+					144,
+					72,
+					111
+				],
+				[
+					160,
+					80,
+					95
+				],
+				[
+					176,
+					88,
+					79
+				],
+				[
+					192,
+					96,
+					63
+				],
+				[
+					208,
+					104,
+					47
+				],
+				[
+					224,
+					112,
+					31
+				],
+				[
+					240,
+					120,
+					15
+				]
+			],
+			"strideBytes": 8,
+			"rawHex": "51010000100001100000ff1008ef2010df3018cf4020bf5028af60309f70388f80407f90486fa0505fb0584fc0603fd0682fe0701ff0780f0123456789abcdef",
+			"rleHex": "51010100100001100000ff1008ef2010df3018cf4020bf5028af60309f70388f80407f90486fa0505fb0584fc0603fd0682fe0701ff0780f00010101020103010401050106010701080109010a010b010c010d010e010f01",
+			"encodedHex": "51010000100001100000ff1008ef2010df3018cf4020bf5028af60309f70388f80407f90486fa0505fb0584fc0603fd0682fe0701ff0780f0123456789abcdef",
+			"encodedBase64": "UQEAABAAARAAAP8QCO8gEN8wGM9AIL9QKK9gMJ9wOI+AQH+QSG+gUF+wWE/AYD/QaC/gcB/weA8BI0VniavN7w==",
+			"encoding": "raw"
+		}
+	]
+}

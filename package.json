@@ -11,9 +11,10 @@
 		"dev:api": "cd apps/backend && LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 .venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 5001 --reload",
 		"build": "npm run build --workspace @pixel-wall/frontend",
 		"lint": "ESLINT_USE_FLAT_CONFIG=true eslint \"apps/frontend/src/**/*\"",
-		"prettier": "prettier --write --ignore-unknown \"apps/frontend/{src,tests}/**/*\"",
-		"prettier:ci": "prettier --check --ignore-unknown \"apps/frontend/{src,tests}/**/*\"",
+		"prettier": "prettier --write --ignore-unknown \".\"",
+		"prettier:ci": "prettier --check --ignore-unknown \".\"",
 		"test:unit": "npm run test:unit --workspace @pixel-wall/frontend",
+		"test:backend": "cd apps/backend && .venv/bin/python -m pytest tests -q",
 		"test:e2e": "npm run test:e2e --workspace @pixel-wall/frontend",
 		"test:a11y": "npm run test:a11y --workspace @pixel-wall/frontend"
 	},

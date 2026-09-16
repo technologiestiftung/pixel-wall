@@ -6,7 +6,7 @@ This file covers the physical wiring, power, and network layer — the parts tha
 don't live in either of those.
 
 **Status note:** the sections below (screen inventory, wiring, power, network)
-are settled decisions. The content-rendering *software* architecture (how
+are settled decisions. The content-rendering _software_ architecture (how
 selections/layout/bitmaps map to what actually gets driven onto the panels) is
 explicitly still being worked out — see "Current implementation status" at the
 bottom before assuming anything in `apps/frontend/src/domain` is already wired
@@ -14,10 +14,10 @@ up end to end.
 
 ## Screen inventory
 
-| Kind  | Count | Resolution | Physical size | Pitch | Driven by |
-| ----- | ----- | ---------- | -------------- | ----- | --------- |
-| Large | 4     | 64×64 px   | 192×192 mm      | 3 mm  | Raspberry Pi 4B, via HUB75 |
-| Small | 3     | 32×32 px   | 128×128 mm      | 4 mm  | ESP32-WROOM-32, via HUB75  |
+| Kind  | Count | Resolution | Physical size | Pitch | Driven by                  |
+| ----- | ----- | ---------- | ------------- | ----- | -------------------------- |
+| Large | 4     | 64×64 px   | 192×192 mm    | 3 mm  | Raspberry Pi 4B, via HUB75 |
+| Small | 3     | 32×32 px   | 128×128 mm    | 4 mm  | ESP32-WROOM-32, via HUB75  |
 
 ## Raspberry Pi side (4 large screens)
 
@@ -43,7 +43,7 @@ output instead of the ESP32. Ruled out for now:
   and 64×64 vs. 32×32 panels use different multiplexing — mixing panel types
   across the bonnet's 3 parallel outputs in one process isn't supported by the
   library's global rows/cols configuration.
-- Running a *second*, separate process bound to just output 3 might work
+- Running a _second_, separate process bound to just output 3 might work
   around that, but whether two `rpi-rgb-led-matrix` processes can share the
   bonnet's GPIO/PWM hardware concurrently without conflict is unverified —
   not something to assume without a bench test.
@@ -60,7 +60,7 @@ output instead of the ESP32. Ruled out for now:
 - **Why daisy-chain instead of one ESP32 per screen:** a plain ESP32-WROOM-32
   can only drive one HUB75 output chain per chip (confirmed against the
   standard `ESP32-HUB75-MatrixPanel-DMA` library — chaining panels in series
-  on that one output is supported, driving multiple *independent* chains from
+  on that one output is supported, driving multiple _independent_ chains from
   one chip is not). Daisy-chaining keeps the original single-ESP32,
   single-MQTT-client plan; the alternative (3 separate ESP32s) would work too
   but adds 2 more boards and 2 more WiFi/MQTT clients to provision.

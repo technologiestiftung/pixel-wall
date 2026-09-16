@@ -6,6 +6,8 @@ from threading import Lock
 from typing import Any
 
 from . import config
+from pydantic import ValidationError
+
 from .models import WallState
 
 _write_lock = Lock()
@@ -16,6 +18,8 @@ def _now() -> str:
 
 
 def read_state() -> dict[str, Any]:
+    """Never raises: a hand-edited or partially-migrated file must not take the
+    API down, so anything unusable falls back to a valid empty wall."""
     try:
         with config.STATE_FILE.open("r", encoding="utf-8") as handle:
             raw = json.load(handle)
@@ -25,7 +29,11 @@ def read_state() -> dict[str, Any]:
     if not isinstance(raw, dict):
         raw = {}
 
-    state = WallState.model_validate(raw).model_dump()
+    try:
+        state = WallState.model_validate(raw).model_dump()
+    except ValidationError:
+        state = WallState().model_dump()
+
     state["updated_at"] = raw.get("updated_at") or _now()
     return state
 
