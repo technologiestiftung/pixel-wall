@@ -1,6 +1,7 @@
 import { PALETTE } from "../../domain/content";
 import type { ColorContent } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
+import { RgbInputs } from "./RgbInputs";
 
 interface FarbePanelProps {
 	content: ColorContent;
@@ -40,6 +41,11 @@ export function FarbePanel({ content, onChange }: FarbePanelProps) {
 					);
 				})}
 			</div>
+
+			<RgbInputs
+				hex={content.hex}
+				onChange={(nextHex) => onChange({ ...content, hex: nextHex })}
+			/>
 		</div>
 	);
 }

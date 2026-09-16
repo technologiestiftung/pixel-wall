@@ -6,26 +6,11 @@ import {
 	maskFromImageData,
 	setBit,
 } from "../domain/mask";
+import { hexToRgb } from "../domain/color";
 import type { Content } from "../domain/types";
 import { drawContentToCanvas } from "./rasterize";
 
 const WHITE: [number, number, number] = [255, 255, 255];
-
-export function hexToRgb(hex: string): [number, number, number] {
-	const digits = hex.replace("#", "");
-	const full =
-		digits.length === 3
-			? digits
-					.split("")
-					.map((c) => c + c)
-					.join("")
-			: digits;
-	return [
-		Number.parseInt(full.slice(0, 2), 16) || 0,
-		Number.parseInt(full.slice(2, 4), 16) || 0,
-		Number.parseInt(full.slice(4, 6), 16) || 0,
-	];
-}
 
 /**
  * Rasterises `content` into the `mask1` wire envelope — see

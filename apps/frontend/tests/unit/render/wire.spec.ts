@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { contentToWire, hexToRgb } from "../../../src/render/wire";
+import { contentToWire } from "../../../src/render/wire";
 import { decodeMaskBase64, maskToRows } from "../../../src/domain/mask";
+import { hexToRgb } from "../../../src/domain/color";
 import type { ColorContent, TextContent } from "../../../src/domain/types";
 
 const color: ColorContent = { type: "color", hex: "#FE4441" };
