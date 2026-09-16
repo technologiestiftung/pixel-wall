@@ -14,7 +14,7 @@ from .mask import Mask, MaskFormatError, Palette4, decode_block, encode, encode_
 
 MAGIC = 0x57
 VERSION = 0x01
-HEADER_BYTES = 21
+HEADER_BYTES = 22
 
 FLAG_SCROLL = 0x01
 
@@ -53,6 +53,9 @@ class ScreenFrame:
     #: its own palette, making `color` meaningless).
     mask: Union[Mask, Palette4]
     scroll: Optional[Scroll] = None
+    #: Brightness for this screen's hardware kind, 5-100. Carried on the wire
+    #: because an MQTT-only device cannot read the state file.
+    brightness: int = 60
 
 
 def _u16(value: int, field: str) -> bytes:
@@ -90,6 +93,8 @@ def encode_frame(frame: ScreenFrame) -> bytes:
         header.extend(_u16(scroll.pause_ms, "scroll.pauseMs"))
         header.extend(_u16(scroll.composite_width_px, "scroll.compositeWidthPx"))
 
+    header.append(max(5, min(100, frame.brightness)))
+
     assert len(header) == HEADER_BYTES
     body = encode_pal4(frame.mask) if isinstance(frame.mask, Palette4) else encode(frame.mask)
     return bytes(header) + body
@@ -124,6 +129,7 @@ def decode_frame(payload: bytes) -> ScreenFrame:
         ),
         mask=decode_block(payload[HEADER_BYTES:]),
         scroll=scroll,
+        brightness=payload[21],
     )
 
 

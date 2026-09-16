@@ -7,6 +7,7 @@ each pixel be".
 """
 
 import base64
+from functools import lru_cache
 from typing import Any, Optional
 
 from PIL import Image
@@ -16,6 +17,18 @@ from .mask import Mask, MaskFormatError, Palette4, decode_block
 from .scroll import Marquee, marquee_offset_px
 
 BLACK = (0, 0, 0)
+
+
+@lru_cache(maxsize=32)
+def _decode_cached(data: str, color: tuple[int, int, int]) -> Image.Image:
+    """Decoding is per-content, not per-frame.
+
+    Without this the render loop re-ran the RLE expansion for every screen on
+    every tick, which starves the matrix library's refresh thread and shows up
+    as flicker. Callers must treat the result as read-only; `Image.paste` reads
+    from it and never mutates it.
+    """
+    return _to_image(base64.b64decode(data), color)
 
 
 def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
@@ -64,8 +77,8 @@ def screen_tile(
     window = entry["window"]
 
     try:
-        source = _to_image(
-            base64.b64decode(content["data"]), tuple(content.get("color") or (255, 255, 255))
+        source = _decode_cached(
+            content["data"], tuple(content.get("color") or (255, 255, 255))
         )
     except (MaskFormatError, ValueError, KeyError):
         return tile
@@ -116,3 +129,15 @@ def brightness_for_large(state: dict[str, Any]) -> Optional[int]:
     if isinstance(brightness, dict) and isinstance(brightness.get("large"), int):
         return brightness["large"]
     return None
+
+
+def has_scrolling(state: dict[str, Any]) -> bool:
+    """Whether anything on the wall is animating.
+
+    Static content needs redrawing only when the state file changes; redrawing
+    it every tick is pure contention with the panel refresh thread.
+    """
+    for entry in (state.get("screens") or {}).values():
+        if entry.get("content", {}).get("scroll"):
+            return True
+    return False

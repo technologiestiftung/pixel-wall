@@ -51,7 +51,9 @@ def slice_for_screen(
     return sliced, origin
 
 
-def frame_for_screen(content: ContentModel, window: ScreenWindow) -> ScreenFrame:
+def frame_for_screen(
+    content: ContentModel, window: ScreenWindow, brightness: int = 60
+) -> ScreenFrame:
     """The binary MQTT payload for one screen."""
     scroll = None
     if content.scroll is not None:
@@ -69,4 +71,5 @@ def frame_for_screen(content: ContentModel, window: ScreenWindow) -> ScreenFrame
         ),
         mask=decode_block(content.block()),
         scroll=scroll,
+        brightness=brightness,
     )

@@ -17,7 +17,7 @@
 
 #define ENVELOPE_MAGIC 0x57
 #define ENVELOPE_VERSION 0x01
-#define ENVELOPE_HEADER 21
+#define ENVELOPE_HEADER 22
 #define FLAG_SCROLL 0x01
 
 #define MASK1_MAGIC 0x50
@@ -55,6 +55,10 @@ typedef struct {
 	uint16_t speedPxPerSec;
 	uint16_t pauseMs;
 	uint16_t compositeWidthPx;
+
+	/* Brightness for this screen's hardware kind, 5-100. Carried on the wire
+	 * because this board never sees the backend's state file. */
+	uint8_t brightness;
 } PixelWallScreen;
 
 static inline void pixelWallScreenInit(PixelWallScreen *screen) {
@@ -63,6 +67,7 @@ static inline void pixelWallScreenInit(PixelWallScreen *screen) {
 	screen->r = 255;
 	screen->g = 255;
 	screen->b = 255;
+	screen->brightness = 60;
 }
 
 static inline void pixelWallScreenFree(PixelWallScreen *screen) {
@@ -233,6 +238,7 @@ static inline bool pixelWallDecodeFrame(PixelWallScreen *screen, const uint8_t *
 		screen->pauseMs = pixelWallReadU16(payload + 17);
 		screen->compositeWidthPx = pixelWallReadU16(payload + 19);
 	}
+	screen->brightness = payload[21];
 	screen->valid = true;
 	return true;
 }

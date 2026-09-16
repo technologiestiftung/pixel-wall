@@ -76,18 +76,38 @@ output instead of the ESP32. Ruled out for now:
 
 ## Power
 
-- All 7 panels run off a single shared 5V/20A supply. The ESP32 likely taps
-  the same rail (TBD placement — see below); the Pi has its own separate PSU.
-- **Not yet verified:** 20A is a round-number planning figure, not checked
-  against real current draw. 64×64 and 32×32 HUB75 panels can each pull
-  several amps at full white/max brightness — with 4 large + 3 small panels,
-  worst-case draw could be close to or over 20A. `pi_display.py` already caps
-  brightness (`MAX_BRIGHTNESS = 100`) as a coarse safeguard, but that's not a
-  substitute for an actual budget.
-  - **Action item:** get real per-panel current draw (datasheet or bench
-    measurement at max brightness, full white) for both panel types, sum the
-    worst case for all 7 panels + ESP32, and confirm headroom before relying
-    on this supply at full brightness.
+**Two separate supplies (confirmed on the wall, 2026-09-16):**
+
+| Rail  | Feeds            | Supply | Typical worst case                  |
+| ----- | ---------------- | ------ | ----------------------------------- |
+| Large | 4 × 64×64 panels | 5V/20A | ~16 A at full white, max brightness |
+| Small | 3 × 32×32 panels | 5V/4A  | ~6 A at full white, max brightness  |
+
+The Pi has its own separate PSU.
+
+- **The large rail has adequate headroom** (~20% at worst case).
+- **The small rail is under-spec for the worst case.** Three 32×32 panels at
+  full white and 100% brightness ask for roughly 6 A from a 4 A supply, plus
+  ~0.25 A for the ESP32. Ordinary content (text, sparse icons) draws a
+  fraction of that, so this may never bite in practice — but a white `Farbe`
+  fill across all three small screens at full brightness is exactly the case
+  that would.
+  - **Mitigation available now:** brightness is settable per hardware kind
+    from the UI (see CONTEXT.md "Content"), so the small screens can be capped
+    independently of the large ones. Around 60% keeps worst-case draw inside
+    4 A.
+  - The per-panel figures above are typical HUB75 numbers, not measured from
+    these specific panels. Confirm against the datasheets or a bench
+    measurement before relying on them.
+
+**Diagnosing a brownout** — it looks different from the refresh flicker caused
+by CPU contention (see `apps/backend/README.md`, "Display script"). A brownout
+shows as colours washing out toward dim or red, affects whichever rail is
+loaded, and can reset the ESP32 (visible as a reboot in the Serial Monitor).
+To check: display white at 100% and measure across 5V/GND at the **last panel
+in the chain**, not at the supply. Below ~4.7 V means either the supply or
+voltage drop in the wiring.
+
 - **Distribution topology: not decided yet.** Two options on the table:
   - **Star:** separate wire run from the PSU to each panel/chain, sized for
     that branch's current. Avoids voltage drop accumulating along a chain.

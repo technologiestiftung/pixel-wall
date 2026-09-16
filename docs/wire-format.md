@@ -101,15 +101,21 @@ offset  size  field
 15      2     scroll speedPxPerSec,    uint16 big-endian
 17      2     scroll pauseMs,          uint16 big-endian
 19      2     scroll compositeWidthPx, uint16 big-endian
-21      ...   the binary block below (mask1 or pal4), verbatim
+21      1     brightness percent, 5-100
+22      ...   the binary block below (mask1 or pal4), verbatim
 ```
 
 Which block follows is read from its own magic byte, not from a field here.
 The `color` bytes are meaningful only for a `mask1` block; a `pal4` block
 carries its own palette and the decoder ignores them.
 
-The scroll fields are always present so the header is a fixed 21 bytes; when
-flags bit 0 is clear they are zero and must be ignored. A decoder MUST reject
+The scroll fields are always present so the header is a fixed 22 bytes; when
+flags bit 0 is clear they are zero and must be ignored.
+
+`brightness` is carried here because a device driven only by MQTT has no other
+way to learn it — the Pi reads it straight out of the state file, but the ESP32
+never sees that file. It is the value for this screen's hardware kind, so every
+screen on one board receives the same number. A decoder MUST reject
 an unexpected magic or version and keep showing its previous frame.
 
 `speedPxPerSec` is rounded to a whole number here. The JSON envelope allows a

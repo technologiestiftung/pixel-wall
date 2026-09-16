@@ -38,7 +38,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions  # noqa: E402
 
-from app.compositor import brightness_for_large, render_frame  # noqa: E402
+from app.compositor import (  # noqa: E402
+    brightness_for_large,
+    has_scrolling,
+    render_frame,
+)
 
 # ---------------------------------------------------------------- settings
 
@@ -48,6 +52,15 @@ MAX_BRIGHTNESS = 100         # hard ceiling on current draw
 DEFAULT_BRIGHTNESS = 60
 STATE_POLL_INTERVAL = 0.2    # seconds between state re-reads
 TARGET_FRAME_INTERVAL = 1 / 60
+
+# Panel tuning, overridable without editing code because the right values are
+# specific to the wiring and can only be found by looking at the wall. Lower
+# PWM_BITS is the usual first move against flicker: it cuts the refresh work
+# per frame at the cost of colour depth.
+PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "11"))
+PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "130"))
+GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "4"))
+LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "120"))
 
 EMPTY_STATE: dict = {"screens": {}, "brightness": {"small": 60, "large": 60}}
 
@@ -97,10 +110,10 @@ def build_matrix(brightness):
 
     # Quality and stability.
     options.brightness = brightness
-    options.pwm_bits = 11
-    options.pwm_lsb_nanoseconds = 130
-    options.gpio_slowdown = 4        # Pi 4 needs 3-5; raise if you see ghosting
-    options.limit_refresh_rate_hz = 120
+    options.pwm_bits = PWM_BITS
+    options.pwm_lsb_nanoseconds = PWM_LSB_NANOSECONDS
+    options.gpio_slowdown = GPIO_SLOWDOWN
+    options.limit_refresh_rate_hz = LIMIT_REFRESH_HZ
     options.drop_privileges = False
 
     return RGBMatrix(options=options)
@@ -128,6 +141,7 @@ def main():
     # Lauftext in step across the seams without any per-screen bookkeeping.
     started = time.monotonic()
     last_poll = 0.0
+    last_signature = None
 
     while True:
         now = time.monotonic()
@@ -141,12 +155,24 @@ def main():
                 if wanted != matrix.brightness:
                     matrix.brightness = wanted
 
-        canvas.SetImage(render_frame(state, (now - started) * 1000))
-        canvas = matrix.SwapOnVSync(canvas)
+        # Redraw only when the frame can actually differ. The matrix library
+        # refreshes the panels from its own thread, and redrawing static
+        # content at 60 fps starves that thread — which looks like flicker,
+        # not like slowness.
+        animating = has_scrolling(state)
+        signature = (state.get("updated_at"), matrix.brightness)
 
-        elapsed = time.monotonic() - now
-        if elapsed < TARGET_FRAME_INTERVAL:
-            time.sleep(TARGET_FRAME_INTERVAL - elapsed)
+        if animating or signature != last_signature:
+            canvas.SetImage(render_frame(state, (now - started) * 1000))
+            canvas = matrix.SwapOnVSync(canvas)
+            last_signature = signature
+
+        if animating:
+            elapsed = time.monotonic() - now
+            if elapsed < TARGET_FRAME_INTERVAL:
+                time.sleep(TARGET_FRAME_INTERVAL - elapsed)
+        else:
+            time.sleep(STATE_POLL_INTERVAL)
 
 
 if __name__ == "__main__":

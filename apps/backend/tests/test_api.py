@@ -320,3 +320,28 @@ def test_brightness_endpoint_clamps(api):
         "small": 5,
         "large": 100,
     }
+
+
+def test_brightness_travels_in_the_published_frame(api, monkeypatch):
+    """An MQTT-only device never sees the state file, so brightness has to
+    reach it in the envelope — and a brightness-only change has to resend."""
+    from app import wire
+    from app.mqtt import publisher
+
+    sent: dict[str, bytes] = {}
+    monkeypatch.setattr(
+        publisher, "publish_screen", lambda screen_id, payload: sent.update({screen_id: payload}) or True
+    )
+
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "...."]),
+        "brightness": {"small": 25, "large": 60},
+    })
+    assert wire.decode_frame(sent["01"]).brightness == 25
+
+    sent.clear()
+    api.put("/api/brightness", json={"small": 90, "large": 60})
+    assert "01" in sent, "a brightness-only change must resend the frames"
+    assert wire.decode_frame(sent["01"]).brightness == 90

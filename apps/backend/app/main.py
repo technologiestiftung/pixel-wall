@@ -59,6 +59,29 @@ app.add_middleware(
 )
 
 
+def _publish(screen_id: str, frame) -> None:
+    if not publisher.publish_screen(screen_id, encode_frame(frame)):
+        logger.warning(
+            "screen %s written but MQTT publish failed; state file is still authoritative",
+            screen_id,
+        )
+
+
+def _republish_all(state: WallState) -> None:
+    """Re-sends every screen that has content.
+
+    Used after a brightness change: brightness travels in the MQTT envelope
+    because a device driven only by MQTT never sees the state file, so it only
+    reaches the ESP32 by resending the frames.
+    """
+    for screen_id, entry in state.screens.items():
+        kind = screen_inventory.kind_of(screen_id)
+        frame = compose.frame_for_screen(
+            entry.content, entry.window, getattr(state.brightness, kind)
+        )
+        _publish(screen_id, frame)
+
+
 def _write(new_state: WallState) -> dict:
     try:
         return state_store.write_state(new_state)
@@ -114,6 +137,7 @@ def put_brightness(payload: BrightnessByKind) -> BrightnessByKind:
     current = WallState.model_validate(state_store.read_state())
     current.brightness = payload
     written = _write(current)
+    _republish_all(current)
     return BrightnessByKind(**written["brightness"])
 
 
@@ -138,23 +162,28 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
             detail=f"selectionKind {payload.selectionKind!r} does not match the selected screens",
         )
 
+    if payload.brightness is not None:
+        current.brightness = payload.brightness
+
+    kind_brightness = getattr(current.brightness, payload.selectionKind)
+
     frames = {}
     for target in payload.screens:
         content, window = compose.slice_for_screen(payload.content, target.window)
         current.screens[target.screenId] = ScreenStateModel(window=window, content=content)
-        frames[target.screenId] = compose.frame_for_screen(content, window)
-
-    if payload.brightness is not None:
-        current.brightness = payload.brightness
+        frames[target.screenId] = compose.frame_for_screen(
+            content, window, kind_brightness
+        )
 
     written = _write(current)
 
     for screen_id, frame in frames.items():
-        if not publisher.publish_screen(screen_id, encode_frame(frame)):
-            logger.warning(
-                "screen %s written but MQTT publish failed; state file is still authoritative",
-                screen_id,
-            )
+        _publish(screen_id, frame)
+
+    # Brightness is per hardware kind, so changing it while editing one screen
+    # also has to reach the others on that board.
+    if payload.brightness is not None:
+        _republish_all(current)
 
     return ApplyResponse(appliedAt=written["updated_at"])
 

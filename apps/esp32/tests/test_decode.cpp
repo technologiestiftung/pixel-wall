@@ -100,6 +100,7 @@ int main(void) {
 		check(screen.speedPxPerSec == 60, "speed", "envelope");
 		check(screen.pauseMs == 2000, "pause", "envelope");
 		check(screen.compositeWidthPx == 148, "compositeWidthPx", "envelope");
+		check(screen.brightness == 85, "brightness", "envelope");
 	} else {
 		printf("FAIL envelope: decode returned false\n");
 		failures++;

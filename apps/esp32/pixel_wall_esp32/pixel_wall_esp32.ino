@@ -96,6 +96,13 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 	pixelWallScreenFree(&screens[index]);
 	screens[index] = next;
 
+	// All three panels share one board, so one setBrightness8 covers them;
+	// every screen of a kind carries the same value.
+	if (next.brightness != brightnessPercent) {
+		brightnessPercent = next.brightness;
+		applyBrightness();
+	}
+
 	Serial.printf("screen %d: %ux%u %s%s, %u bytes\n", index + 1,
 	              next.widthPx, next.heightPx,
 	              next.format == PAL4_MAGIC ? "pal4" : "mask1",

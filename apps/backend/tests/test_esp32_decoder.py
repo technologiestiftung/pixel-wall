@@ -40,6 +40,7 @@ def _envelope_sample() -> bytes:
         window=wire.Window(84, 0, 64, 64),
         mask=Mask.from_rows(["####....", "....####"]),
         scroll=wire.Scroll("left", 60, 2000, 148),
+        brightness=85,
     )
     return wire.encode_frame(frame)
 
