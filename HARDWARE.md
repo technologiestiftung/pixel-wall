@@ -74,6 +74,34 @@ output instead of the ESP32. Ruled out for now:
   `ledwall/message`); the ESP32 side (subscribe, parse, drive the panels) is
   still to be written.
 
+### ESP32 → HUB75 pin map (confirmed on the wall, 2026-09-16)
+
+| Panel | ESP32 | Panel | ESP32    |
+| ----- | ----- | ----- | -------- |
+| R1    | IO25  | G1    | IO26     |
+| B1    | IO27  | GND   | GND      |
+| R2    | IO14  | G2    | **IO33** |
+| B2    | IO13  | GND   | GND      |
+| A     | IO23  | B     | IO19     |
+| C     | IO5   | D     | IO17     |
+| CLK   | IO16  | LAT   | IO4      |
+| OE    | IO15  | GND   | GND      |
+
+Every pin matches `ESP32-HUB75-MatrixPanel-I2S-DMA`'s defaults **except G2**,
+which the library defaults to GPIO12. GPIO12 is a boot strapping pin (MTDI):
+held high at reset it selects a 1.8V flash voltage and the board may fail to
+boot, so G2 was moved to GPIO33 deliberately.
+
+The sketch therefore passes an explicit `i2s_pins` struct — the library cannot
+infer this. Symptom if that struct is missing or wrong: `G2` drives the
+**lower half** of each panel, so white renders with a white top half and a
+magenta bottom half (white minus green). A missing `G1` would do the same to
+the top half.
+
+There is no `E` line: 32×32 panels are 1/16 scan and need only A–D. The 64×64
+panels on the Pi are 1/32 scan and _do_ need E on pin 8 of their HUB75
+connector.
+
 ## Power
 
 **Two separate supplies (confirmed on the wall, 2026-09-16):**

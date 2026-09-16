@@ -62,6 +62,12 @@ PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "130"))
 GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "4"))
 LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "120"))
 
+# "regular" suits a generic multi-port adapter. An Adafruit HAT/bonnet needs
+# "adafruit-hat" (or "adafruit-hat-pwm" with the GPIO4-GPIO18 bridge made) —
+# but those drive only ONE chain, so they are incompatible with parallel=2.
+# Wrong mapping shows up as missing colour channels, not as a failure to start.
+HARDWARE_MAPPING = os.environ.get("LEDWALL_HARDWARE_MAPPING", "regular")
+
 EMPTY_STATE: dict = {"screens": {}, "brightness": {"small": 60, "large": 60}}
 
 
@@ -104,9 +110,7 @@ def build_matrix(brightness):
     options.chain_length = 2
     options.parallel = 2
 
-    # Bonnet-specific. Use "adafruit-hat-pwm" only if the GPIO4-GPIO18
-    # solder bridge is made; otherwise fall back to "adafruit-hat".
-    options.hardware_mapping = "regular"
+    options.hardware_mapping = HARDWARE_MAPPING
 
     # Quality and stability.
     options.brightness = brightness
