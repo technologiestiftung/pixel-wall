@@ -68,6 +68,14 @@ LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "120"))
 # Wrong mapping shows up as missing colour channels, not as a failure to start.
 HARDWARE_MAPPING = os.environ.get("LEDWALL_HARDWARE_MAPPING", "regular")
 
+# Diagnostics. SHOW_REFRESH prints the achieved refresh rate to stderr, which
+# is the number that actually decides whether flicker is visible — below about
+# 100 Hz the eye starts to see it. DISABLE_HARDWARE_PULSING falls back to
+# software timing; on some adapter boards the hardware PWM pin is not the one
+# wired to OE, and the fallback is steadier.
+SHOW_REFRESH = os.environ.get("LEDWALL_SHOW_REFRESH", "0") == "1"
+DISABLE_HARDWARE_PULSING = os.environ.get("LEDWALL_NO_HARDWARE_PULSE", "0") == "1"
+
 EMPTY_STATE: dict = {"screens": {}, "brightness": {"small": 60, "large": 60}}
 
 
@@ -119,6 +127,8 @@ def build_matrix(brightness):
     options.gpio_slowdown = GPIO_SLOWDOWN
     options.limit_refresh_rate_hz = LIMIT_REFRESH_HZ
     options.drop_privileges = False
+    options.show_refresh_rate = SHOW_REFRESH
+    options.disable_hardware_pulsing = DISABLE_HARDWARE_PULSING
 
     return RGBMatrix(options=options)
 
