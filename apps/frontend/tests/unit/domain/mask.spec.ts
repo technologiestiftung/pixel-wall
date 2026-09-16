@@ -15,6 +15,7 @@ import {
 	maskFromImageData,
 	maskFromRows,
 	maskToRows,
+	pal4FromImageData,
 	pal4FromRows,
 	pal4StrideFor,
 	pal4ToRows,
@@ -175,6 +176,91 @@ describe("maskFromImageData", () => {
 		expect(
 			maskToRows(maskFromImageData(data, { widthPx: 4, heightPx: 1 })),
 		).toEqual(["#.#."]);
+	});
+});
+
+describe("pal4FromImageData", () => {
+	/** Packs [r,g,b,a] rows of pixels into a flat Uint8ClampedArray. */
+	function pixels(rows: number[][][]): Uint8ClampedArray {
+		return Uint8ClampedArray.from(rows.flat(2));
+	}
+
+	it("assigns index 0 to fully transparent pixels", () => {
+		const data = pixels([[[0, 0, 0, 0]]]);
+		const image = pal4FromImageData(data, { widthPx: 1, heightPx: 1 });
+		expect(image.palette[0]).toEqual([0, 0, 0]);
+		expect(image.indices[0]).toBe(0);
+	});
+
+	it("builds a palette from the opaque colours actually present", () => {
+		const data = pixels([
+			[
+				[254, 68, 65, 255],
+				[30, 55, 145, 255],
+				[0, 0, 0, 0],
+			],
+		]);
+		const image = pal4FromImageData(data, { widthPx: 3, heightPx: 1 });
+		expect(image.palette).toEqual([
+			[0, 0, 0],
+			[254, 68, 65],
+			[30, 55, 145],
+		]);
+		expect([...image.indices]).toEqual([1, 2, 0]);
+	});
+
+	it("caps the palette at 16 entries, keeping the most frequent colours", () => {
+		// Colour `n` (1-20, grayscale) appears `n` times, so frequency ranks
+		// exactly by colour value with no ties.
+		const row: number[][] = [];
+		for (let color = 1; color <= 20; color++) {
+			for (let count = 0; count < color; count++) {
+				row.push([color, color, color, 255]);
+			}
+		}
+		const data = pixels([row]);
+		const image = pal4FromImageData(data, { widthPx: row.length, heightPx: 1 });
+		expect(image.palette.length).toBe(16);
+		expect(image.palette[0]).toEqual([0, 0, 0]);
+		for (let color = 20; color >= 6; color--) {
+			expect(image.palette).toContainEqual([color, color, color]);
+		}
+	});
+
+	it("snaps anti-aliased edge pixels to the nearest palette entry instead of minting new colours", () => {
+		const data = pixels([
+			[
+				[254, 68, 65, 255], // solid brand red
+				[254, 68, 65, 128], // half-opaque edge of the same red
+				[0, 0, 0, 0], // fully transparent background
+			],
+		]);
+		const image = pal4FromImageData(data, { widthPx: 3, heightPx: 1 });
+		// Only the solid colour (plus background) ever becomes a palette
+		// entry; the edge pixel is classified against those two, not given
+		// its own slot.
+		expect(image.palette).toEqual([
+			[0, 0, 0],
+			[254, 68, 65],
+		]);
+		expect([...image.indices]).toEqual([1, 1, 0]);
+	});
+
+	it("round-trips through encode/decode", () => {
+		const data = pixels([
+			[
+				[254, 68, 65, 255],
+				[30, 55, 145, 255],
+			],
+			[
+				[255, 207, 214, 255],
+				[0, 0, 0, 0],
+			],
+		]);
+		const image = pal4FromImageData(data, { widthPx: 2, heightPx: 2 });
+		const decoded = decodePal4Block(encodePal4Block(image));
+		expect(decoded.palette).toEqual(image.palette);
+		expect([...decoded.indices]).toEqual([...image.indices]);
 	});
 });
 

@@ -1,4 +1,6 @@
+import { TEMPLATES } from "../domain/content";
 import type { Content, HorizontalAlign, VerticalAlign } from "../domain/types";
+import { getLoadedSvgTemplate } from "./svgTemplates";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
  * given alignment — shared by both the animation icon and static text. */
@@ -133,6 +135,32 @@ function drawTemplateIcon(
 	ctx.restore();
 }
 
+/** Draws real, multi-colour brand artwork (render/svgTemplates.ts) at its
+ * true colours — unlike drawTemplateIcon's hand-drawn glyphs, this is never
+ * forced to a flat white silhouette, since it travels over the wire as
+ * `pal4`, not a `mask1` coverage mask (see render/wire.ts). No-ops if the
+ * image hasn't finished decoding yet; the caller re-renders once it has. */
+function drawSvgImageTemplate(
+	ctx: CanvasRenderingContext2D,
+	image: HTMLImageElement,
+	box: { x: number; y: number; size: number },
+) {
+	const scale = box.size / Math.max(image.naturalWidth, image.naturalHeight);
+	ctx.save();
+	ctx.translate(box.x, box.y);
+	ctx.scale(scale, scale);
+	ctx.drawImage(image, 0, 0);
+	ctx.restore();
+}
+
+/** True when a 2D canvas context is actually available — false under jsdom
+ * without the optional `canvas` npm package. Callers that need a decoded
+ * image (which canvas-less environments can never produce) use this to skip
+ * loading it rather than hang waiting on a load that will never fire. */
+export function hasCanvasSupport(): boolean {
+	return document.createElement("canvas").getContext("2d") !== null;
+}
+
 /**
  * Renders `content` onto a real device-pixel canvas and returns it as a
  * base64 PNG — this is the actual bitmap that would be sent to the backend
@@ -150,11 +178,15 @@ export function rasterizeContent(
 }
 
 /**
- * Renders `content` onto a device-pixel canvas. `monochrome` draws everything
- * in white regardless of the content's own colour, which is what the `mask1`
- * wire format needs — it carries one colour alongside a 1-bit coverage mask,
- * so the colour must not be baked into the pixels (see docs/wire-format.md).
- * The live preview passes `false` so colours show.
+ * Renders `content` onto a device-pixel canvas. `monochrome` draws text and
+ * colour fills (and the hand-drawn template icons, which are always white
+ * regardless of this flag) in white, which is what the `mask1` wire format
+ * needs — it carries one colour alongside a 1-bit coverage mask, so the
+ * colour must not be baked into the pixels (see docs/wire-format.md). The
+ * live preview passes `false` so colours show. Real multi-colour template
+ * artwork (render/svgTemplates.ts) ignores this flag entirely and always
+ * draws in its true colours, since it travels over the wire as `pal4`
+ * instead — see render/wire.ts.
  *
  * Returns null where no 2D context is available (jsdom without the optional
  * `canvas` package); callers degrade rather than throw.
@@ -187,11 +219,20 @@ export function drawContentToCanvas(
 		// canvas crops" behavior for the smaller axis.
 		const size =
 			Math.max(canvas.width, canvas.height) * (content.scalePercent / 100);
-		drawTemplateIcon(ctx, content.templateId, {
+		const box = {
 			x: alignOffset(content.hAlign, canvas.width, size),
 			y: alignOffset(content.vAlign, canvas.height, size),
 			size,
-		});
+		};
+		const template = TEMPLATES.find((t) => t.id === content.templateId);
+		if (template?.svgUrl) {
+			const image = getLoadedSvgTemplate(template.svgUrl);
+			if (image) {
+				drawSvgImageTemplate(ctx, image, box);
+			}
+		} else {
+			drawTemplateIcon(ctx, content.templateId, box);
+		}
 		return canvas;
 	}
 

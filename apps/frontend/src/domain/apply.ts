@@ -12,11 +12,11 @@ import { measureTextWidthPx } from "../render/text";
  * text) plus each selected screen's window into it. See CONTEXT.md
  * "Rendering split" and docs/wire-format.md for the contract this targets.
  */
-export function buildApplyRequest(
+export async function buildApplyRequest(
 	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
 	selection: Selection,
 	edit: { content: Content; brightness?: BrightnessDto },
-): ApplyRequest {
+): Promise<ApplyRequest> {
 	const { content, brightness } = edit;
 	const devicePxPerMm = 1 / PITCH_MM_PER_PX[selection.kind];
 	const composite = computeDisplayComposite(wall, selection, devicePxPerMm);
@@ -55,7 +55,7 @@ export function buildApplyRequest(
 				},
 			};
 		}),
-		content: contentToWire(
+		content: await contentToWire(
 			content,
 			{ widthPx: bitmapWidthPx, heightPx: bitmapHeightPx },
 			scroll,

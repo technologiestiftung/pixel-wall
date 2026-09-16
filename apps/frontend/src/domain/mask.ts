@@ -326,6 +326,81 @@ export function pal4ToRows(image: Palette4): string[] {
 	return rows;
 }
 
+/**
+ * Quantizes canvas `ImageData` into a `Palette4` image — the `pal4`
+ * counterpart of `maskFromImageData` above, for real multi-colour template
+ * artwork (see render/svgTemplates.ts and render/wire.ts). Index 0 is always
+ * `[0, 0, 0]` (background/unlit, per docs/wire-format.md's "pal4 binary
+ * block"), and every pixel is alpha-composited onto black before matching so
+ * a) fully transparent pixels land exactly on index 0 and b) anti-aliased
+ * edge pixels — which would otherwise mint a near-infinite number of
+ * in-between colours and blow through the 16-colour cap — snap to whichever
+ * existing palette entry (background included) they're closest to, rather
+ * than each becoming its own colour.
+ */
+export function pal4FromImageData(
+	data: Uint8ClampedArray,
+	options: { widthPx: number; heightPx: number },
+): Palette4 {
+	const { widthPx, heightPx } = options;
+	const pixelCount = widthPx * heightPx;
+
+	// Only fully (or near-fully) opaque pixels vote for palette entries —
+	// this keeps the palette itself built from the artwork's real colours
+	// rather than the faint anti-aliased fringe around them.
+	const SOLID_ALPHA_THRESHOLD = 250;
+	const frequency = new Map<number, number>();
+	for (let i = 0; i < pixelCount; i++) {
+		const alpha = data[i * 4 + 3];
+		if (alpha < SOLID_ALPHA_THRESHOLD) {
+			continue;
+		}
+		const key = (data[i * 4] << 16) | (data[i * 4 + 1] << 8) | data[i * 4 + 2];
+		frequency.set(key, (frequency.get(key) ?? 0) + 1);
+	}
+
+	// Solid black is already index 0 (the background), so it doesn't need
+	// (and shouldn't waste) a second palette slot.
+	frequency.delete(0);
+	const byFrequencyDesc = [...frequency.entries()].sort((a, b) => b[1] - a[1]);
+	const palette: number[][] = [[0, 0, 0]];
+	for (const [key] of byFrequencyDesc) {
+		if (palette.length >= PAL4_MAX_COLORS) {
+			break;
+		}
+		palette.push([(key >> 16) & 0xff, (key >> 8) & 0xff, key & 0xff]);
+	}
+
+	const indices = new Uint8Array(pixelCount);
+	for (let i = 0; i < pixelCount; i++) {
+		const alpha = data[i * 4 + 3];
+		// Premultiply by alpha (i.e. blend onto a black background) so a
+		// half-covered edge pixel is judged by how it will actually look
+		// next to unlit neighbours, not by the fully-saturated colour under
+		// its fringe.
+		const r = (data[i * 4] * alpha) / 255;
+		const g = (data[i * 4 + 1] * alpha) / 255;
+		const b = (data[i * 4 + 2] * alpha) / 255;
+
+		let bestIndex = 0;
+		let bestDistance = Number.POSITIVE_INFINITY;
+		for (let p = 0; p < palette.length; p++) {
+			const [pr, pg, pb] = palette[p];
+			const dr = r - pr;
+			const dg = g - pg;
+			const db = b - pb;
+			const distance = dr * dr + dg * dg + db * db;
+			if (distance < bestDistance) {
+				bestDistance = distance;
+				bestIndex = p;
+			}
+		}
+		indices[i] = bestIndex;
+	}
+
+	return { widthPx, heightPx, palette, indices };
+}
+
 /** Packed rows including the index-0 padding nibble on odd widths. */
 function pal4PackedRows(image: Palette4): Uint8Array {
 	const stride = pal4StrideFor(image.widthPx);

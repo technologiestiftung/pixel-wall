@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { TEMPLATES } from "../domain/content";
 
 interface TemplateIconProps {
 	templateId: string;
@@ -7,12 +8,21 @@ interface TemplateIconProps {
 }
 
 /** Exact icon geometry from the Figma design (Menu Animation/Bild panel),
- * parameterized to `currentColor`. */
+ * parameterized to `currentColor` — for the hand-drawn single-colour
+ * templates. Real multi-colour brand artwork (see domain/content.ts's
+ * `svgUrl`) is shown as an `<img>` instead, in its true colours. */
 export function TemplateIcon({
 	templateId,
 	className,
 	style,
 }: TemplateIconProps) {
+	const template = TEMPLATES.find((t) => t.id === templateId);
+	if (template?.svgUrl) {
+		return (
+			<img src={template.svgUrl} alt="" className={className} style={style} />
+		);
+	}
+
 	const icon = ICONS[templateId] ?? ICONS.pfeil;
 	return (
 		<svg
