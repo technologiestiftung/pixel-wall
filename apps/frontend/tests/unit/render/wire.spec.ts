@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { contentToWire, hexToRgb } from "../../../src/render/wire";
+import { contentToWire } from "../../../src/render/wire";
 import {
 	decodeMaskBase64,
 	decodePal4Base64,
 	maskToRows,
 } from "../../../src/domain/mask";
+import { hexToRgb } from "../../../src/domain/color";
 import { TEMPLATES } from "../../../src/domain/content";
 import type {
 	AnimationContent,
