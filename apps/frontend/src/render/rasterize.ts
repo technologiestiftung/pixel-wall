@@ -45,6 +45,15 @@ function drawTemplateIcon(
 	ctx.restore();
 }
 
+/** True when a real 2D canvas context is actually available — false under
+ * jsdom without the optional `canvas` npm package. jsdom's `Image` exists
+ * but never actually decodes anything in that case either (setting `.src`
+ * never fires `load` or `error`), so render/wire.ts uses this to skip
+ * waiting on a template image that would otherwise hang forever. */
+export function hasCanvasSupport(): boolean {
+	return document.createElement("canvas").getContext("2d") !== null;
+}
+
 /**
  * Renders `content` onto a real device-pixel canvas and returns it as a
  * base64 PNG — this is the actual bitmap that would be sent to the backend

@@ -9,7 +9,7 @@ import {
 	setBit,
 } from "../domain/mask";
 import type { AnimationContent, Content } from "../domain/types";
-import { drawContentToCanvas } from "./rasterize";
+import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
 import { waitForTemplateImage } from "./templateImages";
 
 const WHITE: [number, number, number] = [255, 255, 255];
@@ -82,18 +82,21 @@ export async function contentToWire(
 
 /**
  * Builds the `pal4` envelope for an Animation/Bild template: waits for its
- * artwork to finish decoding (see render/templateImages.ts — resolves
- * immediately under jsdom, where `Image` never actually loads anything),
- * draws it in true colour, then quantizes to <=16 palette entries (see
- * domain/mask.ts's pal4FromImageData). Falls back to a blank frame without a
- * real 2D context, mirroring emptyMask below.
+ * artwork to finish decoding, draws it in true colour, then quantizes to
+ * <=16 palette entries (see domain/mask.ts's pal4FromImageData). Skips the
+ * wait without a real 2D context (jsdom without the optional `canvas`
+ * package) — jsdom's `Image` never actually fires `load`/`error` there, so
+ * waiting would hang forever — and falls back to a blank frame instead,
+ * mirroring emptyMask below.
  */
 async function contentToPal4Wire(
 	content: AnimationContent,
 	size: { width: number; height: number; scroll?: ScrollDto },
 ): Promise<WireContentDto> {
 	const { width, height, scroll } = size;
-	await waitForTemplateImage(content.templateId);
+	if (hasCanvasSupport()) {
+		await waitForTemplateImage(content.templateId);
+	}
 
 	const canvas = drawContentToCanvas(
 		content,

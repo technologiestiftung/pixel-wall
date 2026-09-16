@@ -32,7 +32,9 @@ if (typeof Image !== "undefined") {
 	}
 }
 
-export function getTemplateImage(templateId: string): HTMLImageElement | undefined {
+export function getTemplateImage(
+	templateId: string,
+): HTMLImageElement | undefined {
 	return cache.get(templateId) ?? cache.get(TEMPLATES[0].id);
 }
 

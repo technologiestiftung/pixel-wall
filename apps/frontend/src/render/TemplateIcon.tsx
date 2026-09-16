@@ -10,7 +10,11 @@ interface TemplateIconProps {
 /** Menu preview for a template: the actual `public/visuals/*.svg` artwork
  * (including any embedded SVG animation), not a redrawn approximation —
  * see render/rasterize.ts for the rasterized version sent to the wall. */
-export function TemplateIcon({ templateId, className, style }: TemplateIconProps) {
+export function TemplateIcon({
+	templateId,
+	className,
+	style,
+}: TemplateIconProps) {
 	const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
 	return (
 		<img
