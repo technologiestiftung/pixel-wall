@@ -37,13 +37,13 @@ column/row addresses, not millimeters. Which physical panel sits at which
 sits in its chain; it cannot change at runtime and has nothing to do with
 where the user last dragged that screen in the layout tool.
 
-These two spaces must not be conflated. Content space explains *how much
-bitmap to leave as gap* and *where each screen's window sits in that bitmap*;
-matrix space explains *which physical quadrant the backend blits that window
-into*. The frontend already owns the first (correctly — it needs the mm
+These two spaces must not be conflated. Content space explains _how much
+bitmap to leave as gap_ and _where each screen's window sits in that bitmap_;
+matrix space explains _which physical quadrant the backend blits that window
+into_. The frontend already owns the first (correctly — it needs the mm
 layout for the phantom-gap sizing). The second doesn't exist anywhere yet and
 isn't derivable from `DEFAULT_LAYOUT`: those positions are the Figma-sourced
-default *planning* arrangement (and are demonstrably not a clean rectangle —
+default _planning_ arrangement (and are demonstrably not a clean rectangle —
 04–07 sit at scattered coordinates), not the electrical chain topology.
 HARDWARE.md's own note that the two panels of a chain-pair can be dragged
 apart despite being "electrically one continuous canvas" is the same point
@@ -81,7 +81,7 @@ consume it.
 **1. Scroll is x-axis only — confirmed, including for column selections.**
 Lauftext always scrolls left/right, never up/down, regardless of whether the
 selection is a row or a column of large screens. CONTEXT.md's "single row or
-single column" only scopes *which selections may carry Lauftext at all*, not
+single column" only scopes _which selections may carry Lauftext at all_, not
 which axis it scrolls on — the axis is always x. That matches what's already
 built, so none of it needs to change:
 
@@ -120,7 +120,7 @@ state untouched — matching what CONTEXT.md's **Apply changes** section
 already requires of the frontend).
 
 **4. The render loop, not just the state store, needs a rewrite.**
-`pi_display.py` today owns both jobs at once: it *is* the renderer (draws its
+`pi_display.py` today owns both jobs at once: it _is_ the renderer (draws its
 own text with a local BDF font) and the poller (re-reads `state.json` every
 200ms mid-scroll). The new model moves rendering entirely to the frontend
 (CONTEXT.md **Rendering split**: the frontend sends a finished bitmap, never
@@ -132,7 +132,7 @@ of its decoded bitmap with PIL, and blit it into its fixed matrix rectangle.
 Because all 4 panels are one physical canvas, this loop always redraws the
 whole 128×128 frame every tick regardless of which screen(s) actually
 changed — "already-applied screens are left untouched" (CONTEXT.md) is a
-guarantee about *state*, not about *frame composition*.
+guarantee about _state_, not about _frame composition_.
 
 Keeping the same file-based hand-off `pi_display.py` already uses (backend
 writes, display process polls, no direct coupling — so the wall survives a
@@ -142,7 +142,7 @@ call, for the same resilience reason HARDWARE.md gives today.
 ## Small screens: a deliberately simpler contract
 
 CONTEXT.md is explicit that small screens "never combine into a shared
-canvas" — a selection of small screens applies the *same* content
+canvas" — a selection of small screens applies the _same_ content
 independently to each. That has a real simplification worth keeping: there is
 no per-screen geometry to compute or send at all for small-screen applies,
 and only one MQTT message is needed (all 3 ESP32 panels subscribe to the same
