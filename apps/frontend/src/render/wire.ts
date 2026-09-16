@@ -3,11 +3,14 @@ import {
 	createMask,
 	decodeBlock,
 	encodeMaskBase64,
+	encodePal4Base64,
 	maskFromImageData,
+	pal4FromImageData,
 	setBit,
 } from "../domain/mask";
-import type { Content } from "../domain/types";
-import { drawContentToCanvas } from "./rasterize";
+import type { AnimationContent, Content } from "../domain/types";
+import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
+import { waitForTemplateImage } from "./templateImages";
 
 const WHITE: [number, number, number] = [255, 255, 255];
 
@@ -28,21 +31,30 @@ export function hexToRgb(hex: string): [number, number, number] {
 }
 
 /**
- * Rasterises `content` into the `mask1` wire envelope — see
- * docs/wire-format.md. Every v1 content type is monochrome, so the colour
- * travels alongside the coverage mask rather than being baked into pixels.
+ * Rasterises `content` into a wire envelope — see docs/wire-format.md. Text
+ * and Farbe are genuinely single-coloured, so their colour travels alongside
+ * a coverage mask (`mask1`) rather than being baked into pixels. Animation/
+ * Bild always goes out as `pal4` instead (see contentToPal4Wire), since every
+ * template is now real, possibly multi-coloured SVG artwork (see
+ * domain/content.ts's `TEMPLATES`) — no template is ever silhouetted to a
+ * flat colour it doesn't actually have.
  *
- * `pal4` exists in the format and is understood by the backend, but nothing
- * produces it yet: it is for multi-colour template artwork, and the current
- * template library is single-colour.
+ * Async because a template's artwork must finish decoding before it can be
+ * drawn; the `mask1` path stays synchronous internally, it just resolves
+ * immediately.
  */
-export function contentToWire(
+export async function contentToWire(
 	content: Content,
 	size: { widthPx: number; heightPx: number },
 	scroll?: ScrollDto,
-): WireContentDto {
+): Promise<WireContentDto> {
 	const width = Math.max(1, Math.round(size.widthPx));
 	const height = Math.max(1, Math.round(size.heightPx));
+
+	if (content.type === "animation") {
+		return contentToPal4Wire(content, { width, height, scroll });
+	}
+
 	const canvas = drawContentToCanvas(
 		content,
 		{ widthPx: width, heightPx: height },
@@ -64,6 +76,52 @@ export function contentToWire(
 		heightPx: height,
 		color: content.type === "color" ? hexToRgb(content.hex) : WHITE,
 		data: encodeMaskBase64(mask),
+		...(scroll ? { scroll } : {}),
+	};
+}
+
+/**
+ * Builds the `pal4` envelope for an Animation/Bild template: waits for its
+ * artwork to finish decoding, draws it in true colour, then quantizes to
+ * <=16 palette entries (see domain/mask.ts's pal4FromImageData). Skips the
+ * wait without a real 2D context (jsdom without the optional `canvas`
+ * package) — jsdom's `Image` never actually fires `load`/`error` there, so
+ * waiting would hang forever — and falls back to a blank frame instead,
+ * mirroring emptyMask below.
+ */
+async function contentToPal4Wire(
+	content: AnimationContent,
+	size: { width: number; height: number; scroll?: ScrollDto },
+): Promise<WireContentDto> {
+	const { width, height, scroll } = size;
+	if (hasCanvasSupport()) {
+		await waitForTemplateImage(content.templateId);
+	}
+
+	const canvas = drawContentToCanvas(
+		content,
+		{ widthPx: width, heightPx: height },
+		false,
+	);
+	const context = canvas?.getContext("2d") ?? null;
+
+	const image = context
+		? pal4FromImageData(context.getImageData(0, 0, width, height).data, {
+				widthPx: width,
+				heightPx: height,
+			})
+		: {
+				widthPx: width,
+				heightPx: height,
+				palette: [[0, 0, 0]],
+				indices: new Uint8Array(width * height),
+			};
+
+	return {
+		format: "pal4",
+		widthPx: width,
+		heightPx: height,
+		data: encodePal4Base64(image),
 		...(scroll ? { scroll } : {}),
 	};
 }

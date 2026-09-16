@@ -23,7 +23,12 @@ export const TEMPLATES: Template[] = [
 	{ id: "logo", label: "Logo", file: "CLB-Logo.svg", small: false },
 	{ id: "logo-small", label: "Logo", file: "CLB-Logo-small.svg", small: true },
 	{ id: "raute", label: "Raute", file: "CLB-Raute.svg", small: false },
-	{ id: "raute-small", label: "Raute", file: "CLB-Raute-small.svg", small: true },
+	{
+		id: "raute-small",
+		label: "Raute",
+		file: "CLB-Raute-small.svg",
+		small: true,
+	},
 	{
 		id: "raute-animiert",
 		label: "Raute animiert",
@@ -70,7 +75,14 @@ export const TEMPLATES: Template[] = [
 ];
 
 /** Fixed closed palette of exactly 4 presets (no free color picker in v1). */
-export const PALETTE = ["#FEF177", "#B4B9FF", "#FE4441", "#FFCFD6", "#FFFFFF", "#000000"];
+export const PALETTE = [
+	"#FEF177",
+	"#B4B9FF",
+	"#FE4441",
+	"#FFCFD6",
+	"#FFFFFF",
+	"#000000",
+];
 
 const DEFAULT_TEXT: TextContent = {
 	type: "text",

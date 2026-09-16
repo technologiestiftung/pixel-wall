@@ -11,6 +11,7 @@ function build(
 ) {
 	return buildApplyRequest(wall, selection, { content });
 }
+
 import type { LayoutPosition, ScreenSpec } from "../../../src/domain/types";
 
 const largeA: ScreenSpec = {
@@ -31,8 +32,8 @@ const positions: LayoutPosition[] = [
 ];
 
 describe("buildApplyRequest", () => {
-	test("color content: per-screen window uses each screen's own device pixel size", () => {
-		const request = build(
+	test("color content: per-screen window uses each screen's own device pixel size", async () => {
+		const request = await build(
 			{ specs: [largeA, largeB], positions },
 			{ kind: "large", screenIds: ["a", "b"] },
 			{ type: "color", hex: "#FE4441" },
@@ -57,8 +58,8 @@ describe("buildApplyRequest", () => {
 		expect(request.content.scroll).toBeUndefined();
 	});
 
-	test("scrolling text: includes scroll metadata with the fixed loop pause", () => {
-		const request = build(
+	test("scrolling text: includes scroll metadata with the fixed loop pause", async () => {
+		const request = await build(
 			{ specs: [largeA], positions },
 			{ kind: "large", screenIds: ["a"] },
 			{
@@ -85,8 +86,8 @@ describe("buildApplyRequest", () => {
 		expect(request.content.scroll?.compositeWidthPx).toBe(64);
 	});
 
-	test("static content has no scroll metadata", () => {
-		const request = build(
+	test("static content has no scroll metadata", async () => {
+		const request = await build(
 			{ specs: [largeA], positions },
 			{ kind: "large", screenIds: ["a"] },
 			{

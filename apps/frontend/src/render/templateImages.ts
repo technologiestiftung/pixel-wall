@@ -32,8 +32,39 @@ if (typeof Image !== "undefined") {
 	}
 }
 
-export function getTemplateImage(templateId: string): HTMLImageElement | undefined {
+export function getTemplateImage(
+	templateId: string,
+): HTMLImageElement | undefined {
 	return cache.get(templateId) ?? cache.get(TEMPLATES[0].id);
+}
+
+/**
+ * Resolves once a template's image has finished decoding (or failed to),
+ * for callers outside React that can't take a dependency on
+ * `useTemplateImagesVersion` — namely render/wire.ts, which must not
+ * quantize a still-blank canvas into the payload sent to the physical
+ * screens. Resolves immediately if the image is already settled or doesn't
+ * exist (e.g. `Image` is unavailable under jsdom, see above).
+ */
+export function waitForTemplateImage(
+	templateId: string,
+): Promise<HTMLImageElement | undefined> {
+	const img = getTemplateImage(templateId);
+	if (!img) {
+		return Promise.resolve(undefined);
+	}
+	if (img.complete) {
+		return Promise.resolve(img.naturalWidth > 0 ? img : undefined);
+	}
+	return new Promise((resolve) => {
+		const settle = () => {
+			img.removeEventListener("load", settle);
+			img.removeEventListener("error", settle);
+			resolve(img.naturalWidth > 0 ? img : undefined);
+		};
+		img.addEventListener("load", settle);
+		img.addEventListener("error", settle);
+	});
 }
 
 function subscribe(onChange: () => void): () => void {

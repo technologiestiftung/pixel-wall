@@ -42,7 +42,7 @@ export function useApplyChanges() {
 
 		dispatch({ type: "apply-pending" });
 		try {
-			const payload = buildApplyRequest(
+			const payload = await buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
 				{

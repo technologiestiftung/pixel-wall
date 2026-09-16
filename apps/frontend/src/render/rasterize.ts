@@ -19,11 +19,10 @@ function alignOffset(
 
 /**
  * Draws the template's `public/visuals/*.svg` artwork (all authored on a
- * square viewBox), forced to a flat white silhouette: the `mask1` wire
- * format this feeds into (see render/wire.ts) carries only an alpha
- * coverage mask plus one separately-chosen colour, so the source SVG's own
- * colours must not survive into the pixels — `source-in` keeps the drawn
- * shape's alpha while replacing every covered pixel with white.
+ * square viewBox) at its true colours — the wire format this feeds into is
+ * always `pal4` for Animation/Bild content (see render/wire.ts), which
+ * carries a real palette rather than one flat colour, so nothing here needs
+ * to flatten the source SVG's own colours away.
  *
  * If the image hasn't finished loading yet (async decode — see
  * render/templateImages.ts), this draws nothing; the caller re-renders once
@@ -43,10 +42,16 @@ function drawTemplateIcon(
 	ctx.translate(box.x, box.y);
 	ctx.scale(scale, scale);
 	ctx.drawImage(img, 0, 0);
-	ctx.globalCompositeOperation = "source-in";
-	ctx.fillStyle = "#ffffff";
-	ctx.fillRect(0, 0, img.naturalWidth, img.naturalHeight);
 	ctx.restore();
+}
+
+/** True when a real 2D canvas context is actually available — false under
+ * jsdom without the optional `canvas` npm package. jsdom's `Image` exists
+ * but never actually decodes anything in that case either (setting `.src`
+ * never fires `load` or `error`), so render/wire.ts uses this to skip
+ * waiting on a template image that would otherwise hang forever. */
+export function hasCanvasSupport(): boolean {
+	return document.createElement("canvas").getContext("2d") !== null;
 }
 
 /**
@@ -66,11 +71,14 @@ export function rasterizeContent(
 }
 
 /**
- * Renders `content` onto a device-pixel canvas. `monochrome` draws everything
- * in white regardless of the content's own colour, which is what the `mask1`
- * wire format needs — it carries one colour alongside a 1-bit coverage mask,
- * so the colour must not be baked into the pixels (see docs/wire-format.md).
- * The live preview passes `false` so colours show.
+ * Renders `content` onto a device-pixel canvas. `monochrome` draws text and
+ * Farbe fills in white regardless of the content's own colour, which is what
+ * the `mask1` wire format needs — it carries one colour alongside a 1-bit
+ * coverage mask, so the colour must not be baked into the pixels (see
+ * docs/wire-format.md). The live preview passes `false` so colours show.
+ * Animation/Bild template artwork ignores this flag entirely and always
+ * draws in its true colours, since it always travels as `pal4` instead —
+ * see render/wire.ts.
  *
  * Returns null where no 2D context is available (jsdom without the optional
  * `canvas` package); callers degrade rather than throw.
