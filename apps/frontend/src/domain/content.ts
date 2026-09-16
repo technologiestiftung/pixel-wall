@@ -91,6 +91,7 @@ const DEFAULT_TEXT: TextContent = {
 	fontSizePx: 16,
 	fontFamily: "Pixel Grotesk, ui-monospace, monospace",
 	fontWeight: "700",
+	color: "#FFFFFF",
 	direction: "left",
 	speedPxPerSec: 40,
 	hAlign: "center",

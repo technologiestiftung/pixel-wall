@@ -71,13 +71,13 @@ export function rasterizeContent(
 }
 
 /**
- * Renders `content` onto a device-pixel canvas. `monochrome` draws text and
- * Farbe fills in white regardless of the content's own colour, which is what
- * the `mask1` wire format needs — it carries one colour alongside a 1-bit
+ * Renders `content` onto a device-pixel canvas. `monochrome` draws Farbe
+ * fills in white regardless of the content's own colour, which is what the
+ * `mask1` wire format needs — it carries one colour alongside a 1-bit
  * coverage mask, so the colour must not be baked into the pixels (see
  * docs/wire-format.md). The live preview passes `false` so colours show.
- * Animation/Bild template artwork ignores this flag entirely and always
- * draws in its true colours, since it always travels as `pal4` instead —
+ * Text and Animation/Bild template artwork ignore this flag entirely and
+ * always draw in their true colours, since they travel as `pal4` instead —
  * see render/wire.ts.
  *
  * Returns null where no 2D context is available (jsdom without the optional
@@ -119,7 +119,7 @@ export function drawContentToCanvas(
 		return canvas;
 	}
 
-	ctx.fillStyle = "#ffffff";
+	ctx.fillStyle = monochrome ? "#ffffff" : content.color;
 	ctx.font = `${content.fontWeight} ${content.fontSizePx}px ${content.fontFamily}`;
 
 	if (content.mode === "static") {

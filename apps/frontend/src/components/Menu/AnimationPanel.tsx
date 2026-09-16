@@ -29,7 +29,7 @@ export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
 								className="flex flex-col items-center gap-1.5"
 							>
 								<div
-									className={`relative flex h-[58px] w-[70px] items-center justify-center rounded-[10px] border bg-[#fafaf8] ${
+									className={`relative flex h-[58px] w-[70px] items-center justify-center rounded-[10px] border bg-[#2a2a27] ${
 										selected
 											? "border-[1.6px] border-[#171717]"
 											: "border-[#dededa]"

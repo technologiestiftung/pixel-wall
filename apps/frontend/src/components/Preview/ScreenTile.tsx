@@ -21,6 +21,12 @@ interface ScreenTileProps {
 	onDragEnd: () => void;
 }
 
+// Real LED matrices have a small physical gap between adjacent LEDs within
+// their pixel pitch (see PITCH_MM_PER_PX) — the LED itself doesn't fill the
+// whole pitch. This is the fraction of one pixel's on-screen size reserved
+// for that gap, rendered as a grid overlay in the panel's own dark color.
+const PIXEL_GAP_FRACTION = 0.14;
+
 function dragCursorClass(draggable: boolean, dragging: boolean): string {
 	if (!draggable) {
 		return "";
@@ -43,6 +49,7 @@ export function ScreenTile({
 }: ScreenTileProps) {
 	const sizePx = spec.physicalSizeMm * mmToPx;
 	const scale = displayScaleForKind(spec.kind, mmToPx);
+	const gapPx = scale * PIXEL_GAP_FRACTION;
 
 	function handlePointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
 		if (!draggable) {
@@ -110,6 +117,17 @@ export function ScreenTile({
 				>
 					<ContentLayer render={render} />
 				</div>
+			)}
+			{render && (
+				<div
+					className="pointer-events-none absolute inset-0"
+					style={{
+						backgroundImage:
+							"linear-gradient(to right, #171717 0, #171717 var(--gap), transparent var(--gap)), linear-gradient(to bottom, #171717 0, #171717 var(--gap), transparent var(--gap))",
+						backgroundSize: `${scale}px ${scale}px`,
+						["--gap" as string]: `${gapPx}px`,
+					}}
+				/>
 			)}
 			<span className="absolute left-1.5 top-1.5 z-10 rounded-sm bg-white/90 px-1 text-[11px] font-medium leading-[15px] text-neutral-900">
 				{spec.id}

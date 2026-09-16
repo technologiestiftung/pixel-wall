@@ -46,6 +46,24 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 			</div>
 
 			<div className="flex flex-col gap-2">
+				<label className="text-[12px] text-[#767671]" htmlFor="text-color">
+					Textfarbe
+				</label>
+				<div className="flex w-full items-center gap-2.5 rounded-[7px] border border-[#dededa] px-2.5 py-1.5">
+					<input
+						id="text-color"
+						type="color"
+						value={content.color}
+						onChange={(e) => onChange({ ...content, color: e.target.value })}
+						className="size-7 shrink-0 cursor-pointer rounded-[6px] border border-[#e5e4df] bg-transparent p-0"
+					/>
+					<span className="font-mono text-[13px] uppercase text-[#20201b]">
+						{content.color}
+					</span>
+				</div>
+			</div>
+
+			<div className="flex flex-col gap-2">
 				<label className="text-[12px] text-[#767671]" htmlFor="font-size">
 					Textgröße
 				</label>

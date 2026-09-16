@@ -17,7 +17,7 @@ interface ContentLayerProps {
 // one screen — exactly the case this whole mechanism exists for. Explicit
 // width/height + maxWidth: "none" defeats that reset so the negative-offset
 // slicing technique actually gets the true, natural-pixel-sized image.
-const PIXELATED: CSSProperties = {
+const BITMAP_STYLE: CSSProperties = {
 	imageRendering: "pixelated",
 	maxWidth: "none",
 };
@@ -91,7 +91,7 @@ function Bitmap({
 				src={src}
 				alt=""
 				style={{
-					...PIXELATED,
+					...BITMAP_STYLE,
 					position: "absolute",
 					left: -offsetXPx,
 					top: -offsetYPx,
@@ -173,7 +173,7 @@ function ScrollingBitmap({
 				<img
 					src={bitmap}
 					alt=""
-					style={{ ...PIXELATED, position: "absolute", left: offset, top: 0 }}
+					style={{ ...BITMAP_STYLE, position: "absolute", left: offset, top: 0 }}
 				/>
 			</div>
 		</div>

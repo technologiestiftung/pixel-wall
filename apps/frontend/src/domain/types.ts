@@ -28,6 +28,10 @@ export interface TextContent {
 	fontSizePx: number;
 	fontFamily: string;
 	fontWeight: string;
+	/** Text colour as a hex string, e.g. "#FFFFFF". Baked into the rasterized
+	 * pixels — see render/wire.ts, which sends text as `pal4` rather than a
+	 * `mask1` coverage mask + flat colour. */
+	color: string;
 	direction?: "left" | "right";
 	speedPxPerSec?: number;
 	/** Where the text sits within the (possibly multi-screen) composite.

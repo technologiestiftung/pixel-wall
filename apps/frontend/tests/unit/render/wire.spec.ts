@@ -22,6 +22,7 @@ const text: TextContent = {
 	fontSizePx: 8,
 	fontFamily: "monospace",
 	fontWeight: "700",
+	color: "#FFFFFF",
 	hAlign: "center",
 	vAlign: "center",
 };
@@ -56,9 +57,10 @@ describe("contentToWire", () => {
 		expect(maskToRows(decodeMaskBase64(wire.data))).toEqual(["####", "####"]);
 	});
 
-	it("uses white for content that has no colour of its own", async () => {
+	it("routes text to pal4 with its own colour rather than a flat mask colour", async () => {
 		const wire = await contentToWire(text, { widthPx: 8, heightPx: 8 });
-		expect(wire.color).toEqual([255, 255, 255]);
+		expect(wire.format).toBe("pal4");
+		expect(wire.color).toBeUndefined();
 	});
 
 	it("reports the requested dimensions", async () => {
