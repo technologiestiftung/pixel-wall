@@ -4,6 +4,7 @@ import type { Content, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
 import { rasterizeContent } from "./rasterize";
 import { measureTextWidthPx } from "./text";
+import { useTemplateImagesVersion } from "./templateImages";
 import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
@@ -113,9 +114,13 @@ function StaticBitmap({
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
+	// Template artwork loads async (see templateImages.ts); this version
+	// bumps once it's ready so an animation template's first render — drawn
+	// before its image decoded — gets replaced with the real bitmap.
+	const templateImagesVersion = useTemplateImagesVersion();
 	const bitmap = useMemo(
 		() => rasterizeContent(content, widthPx, heightPx),
-		[JSON.stringify(content), widthPx, heightPx],
+		[JSON.stringify(content), widthPx, heightPx, templateImagesVersion],
 	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
