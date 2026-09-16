@@ -329,7 +329,7 @@ export function pal4ToRows(image: Palette4): string[] {
 /**
  * Quantizes canvas `ImageData` into a `Palette4` image — the `pal4`
  * counterpart of `maskFromImageData` above, for real multi-colour template
- * artwork (see render/svgTemplates.ts and render/wire.ts). Index 0 is always
+ * artwork (see render/templateImages.ts and render/wire.ts). Index 0 is always
  * `[0, 0, 0]` (background/unlit, per docs/wire-format.md's "pal4 binary
  * block"), and every pixel is alpha-composited onto black before matching so
  * a) fully transparent pixels land exactly on index 0 and b) anti-aliased

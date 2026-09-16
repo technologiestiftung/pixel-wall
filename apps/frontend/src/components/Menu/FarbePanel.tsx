@@ -11,7 +11,7 @@ export function FarbePanel({ content, onChange }: FarbePanelProps) {
 	return (
 		<div className="flex w-full flex-col gap-3">
 			<span className="w-full text-[12px] text-[#767671]">Farbe wählen</span>
-			<div className="flex w-full gap-3">
+			<div className="flex w-full flex-wrap gap-3">
 				{PALETTE.map((hex) => {
 					const selected = content.hex === hex;
 					return (
@@ -21,10 +21,10 @@ export function FarbePanel({ content, onChange }: FarbePanelProps) {
 							onClick={() => onChange({ ...content, hex })}
 							aria-pressed={selected}
 							aria-label={hex}
-							className="flex flex-1 flex-col items-center gap-2"
+							className="flex w-[58px] flex-col items-center gap-2"
 						>
 							<span
-								className={`relative block size-[58px] rounded-[12px] ${selected ? "border-2 border-[#20201b]" : ""}`}
+								className={`relative block size-[58px] rounded-[12px] ${selected ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
 								style={{ backgroundColor: hex }}
 							>
 								{selected && (

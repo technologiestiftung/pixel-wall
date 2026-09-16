@@ -26,17 +26,9 @@ const text: TextContent = {
 	vAlign: "center",
 };
 
-const pfeil: AnimationContent = {
+const raute: AnimationContent = {
 	type: "animation",
-	templateId: "pfeil",
-	scalePercent: 100,
-	hAlign: "center",
-	vAlign: "center",
-};
-
-const clbRaute: AnimationContent = {
-	type: "animation",
-	templateId: "clb-raute",
+	templateId: "raute",
 	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
@@ -100,21 +92,16 @@ describe("contentToWire", () => {
 		});
 	});
 
-	it("routes every Animation/Bild template to pal4, hand-drawn ones included", async () => {
-		const wire = await contentToWire(pfeil, { widthPx: 32, heightPx: 32 });
+	it("routes every Animation/Bild template to pal4 instead of forcing it to a flat colour", async () => {
+		expect(TEMPLATES.find((t) => t.id === "raute")).toBeDefined();
+		const wire = await contentToWire(raute, { widthPx: 32, heightPx: 32 });
 		expect(wire.format).toBe("pal4");
 		expect(wire.color).toBeUndefined();
-	});
-
-	it("routes real multi-colour template artwork to pal4 instead of forcing it white", async () => {
-		expect(TEMPLATES.find((t) => t.id === "clb-raute")?.svgUrl).toBeDefined();
-		const wire = await contentToWire(clbRaute, { widthPx: 32, heightPx: 32 });
-		expect(wire.format).toBe("pal4");
-		expect(wire.color).toBeUndefined();
-		// No `canvas` package under jsdom, so nothing actually rasterizes
-		// here (see hasCanvasSupport in rasterize.ts) — this only exercises
-		// the format dispatch and the blank-frame fallback, not real
-		// quantization, which pal4FromImageData in mask.spec.ts covers.
+		// `Image` never actually decodes anything under jsdom (see
+		// render/templateImages.ts), so nothing actually rasterizes here —
+		// this only exercises the format dispatch and the blank-frame
+		// fallback, not real quantization, which pal4FromImageData in
+		// mask.spec.ts covers.
 		const decoded = decodePal4Base64(wire.data);
 		expect(decoded.palette).toEqual([[0, 0, 0]]);
 	});

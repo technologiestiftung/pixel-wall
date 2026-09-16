@@ -37,8 +37,13 @@ export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
 								>
 									<TemplateIcon
 										templateId={template.id}
-										className="h-[22px] w-[22px] text-[#171717]"
+										className="h-[40px] w-[40px] object-contain"
 									/>
+									{template.small && (
+										<span className="absolute bottom-1 left-1 rounded-[4px] bg-[#171717] px-1 py-[1px] text-[8px] font-medium leading-tight text-white">
+											klein
+										</span>
+									)}
 									{selected && (
 										<SelectedBadge className="absolute -right-2 -top-2.5 h-4 w-4" />
 									)}

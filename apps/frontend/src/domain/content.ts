@@ -1,4 +1,3 @@
-import { preloadSvgTemplates } from "../render/svgTemplates";
 import type {
 	AnimationContent,
 	ColorContent,
@@ -10,40 +9,68 @@ import type {
 export interface Template {
 	id: string;
 	label: string;
-	/** Present only for real multi-colour brand artwork loaded from
-	 * `public/visuals/` (see render/svgTemplates.ts) — these are rendered in
-	 * their true colours and carried over the wire as `pal4`. Templates
-	 * without it are the hand-drawn, genuinely single-colour Path2D icons in
-	 * render/rasterize.ts, which stay on the smaller `mask1` format. */
-	svgUrl?: string;
+	/** SVG file name under `public/visuals/`. */
+	file: string;
+	/** True for artwork authored at the small-screen (32×32) viewBox rather
+	 * than the large-screen (64×64) one — surfaced as a badge in the picker
+	 * so both screen sizes can be tested with matching source art. */
+	small: boolean;
 }
 
-/** Fixed built-in template library (no user upload in v1) — see CONTEXT.md "Content". */
+/** Fixed built-in template library (no user upload in v1), sourced from the
+ * SVGs under `public/visuals/` — see CONTEXT.md "Content". */
 export const TEMPLATES: Template[] = [
-	{ id: "pfeil", label: "Pfeil" },
-	{ id: "baer", label: "Bär" },
-	{ id: "raute", label: "Raute" },
-	{ id: "herz", label: "Herz" },
-	{ id: "stern", label: "Stern" },
-	{ id: "sonne", label: "Sonne" },
-	{ id: "clb-logo", label: "CLB Logo", svgUrl: "/visuals/CLB-Logo.svg" },
-	{ id: "clb-raute", label: "CLB Raute", svgUrl: "/visuals/CLB-Raute.svg" },
+	{ id: "logo", label: "Logo", file: "CLB-Logo.svg", small: false },
+	{ id: "logo-small", label: "Logo", file: "CLB-Logo-small.svg", small: true },
+	{ id: "raute", label: "Raute", file: "CLB-Raute.svg", small: false },
+	{ id: "raute-small", label: "Raute", file: "CLB-Raute-small.svg", small: true },
 	{
-		id: "clb-arrow-round",
-		label: "CLB Pfeil",
-		svgUrl: "/visuals/CLB-arrow-round.svg",
+		id: "raute-animiert",
+		label: "Raute animiert",
+		file: "CLB_rauten_animation.svg",
+		small: false,
 	},
-	{ id: "clb-smiley", label: "CLB Smiley", svgUrl: "/visuals/CLB-smiley.svg" },
+	{
+		id: "raute-animiert-small",
+		label: "Raute animiert",
+		file: "CLB-Raute-animiert-small.svg",
+		small: true,
+	},
+	{
+		id: "pfeil-rund",
+		label: "Pfeil rund",
+		file: "CLB-arrow-round.svg",
+		small: false,
+	},
+	{
+		id: "pfeil-rund-small",
+		label: "Pfeil rund",
+		file: "CLB-arrow-round-small.svg",
+		small: true,
+	},
+	{
+		id: "pfeil-rund-animiert",
+		label: "Pfeil rund animiert",
+		file: "CLB-arrow-round-animated.svg",
+		small: false,
+	},
+	{
+		id: "pfeil-rund-animiert-small",
+		label: "Pfeil rund animiert",
+		file: "CLB-arrow-round-animation-small.svg",
+		small: true,
+	},
+	{ id: "smiley", label: "Smiley", file: "CLB-smiley.svg", small: false },
+	{
+		id: "smiley-small",
+		label: "Smiley",
+		file: "CLB-smiley-small.svg",
+		small: true,
+	},
 ];
 
-preloadSvgTemplates(
-	TEMPLATES.map((template) => template.svgUrl).filter(
-		(url): url is string => url !== undefined,
-	),
-);
-
 /** Fixed closed palette of exactly 4 presets (no free color picker in v1). */
-export const PALETTE = ["#FEF177", "#B4B9FF", "#FE4441", "#FFCFD6"];
+export const PALETTE = ["#FEF177", "#B4B9FF", "#FE4441", "#FFCFD6", "#FFFFFF", "#000000"];
 
 const DEFAULT_TEXT: TextContent = {
 	type: "text",

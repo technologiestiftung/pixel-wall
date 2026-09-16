@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
+import { useMemo, type CSSProperties } from "react";
+import { LOOP_PAUSE_MS } from "../domain/content";
 import type { Content, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
 import { rasterizeContent } from "./rasterize";
-import { loadSvgTemplate } from "./svgTemplates";
 import { measureTextWidthPx } from "./text";
+import { useTemplateImagesVersion } from "./templateImages";
 import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
@@ -114,35 +114,13 @@ function StaticBitmap({
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
-	// A multi-colour template's SVG (see domain/content.ts's `svgUrl`) is
-	// decoded asynchronously; on the very first render for a given template
-	// it may not be ready yet, so rasterizeContent would draw a blank frame.
-	// `loadedTick` forces the memo below to re-run once loading finishes.
-	const [loadedTick, setLoadedTick] = useState(0);
-	const svgUrl =
-		content.type === "animation"
-			? TEMPLATES.find((t) => t.id === content.templateId)?.svgUrl
-			: undefined;
-	useEffect(() => {
-		if (!svgUrl) {
-			return undefined;
-		}
-		let cancelled = false;
-		loadSvgTemplate(svgUrl)
-			.then(() => {
-				if (!cancelled) {
-					setLoadedTick((tick) => tick + 1);
-				}
-			})
-			.catch(() => {});
-		return () => {
-			cancelled = true;
-		};
-	}, [svgUrl]);
-
+	// Template artwork loads async (see templateImages.ts); this version
+	// bumps once it's ready so an animation template's first render — drawn
+	// before its image decoded — gets replaced with the real bitmap.
+	const templateImagesVersion = useTemplateImagesVersion();
 	const bitmap = useMemo(
 		() => rasterizeContent(content, widthPx, heightPx),
-		[JSON.stringify(content), widthPx, heightPx, loadedTick],
+		[JSON.stringify(content), widthPx, heightPx, templateImagesVersion],
 	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
