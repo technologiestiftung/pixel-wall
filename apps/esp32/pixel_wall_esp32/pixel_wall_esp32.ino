@@ -71,6 +71,13 @@ PixelWallScreen screens[SCREEN_COUNT];
 int brightnessPercent = 60;
 unsigned long lastReconnect = 0;
 unsigned long startedAt = 0;
+unsigned long lastFrame = 0;
+bool dirty = true;
+
+// ~50 fps is far more than a scrolling marquee needs, and leaves the I2S DMA
+// refresh and mqtt.loop() the CPU they need. Redrawing as fast as the loop
+// spins starves both.
+#define FRAME_INTERVAL_MS 20
 
 static int clampInt(int value, int low, int high) {
 	if (value < low) return low;
@@ -123,6 +130,8 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 		applyBrightness();
 	}
 
+	dirty = true;
+
 	Serial.printf("screen %d: %ux%u %s%s, %u bytes, brightness %u%%\n", index + 1,
 	              next.widthPx, next.heightPx,
 	              next.format == PAL4_MAGIC ? "pal4" : "mask1",
@@ -150,6 +159,15 @@ static float marqueeOffset(const PixelWallScreen &screen, unsigned long elapsedM
 	float t = fmodf((float)elapsedMs, cycleMs);
 	if (t >= durationMs) return end;
 	return start + (end - start) * (t / durationMs);
+}
+
+/* Whether anything on the board is animating. Static content only needs
+ * redrawing when a message changes it. */
+static bool anyScrolling() {
+	for (int index = 0; index < SCREEN_COUNT; index++) {
+		if (screens[index].valid && screens[index].scrolling) return true;
+	}
+	return false;
 }
 
 static void drawFrame(unsigned long elapsedMs) {
@@ -243,8 +261,9 @@ void loop() {
 		connectWiFi();
 	}
 
+	unsigned long now = millis();
+
 	if (!mqtt.connected()) {
-		unsigned long now = millis();
 		if (now - lastReconnect >= 3000) {
 			lastReconnect = now;
 			connectMQTT();
@@ -253,5 +272,13 @@ void loop() {
 		mqtt.loop();
 	}
 
-	drawFrame(millis() - startedAt);
+	bool animating = anyScrolling();
+
+	// Redraw only when the frame can actually differ: on a new message, or
+	// while something is scrolling.
+	if (dirty || (animating && now - lastFrame >= FRAME_INTERVAL_MS)) {
+		lastFrame = now;
+		dirty = false;
+		drawFrame(now - startedAt);
+	}
 }
