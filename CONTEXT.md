@@ -4,10 +4,10 @@
 
 7 physical LED panels mounted on the wall. Two distinct hardware kinds, both fixed in count and pixel resolution but user-repositionable in the layout (see **Layout**):
 
-- **Small screen** (`kleiner Bildschirm`): 32×32px, 128×128mm. Driven individually by its own ESP32 + bonnet. Always shows its own independent content — never combined with another screen to form a shared canvas, even when selected together with others.
+- **Small screen** (`kleiner Bildschirm`): 32×32px, 128×128mm. All three are chained off a **single ESP32**, which drives them as one 96×32 hardware canvas — but that is a wiring detail, not a content one: each small screen is addressed separately and always shows its own independent content, never combined with another screen to form a shared content canvas, even when selected together with others.
 - **Large screen** (`großer Bildschirm`): 64×64px, 192×192mm. Driven via HUB75. Cabled with enough slack to be repositioned somewhat freely relative to other screens. Two large screens that are adjacent and selected together combine into one continuous canvas (see **Selection**).
 
-There are 4 large screens and 3 small screens (7 total), matching the physical HUB75 (×4, via 2 Raspberry-Pi-driven chains of 2) and ESP32 (×3) hardware.
+There are 4 large screens and 3 small screens (7 total). The large screens hang off a Raspberry Pi bonnet as 2 chains of 2 (one chain per bonnet output), which `rpi-rgb-led-matrix` addresses as a single 128×128 canvas. The small screens are all chained off one ESP32.
 
 ## Layout (Anordnung)
 
@@ -46,7 +46,7 @@ Commits the in-progress (locally previewed, not-yet-sent) content edit for the c
 
 ## Client sync
 
-No authentication is required (internal/kiosk tool on a trusted local network, matching the current backend). If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.
+Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_PASSWORD` is set, so an internal/kiosk deployment on a trusted local network can run without it while a shared network can turn it on. The frontend shows its password gate only when `GET /api/health` reports `auth.enabled`. If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.
 
 ## Rendering split
 
