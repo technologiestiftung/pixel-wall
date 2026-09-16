@@ -35,16 +35,23 @@ websocket endpoint rather than a rewrite. Cost is one extra dependency
 
 ## Install
 
-On the Pi, as `pi`. This assumes the repo is cloned to `/home/pi/ledwall`, so
-this directory is `/home/pi/ledwall/apps/backend`. That path is baked into both
-systemd units — change it there if you clone elsewhere.
+On the Pi. The systemd units ship with `/home/pi/ledwall` and `User=pi` baked
+in, which is only right if your login user is `pi` and you cloned to that path.
+Set these two once and the rest of this section rewrites the units for you:
+
+```bash
+REPO=$HOME/pixel-wall          # wherever you cloned it
+SVC_USER=$(whoami)
+```
+
+Dependencies and the virtualenv:
 
 ```bash
 sudo apt update
 sudo apt install -y python3-venv mosquitto mosquitto-clients
 sudo systemctl enable --now mosquitto
 
-cd /home/pi/ledwall/apps/backend
+cd "$REPO/apps/backend"
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
@@ -55,11 +62,12 @@ for why it is done this way:
 
 ```bash
 sudo groupadd -f ledwall
-sudo usermod -aG ledwall pi
+sudo usermod -aG ledwall "$SVC_USER"
 sudo install -d -o root -g ledwall -m 2775 /var/lib/ledwall
 ```
 
-Log out and back in so `pi` picks up the new group.
+Log out and back in so `$SVC_USER` picks up the new group. A shell that was
+already open will not have it, and the backend will fail to write state.
 
 Set the API password. The unit requires this file to exist, so a missing or
 unreadable one fails the service loudly rather than quietly starting an open
@@ -67,39 +75,91 @@ API:
 
 ```bash
 sudo install -d -m 755 /etc/ledwall
-sudo tee /etc/ledwall/backend.env >/dev/null <<'EOF'
-LEDWALL_PASSWORD=pick-something-long
-EOF
+sudo nano /etc/ledwall/backend.env      # LEDWALL_PASSWORD=<something you invent>
 sudo chmod 600 /etc/ledwall/backend.env
 ```
 
-`0600 root:root` is enough: systemd reads the file as root before dropping to
-`pi`, so the password never needs to be readable by the account the API runs
-as. Every other setting in [.env.example](./.env.example) can go in the same
-file; all of them have working defaults.
+Invent the value rather than copying one out of this file — a placeholder
+pasted verbatim is a password that is written down in a public repository.
 
-Install the units:
+`0600 root:root` is enough: systemd reads the file as root before dropping to
+the service user, so the password never needs to be readable by the account the
+API runs as. Every other setting in [.env.example](./.env.example) can go in the
+same file; all of them have working defaults.
+
+Open the broker to the LAN. Mosquitto 2.x binds to localhost and refuses
+anonymous remote clients, which is fine for the backend on `127.0.0.1` but
+means the ESP32 cannot connect at all:
 
 ```bash
-sudo cp systemd/ledwall-backend.service systemd/ledwall-display.service /etc/systemd/system/
+sudo tee /etc/mosquitto/conf.d/ledwall.conf >/dev/null <<'EOF'
+listener 1883 0.0.0.0
+allow_anonymous true
+EOF
+sudo systemctl restart mosquitto
+ss -tlnp | grep 1883                    # want 0.0.0.0:1883, not 127.0.0.1:1883
+```
+
+That leaves the broker open to everyone on the network. It is the same trade
+already made for the HTTP API and acceptable only because this is LAN-only —
+note that the API password does not protect the wall from anyone who can reach
+the broker directly.
+
+Install the units, rewritten for your path and user:
+
+```bash
+cd "$REPO/apps/backend"
+for u in ledwall-backend ledwall-display; do
+  sed -e "s|/home/pi/ledwall|$REPO|g" -e "s|^User=pi$|User=$SVC_USER|" \
+      "systemd/$u.service" | sudo tee "/etc/systemd/system/$u.service" >/dev/null
+done
 sudo systemctl daemon-reload
 sudo systemctl enable --now ledwall-display ledwall-backend
+```
+
+Check the rewrite landed before chasing service errors:
+
+```bash
+grep -E 'User=|WorkingDirectory=|ExecStart=|Environment=' /etc/systemd/system/ledwall-*.service
 ```
 
 Verify:
 
 ```bash
 systemctl status ledwall-display ledwall-backend
-curl -su :pick-something-long http://localhost:5000/api/health | python3 -m json.tool
+curl -su :<your-password> http://localhost:5000/api/health | python3 -m json.tool
 mosquitto_sub -h localhost -t ledwall/message -v -C 1   # blocks until a state change
 ```
 
 A `401` from that curl means the password is wrong; check
-`sudo systemctl show ledwall-backend -p EnvironmentFiles`.
+`sudo systemctl show ledwall-backend -p EnvironmentFiles` and read
+`/etc/ledwall/backend.env`. The 401 body is identical for a wrong password and
+a missing one, so it tells you nothing about which.
 
-`state_file_writable: false` in the health output means `pi` has not picked up
-the `ledwall` group yet — log out and back in, or `sudo systemctl restart
-ledwall-backend` after a reboot.
+`state_file_writable: false` in the health output means the service user has not
+picked up the `ledwall` group yet — log out and back in, or `sudo systemctl
+restart ledwall-backend` after a reboot.
+
+### Changing the password
+
+`/etc/ledwall/backend.env` is the only file read on the Pi. A `.env` in the repo
+is loaded with `override=False` ([app/config.py](./app/config.py)), so it never
+overrides what systemd has already set — editing one there looks like it does
+nothing.
+
+```bash
+sudo nano /etc/ledwall/backend.env
+sudo systemctl restart ledwall-backend
+```
+
+The restart is required every time: the password is read once at import time
+into a module-level constant, and nothing re-reads it. The restart takes under
+a second and does not interrupt the wall — `ledwall-display` is a separate unit
+reading the state file, and keeps scrolling throughout.
+
+Anyone holding the old password in a browser tab stays in until their next
+request, then gets a 401 and the password gate again.
+
 
 ## Finding the Pi's IP
 
@@ -318,8 +378,40 @@ file. Three changes from the original worth knowing about:
   Values are clamped again here, so the display never trusts the file even
   though the backend already validated it.
 
-The matrix config is untouched: `rows=64`, `cols=64`, `chain_length=2`,
-`parallel=2`, `adafruit-hat-pwm`, `gpio_slowdown=4`, `drop_privileges=False`.
+### Matrix config
+
+`rows=64`, `cols=64`, `gpio_slowdown=4`, `drop_privileges=False`, and the
+geometry has to match how the panels are physically chained.
+
+Four 64x64 panels in a horizontal row are one chain of four:
+
+```python
+options.chain_length = 4
+options.parallel = 1
+options.hardware_mapping = "regular"
+```
+
+`hardware_mapping` describes the adapter board, not the panels. `adafruit-hat`
+and `adafruit-hat-pwm` drive exactly **one** chain: asking them for
+`parallel > 1` aborts the process with
+
+```
+The adafruit-hat-pwm GPIO mapping only supports 1 parallel chain, but 2 was requested.
+```
+
+which systemd shows as `status=6/ABRT` in a restart loop, not as a Python
+traceback. A multi-port adapter wants `regular`.
+
+Two parallel chains of two give a 128x128 canvas, which is right only if the
+panels are mounted as a 2x2 square. On a row of four it leaves half the canvas
+off-screen — text drawn at `canvas.height // 2` lands in the top half and only
+two panels light up.
+
+To check wiring against config, colour each panel separately and look at the
+wall: if the colours come out in a different order than the canvas says, the
+chain is cabled in reverse. The library's pixel mappers cannot fix that —
+`Mirror:H` repositions the panels but renders text backwards — so the fix is a
+cable swap, not a config flag.
 
 `ledwall-display.service` runs it straight out of the repo at
 `/home/pi/ledwall/apps/backend/pi_display.py` rather than from a copy at
@@ -333,8 +425,10 @@ is the whole update path and there is no second copy to drift. If you prefer
 the old location, copy the file there and edit `ExecStart` in the unit.
 
 It needs `rgbmatrix` importable by the _system_ Python — it runs as root,
-outside the backend venv — and the BDF font at `FONT_PATH`. Both are already
-true on your Pi.
+outside the backend venv — and a BDF font. The font defaults to
+`/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf`; set `LEDWALL_FONT` in the
+display unit if your `rpi-rgb-led-matrix` checkout lives elsewhere, which it
+does whenever the Pi's login user is not `pi`.
 
 ## MQTT
 

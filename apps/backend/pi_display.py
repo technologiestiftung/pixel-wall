@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+
 Drives the four 64x64 P3 panels from a Raspberry Pi 4 with an Adafruit-style
 triple HUB75 bonnet.
 
@@ -34,7 +35,9 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 
 STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.json"))
 
-FONT_PATH = "/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf"
+FONT_PATH = os.environ.get(
+    "LEDWALL_FONT", "/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf"
+)
 MAX_BRIGHTNESS = 100         # hard ceiling on current draw
 POLL_INTERVAL = 0.2          # seconds between state re-reads mid-scroll
 IDLE_SLEEP = 0.5             # seconds to wait when there is nothing to show
@@ -93,12 +96,12 @@ def build_matrix(brightness):
     # Panel geometry. All four panels are 64x64 at 1/32 scan.
     options.rows = 64
     options.cols = 64
-    options.chain_length = 2        # two panels per chain
-    options.parallel = 2            # two chains in use
+    options.chain_length = 4
+    options.parallel = 1
 
     # Bonnet-specific. Use "adafruit-hat-pwm" only if the GPIO4-GPIO18
     # solder bridge is made; otherwise fall back to "adafruit-hat".
-    options.hardware_mapping = "adafruit-hat-pwm"
+    options.hardware_mapping = "regular"
 
     # Quality and stability.
     options.brightness = brightness
@@ -148,7 +151,9 @@ def main():
 
         while pos + text_width > 0:
             canvas.Clear()
-            graphics.DrawText(canvas, font, pos, canvas.height // 2, colour, text)
+            row = canvas.height // 2
+            graphics.DrawText(canvas, font, pos, row // 2 + 10, colour, text)
+            graphics.DrawText(canvas, font, pos, row + row // 2 + 10, colour, text)
             canvas = matrix.SwapOnVSync(canvas)
             pos -= 1
             time.sleep(state["speed_ms"] / 1000)

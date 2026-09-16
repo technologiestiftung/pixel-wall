@@ -29,3 +29,6 @@ dist-ssr
 CLAUDE.md
 .env
 .env.local
+
+# ESP32 Wi-Fi credentials
+apps/esp32/**/secrets.h
