@@ -123,10 +123,10 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 		applyBrightness();
 	}
 
-	Serial.printf("screen %d: %ux%u %s%s, %u bytes\n", index + 1,
+	Serial.printf("screen %d: %ux%u %s%s, %u bytes, brightness %u%%\n", index + 1,
 	              next.widthPx, next.heightPx,
 	              next.format == PAL4_MAGIC ? "pal4" : "mask1",
-	              next.scrolling ? " scrolling" : "", length);
+	              next.scrolling ? " scrolling" : "", length, next.brightness);
 }
 
 /* ------------------------------------------------------------ rendering */
