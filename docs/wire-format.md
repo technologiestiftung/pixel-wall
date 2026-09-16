@@ -56,6 +56,14 @@ slice of a shared composite.
 | `direction` | `"left"` or `"right"` | Direction the content travels. |
 | `speedPxPerSec` | number | Device pixels per second. |
 | `pauseMs` | number | Hold between loop repeats. Fixed at 2000 in v1 (CONTEXT.md "Content"). |
+| `compositeWidthPx` | number | Width of the area the content scrolls across — the whole selection, including the phantom gaps between screens. |
+
+`compositeWidthPx` is not the same as the mask's `widthPx`: for Lauftext the
+mask is a filmstrip as wide as the rendered text, while the composite is the
+selection's own width. A renderer needs both — the text travels from
+`compositeWidthPx` to `-widthPx` (or the reverse), and each screen then reads
+its own `window.offsetXPx` into that composite. Without it a screen cannot know
+how far the text has to go, and multi-screen Lauftext tears at the seams.
 
 Panning is over the **mask**, and `window.offsetXPx` is added on top. Every
 screen in one composite must therefore pan from a shared phase, or the content
@@ -90,16 +98,17 @@ offset  size  field
 10      2     window widthPx,    uint16 big-endian
 12      2     window heightPx,   uint16 big-endian
 14      1     scroll direction: 0 = left, 1 = right
-15      2     scroll speedPxPerSec, uint16 big-endian
-17      2     scroll pauseMs,       uint16 big-endian
-19      ...   the binary block below (mask1 or pal4), verbatim
+15      2     scroll speedPxPerSec,    uint16 big-endian
+17      2     scroll pauseMs,          uint16 big-endian
+19      2     scroll compositeWidthPx, uint16 big-endian
+21      ...   the binary block below (mask1 or pal4), verbatim
 ```
 
 Which block follows is read from its own magic byte, not from a field here.
 The `color` bytes are meaningful only for a `mask1` block; a `pal4` block
 carries its own palette and the decoder ignores them.
 
-The scroll fields are always present so the header is a fixed 19 bytes; when
+The scroll fields are always present so the header is a fixed 21 bytes; when
 flags bit 0 is clear they are zero and must be ignored. A decoder MUST reject
 an unexpected magic or version and keep showing its previous frame.
 

@@ -211,3 +211,59 @@ def test_decode_block_rejects_unknown_magic():
 def test_decode_block_rejects_empty():
     with pytest.raises(m.MaskFormatError, match="empty block"):
         m.decode_block(b"")
+
+
+# ------------------------------------------------------------------- scroll
+
+
+def _marquee(**overrides):
+    from app.scroll import Marquee
+
+    base = dict(
+        composite_width_px=64, text_width_px=100, speed_px_per_sec=50, pause_ms=2000
+    )
+    base.update(overrides)
+    return Marquee(**base)
+
+
+def test_marquee_starts_off_the_right_edge_when_travelling_left():
+    from app.scroll import marquee_offset_px
+
+    assert marquee_offset_px(0, _marquee()) == 64
+
+
+def test_marquee_starts_off_the_left_edge_when_travelling_right():
+    from app.scroll import marquee_offset_px
+
+    assert marquee_offset_px(0, _marquee(direction="right")) == -100
+
+
+def test_marquee_reaches_the_far_edge_at_the_end_of_travel():
+    from app.scroll import marquee_offset_px
+
+    params = _marquee()
+    duration_ms = ((64 + 100) / 50) * 1000
+    assert marquee_offset_px(duration_ms, params) == -100
+
+
+def test_marquee_holds_through_the_pause():
+    from app.scroll import marquee_offset_px
+
+    params = _marquee()
+    duration_ms = ((64 + 100) / 50) * 1000
+    assert marquee_offset_px(duration_ms + 1000, params) == -100
+    assert marquee_offset_px(duration_ms + 1999, params) == -100
+
+
+def test_marquee_loops_back_to_the_start():
+    from app.scroll import marquee_offset_px
+
+    params = _marquee()
+    cycle_ms = ((64 + 100) / 50) * 1000 + 2000
+    assert marquee_offset_px(cycle_ms, params) == 64
+
+
+def test_marquee_with_no_speed_holds_at_the_start():
+    from app.scroll import marquee_offset_px
+
+    assert marquee_offset_px(5000, _marquee(speed_px_per_sec=0, pause_ms=0)) == 64

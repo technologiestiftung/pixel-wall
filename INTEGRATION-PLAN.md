@@ -1,6 +1,8 @@
 # Integration Plan — Frontend → Backend → Panels
 
-Status: **Phase A complete** (see below); Phases B–G not started. Written to be
+Status: **Phases A–F complete and merged**; only **G** (end-to-end against the
+real wall) is outstanding. D and E are written and unit-tested but have never
+run on hardware. Written to be
 read alongside `CONTEXT.md`
 (the domain glossary), which this plan treats as the source of truth for
 *behaviour* and deliberately contradicts in two places on *hardware* (see
@@ -172,7 +174,7 @@ Worth knowing for later: RLE *loses* to raw on small-screen text, because a
 "emit whichever is smaller" rule means this costs nothing, but it does mean
 small-screen payloads will not shrink much if the format is revisited.
 
-### Phase B — Backend: per-screen state
+### Phase B — Backend: per-screen state — **done**
 
 Rework `apps/backend/app/`:
 
@@ -224,7 +226,7 @@ wall state, included in `GET /api/state` and accepted by `POST /api/apply`.
 Frontend: `draftHasChanges` must treat a brightness change as a change, or
 Speichern stays disabled.
 
-### Phase C — Backend: per-screen MQTT
+### Phase C — Backend: per-screen MQTT — **done**
 
 `mqtt.py` currently publishes one retained message to `ledwall/message`.
 Change to one retained message per screen: `ledwall/screen/<id>`.
@@ -233,7 +235,7 @@ Retained-per-topic is what makes a device reboot recover its exact content
 without the backend being up — worth preserving. Keep the fire-and-forget
 error handling exactly as it is.
 
-### Phase D — `pi_display.py` rewrite
+### Phase D — `pi_display.py` rewrite — **done, untested on hardware**
 
 Largest single piece of work. It stops being a text renderer and becomes a
 compositor:
@@ -275,7 +277,7 @@ inverted, `04`/`05` swap and `06`/`07` swap, and the symptom is subtle —
 Lauftext jumps backwards at the seam rather than obviously breaking. Fill one
 quadrant at a time and note which physical panel lights up.
 
-### Phase E — ESP32 firmware rewrite
+### Phase E — ESP32 firmware rewrite — **done, untested on hardware**
 
 Same transformation in C++:
 
@@ -291,7 +293,15 @@ Same transformation in C++:
   panels.
 - Keep the retained-message-on-subscribe behaviour and the reconnect loop.
 
-### Phase F — Frontend: stop mocking, unify auth
+The decoder lives in `pixel_wall_esp32/wire_decode.h`, deliberately free of
+Arduino headers so it compiles on a host. `apps/backend/tests/test_esp32_decoder.py`
+generates a fixtures header from `docs/wire-format-fixtures.json`, compiles the
+decoder with `-Wall -Wextra -Werror`, and runs all 14 fixtures in both
+encodings plus the malformed-input cases. That closes the "three decoders, one
+format" risk: the C++ implementation is now checked by the same vectors as the
+other two, rather than by looking at the panels.
+
+### Phase F — Frontend: stop mocking, unify auth — **done**
 
 - `main.tsx` — start MSW only under `import.meta.env.DEV && VITE_USE_MOCKS`.
   Keep the handlers for tests. Today MSW is imported unconditionally and
@@ -306,6 +316,13 @@ Same transformation in C++:
   `canvas.toDataURL("image/png")`.
 - Widen backend CORS `allow_methods` to include `POST` (currently
   `GET, PUT, PATCH, OPTIONS` — `/api/apply` would be blocked).
+
+Two things emerged while building it. Brightness needed its own
+`PUT /api/brightness`: moving only the slider is a legitimate save with no
+content to rasterise, and `POST /api/apply` requires content. And the auth
+probe moved from `/api/state` to `/api/health` — `/api/state` now returns every
+screen's bitmap, which is a lot to fetch just to find out whether a password is
+required.
 
 ### Phase G — End-to-end
 
@@ -347,10 +364,12 @@ which quadrant, and which end of each chain is the left quadrant (Phase D).
 - ~~**Filmstrip size on the ESP32.**~~ Retired in Phase A: measured worst case
   is ~9.2 KB over the binary envelope, so a 16 KB MQTT buffer covers it and no
   chunked-transfer protocol is needed.
-- **Three decoders, two formats.** The C++ decoder is still unwritten and is
-  where the remaining integration risk sits. It must be tested against
-  `docs/wire-format-fixtures.json` like the other two, not hand-checked
-  against the panels.
+- ~~**Three decoders, two formats.**~~ Retired in Phase E: the C++ decoder is
+  compiled and run against the shared fixtures by the backend test suite, so
+  all three implementations are held to the same vectors.
+- **Nothing has run on hardware.** D and E are unit-tested but have never
+  driven a panel. The geometry assumptions in `app/hardware.py` are the most
+  likely thing to be wrong, and the quadrant bench check is what settles them.
 - **`/api/state` payload growth.** The frontend polls every 20s
   (`useWallSync.ts`) and would pull all 7 screens' bitmaps each time. Fine on
   a LAN, but add `ETag`/`If-None-Match` if it becomes noticeable.
@@ -358,8 +377,18 @@ which quadrant, and which end of each chain is the left quadrant (Phase D).
   old flat `state.json` no longer drives the wall. Tag the current commit
   before starting so there's a known-good firmware/display pair to return to.
 
-## Suggested order
+## What is left
 
-A → B → F gets the frontend off the mock and onto a real backend, verifiable
-in a browser with no hardware involved. D and E can then proceed in parallel
-against the frozen format, with C as a small piece of B. G last.
+**Phase G**, against the real wall:
+
+1. Flash the firmware and confirm each small screen responds to its own topic —
+   apply to `01` alone and check `02`/`03` keep their content.
+2. Run `sudo python3 -m app.hardware` and correct the quadrant table if needed.
+3. Walk every content type: static text, Lauftext across two adjacent large
+   screens (watch the seam), Animation/Bild at several scales, all four Farbe
+   presets, and a small-screen multi-selection (same content on each, not
+   split).
+4. Check brightness moves both hardware kinds independently.
+
+Tag the current commit first: once `pi_display.py` stops rendering text there
+is no path back to the old flat `state.json` without one.

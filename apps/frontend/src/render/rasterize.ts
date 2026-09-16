@@ -145,18 +145,37 @@ export function rasterizeContent(
 	widthPx: number,
 	heightPx: number,
 ): string {
+	const canvas = drawContentToCanvas(content, { widthPx, heightPx }, false);
+	return canvas === null ? "" : canvas.toDataURL("image/png");
+}
+
+/**
+ * Renders `content` onto a device-pixel canvas. `monochrome` draws everything
+ * in white regardless of the content's own colour, which is what the `mask1`
+ * wire format needs — it carries one colour alongside a 1-bit coverage mask,
+ * so the colour must not be baked into the pixels (see docs/wire-format.md).
+ * The live preview passes `false` so colours show.
+ *
+ * Returns null where no 2D context is available (jsdom without the optional
+ * `canvas` package); callers degrade rather than throw.
+ */
+export function drawContentToCanvas(
+	content: Content,
+	canvasSize: { widthPx: number; heightPx: number },
+	monochrome: boolean,
+): HTMLCanvasElement | null {
 	const canvas = document.createElement("canvas");
-	canvas.width = Math.max(1, Math.round(widthPx));
-	canvas.height = Math.max(1, Math.round(heightPx));
+	canvas.width = Math.max(1, Math.round(canvasSize.widthPx));
+	canvas.height = Math.max(1, Math.round(canvasSize.heightPx));
 	const ctx = canvas.getContext("2d");
 	if (!ctx) {
-		return "";
+		return null;
 	}
 
 	if (content.type === "color") {
-		ctx.fillStyle = content.hex;
+		ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
-		return canvas.toDataURL("image/png");
+		return canvas;
 	}
 
 	if (content.type === "animation") {
@@ -173,7 +192,7 @@ export function rasterizeContent(
 			y: alignOffset(content.vAlign, canvas.height, size),
 			size,
 		});
-		return canvas.toDataURL("image/png");
+		return canvas;
 	}
 
 	ctx.fillStyle = "#ffffff";
@@ -196,7 +215,7 @@ export function rasterizeContent(
 			content.fontSizePx / 2;
 		ctx.fillText(content.value, 0, y);
 	}
-	return canvas.toDataURL("image/png");
+	return canvas;
 }
 
 /** Static text supports multiple lines (the editor's textarea allows them);

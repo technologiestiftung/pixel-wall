@@ -50,6 +50,13 @@ export function resolveScreenRender(
  * draft as a real change.
  */
 export function draftHasChanges(state: WallState): boolean {
+	// Brightness is a wall-level setting rather than part of the content draft,
+	// but it is committed by the same Speichern button, so an otherwise
+	// untouched panel with a moved slider still has something to save.
+	if (brightnessHasChanges(state)) {
+		return true;
+	}
+
 	if (!state.selection || !state.draft) {
 		return false;
 	}
@@ -73,4 +80,19 @@ export function draftHasChanges(state: WallState): boolean {
 	}
 
 	return draftJson !== baselineJson;
+}
+
+export function brightnessHasChanges(state: WallState): boolean {
+	const draft = state.draftBrightness;
+	return (
+		draft !== null &&
+		(draft.small !== state.brightness.small ||
+			draft.large !== state.brightness.large)
+	);
+}
+
+/** What the brightness controls should currently show: the unsaved edit if
+ * there is one, otherwise what the wall is actually set to. */
+export function effectiveBrightness(state: WallState) {
+	return state.draftBrightness ?? state.brightness;
 }

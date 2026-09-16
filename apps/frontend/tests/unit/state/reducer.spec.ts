@@ -1,14 +1,28 @@
+// @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
 import { SCREEN_SPECS, DEFAULT_LAYOUT } from "../../../src/domain/layout";
 import { initialWallState, wallReducer } from "../../../src/state/reducer";
-import type { StateResponse } from "../../../src/api/types";
+import type { StateResponse, WireContentDto } from "../../../src/api/types";
+import { createMask, encodeMaskBase64, setBit } from "../../../src/domain/mask";
+
+function wireContent(): WireContentDto {
+	const mask = createMask(32, 32);
+	setBit(mask, 1, 1);
+	return {
+		format: "mask1",
+		widthPx: 32,
+		heightPx: 32,
+		color: [255, 0, 128],
+		data: encodeMaskBase64(mask),
+	};
+}
 
 describe("wallReducer: hydrated", () => {
 	test("converts server state into 'remote' applied entries, keyed by screen id", () => {
 		const remote: StateResponse["screens"] = {
 			"03": {
-				geometry: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
-				content: { bitmap: "data:image/png;base64,AAA" },
+				window: { offsetXPx: 4, offsetYPx: 2, widthPx: 32, heightPx: 32 },
+				content: wireContent(),
 			},
 		};
 
@@ -17,14 +31,13 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote,
+			brightness: { small: 40, large: 80 },
 		});
 
-		expect(next.applied["03"]).toEqual({
-			source: "remote",
-			bitmap: "data:image/png;base64,AAA",
-			offsetXPx: 0,
-			offsetYPx: 0,
-		});
+		const applied = next.applied["03"];
+		expect(applied?.source).toBe("remote");
+		expect(applied).toMatchObject({ offsetXPx: 4, offsetYPx: 2 });
+		expect(next.brightness).toEqual({ small: 40, large: 80 });
 		expect(next.syncStatus).toBe("ready");
 	});
 
@@ -35,10 +48,11 @@ describe("wallReducer: hydrated", () => {
 			layout: DEFAULT_LAYOUT,
 			remote: {
 				"03": {
-					geometry: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
-					content: { bitmap: "x" },
+					window: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
+					content: wireContent(),
 				},
 			},
+			brightness: { small: 60, large: 60 },
 		});
 
 		const next = wallReducer(seeded, {
@@ -46,6 +60,7 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote: {},
+			brightness: { small: 60, large: 60 },
 		});
 
 		expect(next.applied).toEqual({});

@@ -1,12 +1,18 @@
 /*
  * Pixel Wall - ESP32 side.
  *
- * Three chained 32x32 HUB75 panels (96x32) showing the message the backend
- * publishes to MQTT. The topic is retained, so the current message arrives
- * immediately on subscribe and survives a reboot of this board.
+ * Three chained 32x32 HUB75 panels (96x32) driven by one board. Each panel is
+ * an independently addressed screen with its own retained MQTT topic
+ * (ledwall/screen/01..03), so applying content to a subset leaves the others
+ * showing what they had.
  *
- * Library: ESP32-HUB75-MatrixPanel-I2S-DMA (mrcodetastic) + PubSubClient +
- * ArduinoJson v7.
+ * This is a compositor, not a renderer: the frontend rasterises content and
+ * the backend publishes a bitmap. Nothing here knows what text or a template
+ * is. The payload is binary — see docs/wire-format.md — which is why there is
+ * no JSON parser and no base64 step; a worst-case Lauftext filmstrip is ~9 KB
+ * and would cost roughly twice that in heap as JSON.
+ *
+ * Library: ESP32-HUB75-MatrixPanel-I2S-DMA (mrcodetastic) + PubSubClient.
  *
  * IMPORTANT: power the panels from an external 5V supply (>=5A), with its
  * GND connected to the ESP32 GND. Do not use the ESP32 5V pin.
@@ -14,14 +20,15 @@
 
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
 
 #include "secrets.h"
+#include "wire_decode.h"
 
 #define MQTT_HOST "192.168.4.236"
 #define MQTT_PORT 1883
-#define MQTT_TOPIC "ledwall/message"
+#define MQTT_TOPIC "ledwall/screen/+"
+#define MQTT_TOPIC_PREFIX "ledwall/screen/"
 #define MQTT_CLIENT_ID "pixel-wall-esp32"
 
 #define PANEL_RES_X 32
@@ -31,35 +38,19 @@
 #define CANVAS_W (PANEL_RES_X * PANEL_CHAIN)
 #define CANVAS_H PANEL_RES_Y
 
-#define TEXT_SIZE 2
-#define GLYPH_W (6 * TEXT_SIZE)
-#define GLYPH_H (8 * TEXT_SIZE)
-#define TEXT_Y ((CANVAS_H - GLYPH_H) / 2)
+#define SCREEN_COUNT 3
 
-#define MAX_TEXT 256
-
-// Matches the backend's clamping in app/models.py.
 #define MIN_BRIGHTNESS 5
 #define MAX_BRIGHTNESS 100
-#define MIN_SPEED_MS 5
-#define MAX_SPEED_MS 500
 
 MatrixPanel_I2S_DMA *display = nullptr;
 WiFiClient net;
 PubSubClient mqtt(net);
 
-struct WallState {
-	char text[MAX_TEXT + 1] = "PIXEL WALL";
-	uint8_t r = 255, g = 255, b = 255;
-	int brightness = 60;
-	int speed_ms = 30;
-};
-
-WallState state;
-int scrollX = CANVAS_W;
-int textPixels = 0;
-unsigned long lastStep = 0;
+PixelWallScreen screens[SCREEN_COUNT];
+int brightnessPercent = 60;
 unsigned long lastReconnect = 0;
+unsigned long startedAt = 0;
 
 static int clampInt(int value, int low, int high) {
 	if (value < low) return low;
@@ -69,58 +60,97 @@ static int clampInt(int value, int low, int high) {
 
 static void applyBrightness() {
 	// Backend range is 5-100; the panel driver wants 0-255.
-	display->setBrightness8((state.brightness * 255) / 100);
+	display->setBrightness8((brightnessPercent * 255) / 100);
 }
 
-static void resetScroll() {
-	textPixels = strlen(state.text) * GLYPH_W;
-	scrollX = CANVAS_W;
-}
+/* ------------------------------------------------------------ messages */
 
-static void drawFrame() {
-	display->clearScreen();
-	display->setTextSize(TEXT_SIZE);
-	display->setTextWrap(false);
-	display->setTextColor(display->color565(state.r, state.g, state.b));
-	display->setCursor(scrollX, TEXT_Y);
-	display->print(state.text);
-	display->flipDMABuffer();
+static int screenIndexFor(const char *topic) {
+	size_t prefixLen = strlen(MQTT_TOPIC_PREFIX);
+	if (strncmp(topic, MQTT_TOPIC_PREFIX, prefixLen) != 0) return -1;
+
+	const char *id = topic + prefixLen;
+	if (strcmp(id, "01") == 0) return 0;
+	if (strcmp(id, "02") == 0) return 1;
+	if (strcmp(id, "03") == 0) return 2;
+	return -1;
 }
 
 static void onMessage(char *topic, byte *payload, unsigned int length) {
-	JsonDocument doc;
-	DeserializationError err = deserializeJson(doc, payload, length);
-	if (err) {
-		Serial.printf("json parse failed: %s\n", err.c_str());
+	int index = screenIndexFor(topic);
+	if (index < 0) {
+		Serial.printf("ignoring unknown topic %s\n", topic);
 		return;
 	}
 
-	WallState next = state;
-
-	const char *text = doc["text"] | "";
-	strncpy(next.text, text, MAX_TEXT);
-	next.text[MAX_TEXT] = '\0';
-
-	JsonArrayConst color = doc["color"];
-	if (color.size() == 3) {
-		next.r = clampInt(color[0] | 255, 0, 255);
-		next.g = clampInt(color[1] | 255, 0, 255);
-		next.b = clampInt(color[2] | 255, 0, 255);
+	// Decode into a scratch screen so a malformed payload cannot leave the
+	// live one half-updated, and the panel keeps its last good frame.
+	PixelWallScreen next;
+	pixelWallScreenInit(&next);
+	if (!pixelWallDecodeFrame(&next, (const uint8_t *)payload, length)) {
+		Serial.printf("screen %d: payload rejected, keeping last frame\n", index + 1);
+		pixelWallScreenFree(&next);
+		return;
 	}
 
-	next.brightness = clampInt(doc["brightness"] | state.brightness, MIN_BRIGHTNESS, MAX_BRIGHTNESS);
-	next.speed_ms = clampInt(doc["speed_ms"] | state.speed_ms, MIN_SPEED_MS, MAX_SPEED_MS);
+	pixelWallScreenFree(&screens[index]);
+	screens[index] = next;
 
-	bool restart = strcmp(next.text, state.text) != 0 || next.r != state.r ||
-	               next.g != state.g || next.b != state.b;
-
-	state = next;
-	applyBrightness();
-	if (restart) resetScroll();
-
-	Serial.printf("state: \"%s\" rgb(%u,%u,%u) b=%d speed=%d\n", state.text,
-	              state.r, state.g, state.b, state.brightness, state.speed_ms);
+	Serial.printf("screen %d: %ux%u %s%s, %u bytes\n", index + 1,
+	              next.widthPx, next.heightPx,
+	              next.format == PAL4_MAGIC ? "pal4" : "mask1",
+	              next.scrolling ? " scrolling" : "", length);
 }
+
+/* ------------------------------------------------------------ rendering */
+
+/* Mirrors app/scroll.py and domain/scroll.ts: the text starts fully hidden
+ * past one edge, travels to fully hidden past the other, then holds for
+ * pauseMs. Being a pure function of elapsed time is what keeps screens of one
+ * composite in step without any cross-screen bookkeeping. */
+static float marqueeOffset(const PixelWallScreen &screen, unsigned long elapsedMs) {
+	float composite = screen.compositeWidthPx;
+	float text = screen.widthPx;
+	float start = screen.direction == 0 ? composite : -text;
+	float end = screen.direction == 0 ? -text : composite;
+
+	if (screen.speedPxPerSec == 0) return start;
+
+	float durationMs = ((composite + text) / screen.speedPxPerSec) * 1000.0f;
+	float cycleMs = durationMs + screen.pauseMs;
+	if (cycleMs <= 0) return start;
+
+	float t = fmodf((float)elapsedMs, cycleMs);
+	if (t >= durationMs) return end;
+	return start + (end - start) * (t / durationMs);
+}
+
+static void drawFrame(unsigned long elapsedMs) {
+	display->clearScreen();
+
+	for (int index = 0; index < SCREEN_COUNT; index++) {
+		const PixelWallScreen &screen = screens[index];
+		if (!screen.valid || screen.pixels == nullptr) continue;
+
+		int slotX = index * PANEL_RES_X;
+		float shiftX = screen.scrolling ? marqueeOffset(screen, elapsedMs) : 0.0f;
+		int originX = (int)lroundf(shiftX) - (int)screen.winX;
+		int originY = -(int)screen.winY;
+
+		for (int y = 0; y < PANEL_RES_Y; y++) {
+			for (int x = 0; x < PANEL_RES_X; x++) {
+				uint8_t r, g, b;
+				if (pixelWallSample(&screen, x - originX, y - originY, &r, &g, &b)) {
+					display->drawPixelRGB888(slotX + x, y, r, g, b);
+				}
+			}
+		}
+	}
+
+	display->flipDMABuffer();
+}
+
+/* ------------------------------------------------------------ transport */
 
 static void connectWiFi() {
 	Serial.printf("wifi: connecting to %s\n", WIFI_SSID);
@@ -139,7 +169,7 @@ static bool connectMQTT() {
 		Serial.printf("mqtt: failed, rc=%d\n", mqtt.state());
 		return false;
 	}
-	// Retained, so the current message arrives right here.
+	// Retained per screen, so all three arrive right here.
 	mqtt.subscribe(MQTT_TOPIC);
 	Serial.printf("mqtt: subscribed to %s\n", MQTT_TOPIC);
 	return true;
@@ -160,16 +190,20 @@ void setup() {
 	}
 	applyBrightness();
 	display->clearScreen();
-	resetScroll();
+	for (int i = 0; i < SCREEN_COUNT; i++) {
+		pixelWallScreenInit(&screens[i]);
+	}
 
 	connectWiFi();
 
 	mqtt.setServer(MQTT_HOST, MQTT_PORT);
 	mqtt.setCallback(onMessage);
-	// Default PubSubClient buffer is 256 bytes; a 256-character message plus
-	// JSON overhead exceeds that and would be dropped silently.
-	mqtt.setBufferSize(1024);
+	// A Lauftext filmstrip is several KB; the old 1024-byte buffer was sized
+	// for a 256-character text message and would drop these silently.
+	mqtt.setBufferSize(16384);
 	connectMQTT();
+
+	startedAt = millis();
 }
 
 void loop() {
@@ -187,16 +221,5 @@ void loop() {
 		mqtt.loop();
 	}
 
-	unsigned long now = millis();
-	if (now - lastStep >= (unsigned long)state.speed_ms) {
-		lastStep = now;
-		if (strlen(state.text) == 0) {
-			display->clearScreen();
-			display->flipDMABuffer();
-		} else {
-			drawFrame();
-			scrollX--;
-			if (scrollX + textPixels < 0) scrollX = CANVAS_W;
-		}
-	}
+	drawFrame(millis() - startedAt);
 }

@@ -6,10 +6,11 @@ import type {
 	ContentType,
 	TextContent,
 } from "../../domain/types";
-import { draftHasChanges } from "../../state/selectors";
+import { draftHasChanges, effectiveBrightness } from "../../state/selectors";
 import { useApplyChanges } from "../../state/useApplyChanges";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
+import { BrightnessSlider } from "./BrightnessSlider";
 import { FarbePanel } from "./FarbePanel";
 import { SaveButton } from "./SaveButton";
 import { SelectionStatus } from "./SelectionStatus";
@@ -117,6 +118,20 @@ export function Menu() {
 							onChange={handleContentChange}
 						/>
 					)}
+
+					<hr className="border-[#e4e4e0]" />
+
+					<BrightnessSlider
+						kind={selection.kind}
+						value={effectiveBrightness(state)[selection.kind]}
+						onChange={(value) =>
+							dispatch({
+								type: "set-draft-brightness",
+								kind: selection.kind,
+								value,
+							})
+						}
+					/>
 				</>
 			) : (
 				<p className="text-[13px] text-[#6b6b66]">

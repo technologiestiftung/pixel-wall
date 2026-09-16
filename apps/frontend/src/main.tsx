@@ -17,11 +17,18 @@ function render() {
 	);
 }
 
-// There is no real backend yet (see CONTEXT.md "Rendering split" / the
-// Phase 3 plan) — a mock service worker stands in for it everywhere,
-// not just in dev, so the app is always exercised against a real network
-// round-trip rather than only when a backend happens to be running.
+/**
+ * The mock backend is opt-in and development-only: run with `VITE_USE_MOCKS=1`
+ * to work on the UI without a backend. It used to start unconditionally, which
+ * put ~293 KB of mock service worker into the production bundle and meant the
+ * app could never reach the real wall.
+ */
+const USE_MOCKS = import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "1";
+
 async function startMocking() {
+	if (!USE_MOCKS) {
+		return;
+	}
 	try {
 		const { worker } = await import("./api/mocks/browser");
 		await worker.start({ onUnhandledRequest: "bypass" });
@@ -37,4 +44,4 @@ async function startMocking() {
 	}
 }
 
-startMocking().then(render);
+void startMocking().then(render);

@@ -1,37 +1,19 @@
-import re
-from typing import Annotated, Any, Optional
+import base64
+import binascii
+from typing import Annotated, Any, Literal, Optional
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
 
 from . import config
+from .mask import MaskFormatError, decode_block
+from .screens import DEFAULT_LAYOUT, SCREEN_IDS
 
-_HEX = re.compile(r"^#?([0-9a-fA-F]{6})$")
-_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+ScreenKind = Literal["small", "large"]
+BitmapFormat = Literal["mask1", "pal4"]
 
 
 def _clamp(value: int, low: int, high: int) -> int:
     return max(low, min(high, value))
-
-
-def _coerce_text(value: Any) -> Any:
-    if not isinstance(value, str):
-        return value
-    return _CONTROL.sub("", value).strip()[: config.TEXT_MAX_LENGTH]
-
-
-def _coerce_color(value: Any) -> Any:
-    if isinstance(value, str):
-        match = _HEX.match(value.strip())
-        if match is None:
-            return value
-        digits = match.group(1)
-        return [int(digits[i : i + 2], 16) for i in (0, 2, 4)]
-    if isinstance(value, dict) and {"r", "g", "b"} <= value.keys():
-        value = [value["r"], value["g"], value["b"]]
-    if isinstance(value, (list, tuple)) and len(value) == 3:
-        if all(isinstance(c, int) and not isinstance(c, bool) for c in value):
-            return [_clamp(c, 0, 255) for c in value]
-    return value
 
 
 def _coerce_brightness(value: Any) -> Any:
@@ -40,45 +22,172 @@ def _coerce_brightness(value: Any) -> Any:
     return value
 
 
-def _coerce_speed(value: Any) -> Any:
-    if isinstance(value, int) and not isinstance(value, bool):
-        return _clamp(value, config.SPEED_MS_MIN, config.SPEED_MS_MAX)
-    return value
-
-
-Text = Annotated[str, BeforeValidator(_coerce_text), Field(max_length=config.TEXT_MAX_LENGTH)]
-Color = Annotated[list[int], BeforeValidator(_coerce_color), Field(min_length=3, max_length=3)]
 Brightness = Annotated[int, BeforeValidator(_coerce_brightness)]
-SpeedMs = Annotated[int, BeforeValidator(_coerce_speed)]
+
+
+class BrightnessByKind(BaseModel):
+    """Per hardware kind, not per screen: `matrix.brightness` on the Pi and
+    `setBrightness8` on the ESP32 are both whole-canvas properties, so this is
+    the finest granularity the hardware supports."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    small: Brightness = config.DEFAULT_BRIGHTNESS
+    large: Brightness = config.DEFAULT_BRIGHTNESS
+
+
+class LayoutPositionModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    screenId: str
+    xMm: float
+    yMm: float
+
+    @field_validator("screenId")
+    @classmethod
+    def _known_screen(cls, value: str) -> str:
+        if value not in SCREEN_IDS:
+            raise ValueError(f"unknown screen id: {value}")
+        return value
+
+
+class ScreenWindow(BaseModel):
+    """A screen's region of the (possibly multi-screen) content bitmap —
+    `window` in docs/wire-format.md."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    offsetXPx: int = Field(ge=0, le=65535)
+    offsetYPx: int = Field(ge=0, le=65535)
+    widthPx: int = Field(gt=0, le=65535)
+    heightPx: int = Field(gt=0, le=65535)
+
+
+class ScrollModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    direction: Literal["left", "right"] = "left"
+    speedPxPerSec: float = Field(gt=0, le=65535)
+    pauseMs: int = Field(ge=0, le=65535)
+    #: Width of the area the content scrolls across — see docs/wire-format.md.
+    #: Not the mask width: the mask is the filmstrip, this is the selection.
+    compositeWidthPx: int = Field(gt=0, le=65535)
+
+
+class ContentModel(BaseModel):
+    """The JSON envelope from docs/wire-format.md."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    format: BitmapFormat
+    widthPx: int = Field(gt=0, le=65535)
+    heightPx: int = Field(gt=0, le=65535)
+    color: Optional[list[int]] = None
+    data: str
+    scroll: Optional[ScrollModel] = None
+
+    @field_validator("color")
+    @classmethod
+    def _rgb(cls, value: Optional[list[int]]) -> Optional[list[int]]:
+        if value is None:
+            return None
+        if len(value) != 3 or any(not 0 <= c <= 255 for c in value):
+            raise ValueError("color must be three 0-255 channels")
+        return value
+
+    def block(self) -> bytes:
+        try:
+            return base64.b64decode(self.data, validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise ValueError(f"data is not valid base64: {error}") from error
+
+    @field_validator("data")
+    @classmethod
+    def _decodable(cls, value: str) -> str:
+        """A payload that cannot be decoded here would reach a panel and be
+        rejected there instead, where nobody sees the error."""
+        try:
+            decode_block(base64.b64decode(value, validate=True))
+        except (binascii.Error, ValueError, MaskFormatError) as error:
+            raise ValueError(f"data is not a valid bitmap block: {error}") from error
+        return value
+
+
+class ScreenStateModel(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    window: ScreenWindow
+    content: ContentModel
 
 
 class WallState(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    text: Text = config.DEFAULT_STATE["text"]
-    color: Color = config.DEFAULT_STATE["color"]
-    brightness: Brightness = config.DEFAULT_STATE["brightness"]
-    speed_ms: SpeedMs = config.DEFAULT_STATE["speed_ms"]
+    brightness: BrightnessByKind = Field(default_factory=BrightnessByKind)
+    layout: list[LayoutPositionModel] = Field(
+        default_factory=lambda: [LayoutPositionModel(**p) for p in DEFAULT_LAYOUT]
+    )
+    screens: dict[str, ScreenStateModel] = Field(default_factory=dict)
 
-
-class WallStateUpdate(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    text: Optional[Text] = None
-    color: Optional[Color] = None
-    brightness: Optional[Brightness] = None
-    speed_ms: Optional[SpeedMs] = None
+    @field_validator("screens")
+    @classmethod
+    def _known_screens(cls, value: dict[str, ScreenStateModel]) -> dict[str, ScreenStateModel]:
+        unknown = sorted(set(value) - set(SCREEN_IDS))
+        if unknown:
+            raise ValueError(f"unknown screen ids: {', '.join(unknown)}")
+        return value
 
 
 class StateResponse(WallState):
     updated_at: str
 
 
+class LayoutRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    positions: list[LayoutPositionModel]
+
+
+class LayoutResponse(BaseModel):
+    positions: list[LayoutPositionModel]
+
+
+class ScreensResponse(BaseModel):
+    screens: list[dict]
+
+
+class ApplyTarget(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    screenId: str
+    window: ScreenWindow
+
+    @field_validator("screenId")
+    @classmethod
+    def _known_screen(cls, value: str) -> str:
+        if value not in SCREEN_IDS:
+            raise ValueError(f"unknown screen id: {value}")
+        return value
+
+
+class ApplyRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    selectionKind: ScreenKind
+    screens: list[ApplyTarget] = Field(min_length=1)
+    content: ContentModel
+    brightness: Optional[BrightnessByKind] = None
+
+
+class ApplyResponse(BaseModel):
+    appliedAt: str
+
+
 class MqttStatus(BaseModel):
     enabled: bool
     connected: bool
     broker: str
-    topic: str
+    topic_prefix: str
     last_error: Optional[str] = None
 
 

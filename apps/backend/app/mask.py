@@ -256,6 +256,21 @@ class Palette4:
         return packed
 
 
+    def window(self, offset_x: int, offset_y: int, width_px: int, height_px: int) -> "Palette4":
+        """The sub-image a single screen displays. Reads outside the source fall back
+        to palette index 0, so a window may legitimately overhang."""
+        out = Palette4(width_px, height_px, list(self.palette), bytearray(width_px * height_px))
+        for y in range(height_px):
+            source_y = offset_y + y
+            if not 0 <= source_y < self.height_px:
+                continue
+            for x in range(width_px):
+                source_x = offset_x + x
+                if 0 <= source_x < self.width_px:
+                    out.indices[y * width_px + x] = self.indices[source_y * self.width_px + source_x]
+        return out
+
+
 def _pal4_header(encoding: int, image: Palette4) -> bytes:
     out = bytearray(
         [

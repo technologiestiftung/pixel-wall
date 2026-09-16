@@ -52,9 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 		async function probe() {
 			// An unauthenticated read succeeds only when the backend runs without
-			// a password, in which case there is nothing to sign in to.
+			// a password (LEDWALL_PASSWORD unset), in which case there is nothing
+			// to sign in to and the gate never appears. /api/health is the probe
+			// because /api/state now carries every screen's bitmap.
 			try {
-				await apiFetch("/api/state", null);
+				await apiFetch("/api/health", null);
 				if (!cancelled) {
 					setPassword(null);
 					setState("unlocked");
@@ -79,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			}
 
 			try {
-				await apiFetch("/api/state", stored);
+				await apiFetch("/api/health", stored);
 				if (!cancelled) {
 					setPassword(stored);
 					setState("unlocked");
@@ -100,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const signIn = useCallback(async (candidate: string) => {
-		await apiFetch("/api/state", candidate);
+		await apiFetch("/api/health", candidate);
 		storePassword(candidate);
 		setPassword(candidate);
 		setState("unlocked");

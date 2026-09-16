@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { putLayout } from "../../api/client";
+import { putLayout } from "../../api/wall";
+import { useAuth } from "../../auth/AuthContext";
 import {
 	MM_TO_PX,
 	boundingBoxMm,
@@ -31,6 +32,7 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 	const state = useWallState();
 	const { specs, layout, selection, layoutEditMode } = state;
 	const dispatch = useWallDispatch();
+	const { request } = useAuth();
 	const { widthMm, heightMm } = boundingBoxMm(specs, layout);
 	const [drag, setDrag] = useState<DragState | null>(null);
 
@@ -106,7 +108,7 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 				: p,
 		);
 		setDrag(null);
-		putLayout(nextLayout).catch(() => {
+		putLayout(request, nextLayout).catch(() => {
 			// Layout persistence failing silently just means the next poll
 			// (see useWallSync) won't reflect this move for other clients —
 			// the local arrangement itself isn't lost.

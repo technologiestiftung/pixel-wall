@@ -24,18 +24,15 @@ AUTH_ENABLED = PASSWORD is not None
 
 MQTT_HOST = os.environ.get("LEDWALL_MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.environ.get("LEDWALL_MQTT_PORT", "1883"))
-MQTT_TOPIC = os.environ.get("LEDWALL_MQTT_TOPIC", "ledwall/message")
+MQTT_TOPIC_PREFIX = os.environ.get("LEDWALL_MQTT_TOPIC_PREFIX", "ledwall/screen")
 MQTT_USERNAME = os.environ.get("LEDWALL_MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("LEDWALL_MQTT_PASSWORD") or None
 MQTT_ENABLED = os.environ.get("LEDWALL_MQTT_ENABLED", "1") != "0"
 
-TEXT_MAX_LENGTH = 256
 BRIGHTNESS_MIN, BRIGHTNESS_MAX = 5, 100
-SPEED_MS_MIN, SPEED_MS_MAX = 5, 500
+DEFAULT_BRIGHTNESS = 60
 
-DEFAULT_STATE = {
-    "text": "PIXEL WALL",
-    "color": [255, 255, 255],
-    "brightness": 60,
-    "speed_ms": 30,
-}
+#: Ceiling on a single content bitmap, so a malformed or hostile payload cannot
+#: exhaust memory. A 256-char Lauftext filmstrip at 64px is ~10k px wide.
+MAX_BITMAP_WIDTH_PX = 16384
+MAX_BITMAP_HEIGHT_PX = 256

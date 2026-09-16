@@ -1,20 +1,24 @@
 # Pixel Wall backend
 
-LAN-only control API for the LED matrix wall. It owns one piece of state — the
-message the wall is showing — and hands it to two consumers:
+LAN-only control API for the LED matrix wall. It owns what each of the 7
+screens is showing, and hands that to two consumers:
 
 ```
-                    PUT/PATCH /api/state
+                      POST /api/apply
   web interface ──────────────────────────▶  backend (FastAPI, :5000, user pi)
                                                    │
-                            atomic write           │  publish retain=true
-                                                   ▼
-                       /var/lib/ledwall/state.json │  mosquitto ledwall/message
+                            atomic write           │  publish retain=true,
+                                                   ▼  one topic per screen
+                       /var/lib/ledwall/state.json │  mosquitto ledwall/screen/<id>
                                    │               ▼
-                                   ▼           ESP32 (3x 32x32)
+                                   ▼           ESP32 (3x 32x32, one board)
                      pi_display.py (root)
-                     4x 64x64 HUB75
+                     4x 64x64 HUB75 (128x128)
 ```
+
+The frontend rasterises content and sends **pixels**, not text — see
+[`docs/wire-format.md`](../../docs/wire-format.md). Neither consumer renders
+text or knows what a template is.
 
 The two paths are deliberately decoupled. `pi_display.py` re-reads the state
 file between scroll cycles and every 200 ms during one, and never talks to the
@@ -26,8 +30,8 @@ returns 200.
 
 Flask would also do the job, but three things here are free in FastAPI and
 hand-rolled in Flask: Pydantic models give the validation and clamping of
-`brightness` / `speed_ms` / colour as declarative types rather than a wall of
-`if` statements; the generated OpenAPI schema at `/docs` and `/openapi.json` is
+`brightness` / window geometry / bitmap payloads as declarative types rather
+than a wall of `if` statements; the generated OpenAPI schema at `/docs` and `/openapi.json` is
 a live, checkable contract for the frontend you're writing yourself; and the
 ASGI stack means the eventual "push state changes to the browser" step is a
 websocket endpoint rather than a rewrite. Cost is one extra dependency
@@ -128,7 +132,7 @@ Verify:
 ```bash
 systemctl status ledwall-display ledwall-backend
 curl -su :<your-password> http://localhost:5000/api/health | python3 -m json.tool
-mosquitto_sub -h localhost -t ledwall/message -v -C 1   # blocks until a state change
+mosquitto_sub -h localhost -t 'ledwall/screen/+' -F '%t %l bytes' -C 1   # blocks until an apply
 ```
 
 A `401` from that curl means the password is wrong; check
@@ -184,16 +188,25 @@ put — the frontend has to hardcode it somewhere.
 
 ## API contract
 
-Base URL `http://<pi-ip>:5000`. JSON in, JSON out, HTTP Basic auth on every
-route (see [Authentication](#authentication)). CORS is open (`*`) so the
-frontend can be hosted anywhere on the LAN. Interactive docs at `/docs`,
-machine-readable schema at `/openapi.json`.
+Base URL `http://<pi-ip>:5000`. JSON in, JSON out, optional HTTP Basic auth
+(see [Authentication](#authentication)). CORS is open (`*`) so the frontend can
+be hosted anywhere on the LAN. Interactive docs at `/docs`, machine-readable
+schema at `/openapi.json`.
+
+The wall is modelled as **7 independently addressed screens**, not one global
+message. A content edit applies to a selection of screens and leaves every
+other screen untouched.
 
 ### Authentication
 
-Every route — the API, `/docs`, `/openapi.json` and `/` — is behind a single
-shared password. Open `http://<pi-ip>:5000` in a browser and it prompts; the
-browser then caches it for the rest of the session.
+Authentication is **optional**: the middleware is active only when
+`LEDWALL_PASSWORD` is set. Leave it unset for a trusted LAN and the API is open
+to anyone on the network — the service logs a warning at startup and
+`/api/health` reports `auth.enabled: false`, which is how the frontend decides
+whether to show its password gate.
+
+When it is set, every route — the API, `/docs`, `/openapi.json` and `/` — is
+behind that single shared password.
 
 **There is no username.** The transport is HTTP Basic, so the browser's prompt
 still draws a username box — leave it empty. Whatever is typed there is
@@ -206,10 +219,7 @@ Set the password in `/etc/ledwall/backend.env`:
 LEDWALL_PASSWORD=something-long
 ```
 
-Restart with `sudo systemctl restart ledwall-backend` to pick up a change. If
-`LEDWALL_PASSWORD` is unset the middleware is bypassed entirely and the API is
-open to the whole LAN — the service logs a warning at startup and
-`/api/health` reports `auth.enabled: false`.
+Restart with `sudo systemctl restart ledwall-backend` to pick up a change.
 
 **Calling it from the frontend.** A browser only shows its own password prompt
 for a navigation, not for a cross-origin `fetch()`. A frontend served from
@@ -238,85 +248,120 @@ TLS. It stops casual access from other people on the network, and nothing more.
 Don't reuse a password you use elsewhere, and don't port-forward this to the
 internet.
 
-### The state object
+### `GET /api/screens` → `200`
 
-| Field        | Type        | Range                   | Meaning                          |
-| ------------ | ----------- | ----------------------- | -------------------------------- |
-| `text`       | string      | 0–256 chars             | message shown on the wall        |
-| `color`      | `[r, g, b]` | each 0–255              | text colour                      |
-| `brightness` | integer     | 5–100                   | panel brightness                 |
-| `speed_ms`   | integer     | 5–500                   | milliseconds per pixel of scroll |
-| `updated_at` | string      | RFC 3339 UTC, read-only | when the state was last written  |
-
-### `GET /api/state` → `200`
+The fixed hardware inventory. Static; it never changes at runtime.
 
 ```json
 {
-	"text": "HELLO BERLIN",
-	"color": [255, 0, 128],
-	"brightness": 60,
-	"speed_ms": 30,
-	"updated_at": "2026-09-14T10:38:20Z"
+	"screens": [
+		{ "id": "01", "kind": "small", "pixelSize": 32, "physicalSizeMm": 128 },
+		{ "id": "04", "kind": "large", "pixelSize": 64, "physicalSizeMm": 192 }
+	]
 }
 ```
 
-Returns the built-in defaults if the state file does not exist yet.
+Three `small` screens (`01`–`03`) and four `large` (`04`–`07`).
 
-### `PUT /api/state` → `200`
+### `GET /api/layout` → `200`, `PUT /api/layout` → `200`
 
-Full replacement. Every field is optional and falls back to its default, so a
-`PUT` is always a complete, known state.
-
-```bash
-curl -u :your-password -X PUT http://raspberrypi.local:5000/api/state \
-  -H 'Content-Type: application/json' \
-  -d '{"text":"HELLO BERLIN","color":"#ff0080","brightness":60,"speed_ms":30}'
-```
-
-### `PATCH /api/state` → `200`
-
-Partial update, merged onto current state. Omitted fields keep their value. Use
-this for a brightness slider that shouldn't touch the message.
-
-```bash
-curl -u :your-password -X PATCH http://raspberrypi.local:5000/api/state \
-  -H 'Content-Type: application/json' -d '{"brightness":85}'
-```
-
-Both return the full new state, identical in shape to `GET /api/state`.
-
-### Validation and clamping
-
-Two different behaviours, deliberately:
-
-- **Wrong type** → `422` with FastAPI's standard error body. `"brightness": "high"`
-  and `"color": [1, 2]` are rejected; the frontend has a bug.
-- **Right type, out of range** → clamped silently and reflected in the response.
-  `"brightness": 999` becomes `100`, `"speed_ms": 0` becomes `5`. The frontend
-  should render the returned state rather than assume its request was applied
-  verbatim.
-
-`color` also accepts `"#ff0080"` or `{"r":255,"g":0,"b":128}` on input and always
-comes back as `[r, g, b]`. `text` is stripped of control characters and truncated
-to 256 characters.
-
-### `GET /api/limits` → `200`
-
-The ranges above, as data — so sliders and inputs can be bounded without
-hardcoding numbers that might change:
+The user-arranged physical positions, in millimetres, of every screen. This is
+a *planning* arrangement used to work out how content spans a selection — it is
+not the electrical topology, and the display process does not derive panel
+addresses from it.
 
 ```json
 {
-	"text": { "max_length": 256 },
-	"color": { "min": 0, "max": 255, "length": 3 },
+	"positions": [{ "screenId": "01", "xMm": 508, "yMm": 3 }]
+}
+```
+
+`PUT` replaces the whole list and returns it. An unknown `screenId` is a `422`.
+
+### `GET /api/state` → `200`
+
+Everything the wall is currently showing.
+
+```json
+{
+	"brightness": { "small": 60, "large": 60 },
+	"layout": [{ "screenId": "01", "xMm": 508, "yMm": 3 }],
+	"screens": {
+		"04": {
+			"window": { "offsetXPx": 0, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
+			"content": {
+				"format": "mask1",
+				"widthPx": 64,
+				"heightPx": 64,
+				"color": [254, 241, 119],
+				"data": "UAEB…",
+				"scroll": null
+			}
+		}
+	},
+	"updated_at": "2026-09-16T09:31:00Z"
+}
+```
+
+`screens` contains only screens that have had content applied; it starts empty.
+`content` is the JSON envelope from
+[`docs/wire-format.md`](../../docs/wire-format.md) — `data` is a base64 bitmap
+block in one of two formats:
+
+| `format` | Use | Colour |
+| -------- | --- | ------ |
+| `mask1`  | text, flat colour fills, single-colour icons | one RGB value in `color` |
+| `pal4`   | multi-colour template artwork | a palette inside `data` |
+
+### `POST /api/apply` → `200`
+
+Applies one content edit to a selection of screens.
+
+```json
+{
+	"selectionKind": "large",
+	"screens": [
+		{ "screenId": "04", "window": { "offsetXPx": 0, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 } },
+		{ "screenId": "05", "window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 } }
+	],
+	"content": { "format": "mask1", "widthPx": 148, "heightPx": 64, "color": [255, 255, 255], "data": "UAEB…" },
+	"brightness": { "small": 60, "large": 85 }
+}
+```
+
+Returns `{ "appliedAt": "2026-09-16T09:31:00Z" }`.
+
+- The frontend rasterises content **once**, across the whole selection's
+  composite, and `window` says which region each screen shows. Static content is
+  sliced per screen here, so each stored bitmap and each MQTT message is
+  self-contained.
+- **Scrolling content is not sliced**: every screen pans the same filmstrip, so
+  each keeps the whole strip plus its own `window` offset. A composite's screens
+  must therefore pan from a shared phase, which is why all four large screens
+  are driven from one process.
+- `brightness` is optional; omitting it leaves the current values alone. It is
+  per hardware *kind*, not per screen, because `matrix.brightness` and
+  `setBrightness8` are whole-canvas properties.
+- Screens outside `screens[]` keep whatever they were showing.
+
+### Validation
+
+`422` on: an unknown `screenId`; a `selectionKind` that doesn't match the kinds
+of the selected screens; an empty selection; an unknown `format`; or a `data`
+string that is not valid base64 or not a decodable bitmap block. The block is
+decoded here on the way in, so a payload that would fail on a panel — where
+nobody would see the error — fails at the API instead.
+
+`brightness` is clamped rather than rejected: `0` becomes `5`, `999` becomes
+`100`.
+
+### `GET /api/limits` → `200`
+
+```json
+{
 	"brightness": { "min": 5, "max": 100 },
-	"speed_ms": { "min": 5, "max": 500 },
-	"defaults": {
-		"text": "PIXEL WALL",
-		"color": [255, 255, 255],
-		"brightness": 60,
-		"speed_ms": 30
-	}
+	"bitmap": { "maxWidthPx": 16384, "maxHeightPx": 256, "formats": ["mask1", "pal4"] },
+	"screens": [{ "id": "01", "kind": "small", "pixelSize": 32, "physicalSizeMm": 128 }]
 }
 ```
 
@@ -327,67 +372,71 @@ hardcoding numbers that might change:
 	"status": "ok",
 	"state_file": "/var/lib/ledwall/state.json",
 	"state_file_writable": true,
-	"updated_at": "2026-09-14T10:38:20Z",
+	"updated_at": "2026-09-16T09:31:00Z",
 	"auth": { "enabled": true },
 	"mqtt": {
 		"enabled": true,
 		"connected": true,
 		"broker": "127.0.0.1:1883",
-		"topic": "ledwall/message",
+		"topic_prefix": "ledwall/screen",
 		"last_error": null
 	}
 }
 ```
 
-Always `200` while the process is alive — read the fields to tell degraded from
-healthy. `state_file_writable: false` means the group setup above is wrong and
-writes will fail; `mqtt.connected: false` means the ESP32 panels are stale while
-the HUB75 panels are fine.
+`auth.enabled` is what the frontend reads to decide whether to show a password
+gate.
 
 ### Status codes
 
 | Code  | When                                                              |
 | ----- | ----------------------------------------------------------------- |
 | `200` | success                                                           |
-| `404` | unknown path                                                      |
-| `422` | body failed type validation (never for out-of-range numbers)      |
-| `401` | missing or wrong credentials; response carries `WWW-Authenticate` |
-| `500` | state file could not be written — check `state_file_writable`     |
-
-`GET /` redirects to `/docs` with a `307`; it is not part of the API.
-
-MQTT failures never produce an error status. The state file is the source of
-truth; the broker is a fan-out for the ESP32.
+| `307` | `/` redirects to `/docs`                                          |
+| `401` | missing or wrong password, when `LEDWALL_PASSWORD` is set         |
+| `405` | a retired route — `PUT`/`PATCH /api/state` no longer exist        |
+| `422` | payload failed validation (see above)                             |
+| `500` | the state file could not be written                               |
 
 ## Display script
 
-`pi_display.py` replaces the hardcoded `MESSAGES` list with a read of the state
-file. Three changes from the original worth knowing about:
+`pi_display.py` is a **compositor, not a renderer**. The frontend rasterises
+content and the backend stores a bitmap per screen, so this process decodes
+those bitmaps, pans the scrolling ones, and blits each screen into its fixed
+rectangle of the 128x128 canvas. It does not know what text or a template is,
+and it no longer needs a BDF font.
 
-- **It no longer publishes MQTT.** The backend owns `ledwall/message` now, and
-  two publishers writing a retained message to one topic would overwrite each
-  other. One less dependency running as root.
-- **It re-reads state mid-scroll, not just between cycles**, every 200 ms.
-  Brightness and speed apply immediately; a change of text or colour restarts
-  the scroll from the right edge. Without this a 200-character message at
-  30 ms/px would ignore your slider for the better part of a minute. Drop
-  `POLL_INTERVAL` and the block at the bottom of the scroll loop if you'd
-  rather it only refreshed per cycle.
-- **A bad state file is survivable.** Missing, truncated, malformed, or missing
-  keys — `read_state` returns the last good state and the wall keeps scrolling.
-  Values are clamped again here, so the display never trusts the file even
-  though the backend already validated it.
+The geometry that is easy to get wrong lives in `app/compositor.py` rather than
+in the display loop, so it can be tested without a wall attached — including
+the seam case, where two screens of one composite must pan in step.
+
+- **It no longer publishes MQTT.** The backend owns the `ledwall/screen/<id>`
+  topics now, and two publishers writing a retained message to one topic would
+  overwrite each other. One less dependency running as root.
+- **It re-reads state every 200 ms** and redraws every frame. Because the four
+  panels are one physical canvas, the whole frame is recomposed each tick
+  regardless of which screens changed — "already-applied screens are left
+  untouched" (CONTEXT.md) is a guarantee about state, not frame composition.
+- **A bad state file is survivable.** Missing, truncated or malformed —
+  `read_state` returns the last good state and the wall keeps running. An
+  individual screen whose payload will not decode renders black rather than
+  taking the frame down.
+- **Every screen pans off one clock.** `marquee_offset_px` is a pure function
+  of elapsed time (mirrored in `domain/scroll.ts` and the firmware), which is
+  what keeps a multi-screen Lauftext in step across the seams without any
+  per-screen bookkeeping.
 
 ### Matrix config
 
 `rows=64`, `cols=64`, `gpio_slowdown=4`, `drop_privileges=False`, and the
 geometry has to match how the panels are physically chained.
 
-Four 64x64 panels in a horizontal row are one chain of four:
+This wall is two bonnet outputs with two panels each, which is two parallel
+chains of two — a single 128x128 canvas:
 
 ```python
-options.chain_length = 4
-options.parallel = 1
+options.chain_length = 2
+options.parallel = 2
 options.hardware_mapping = "regular"
 ```
 
@@ -402,16 +451,23 @@ The adafruit-hat-pwm GPIO mapping only supports 1 parallel chain, but 2 was requ
 which systemd shows as `status=6/ABRT` in a restart loop, not as a Python
 traceback. A multi-port adapter wants `regular`.
 
-Two parallel chains of two give a 128x128 canvas, which is right only if the
-panels are mounted as a 2x2 square. On a row of four it leaves half the canvas
-off-screen — text drawn at `canvas.height // 2` lands in the top half and only
-two panels light up.
+Getting this wrong is quiet rather than loud. Driving these same four panels as
+`chain_length=4, parallel=1` lays them out as one 256x64 row, so half the
+canvas is off-screen and only two panels light up.
 
-To check wiring against config, colour each panel separately and look at the
-wall: if the colours come out in a different order than the canvas says, the
-chain is cabled in reverse. The library's pixel mappers cannot fix that —
-`Mirror:H` repositions the panels but renders text backwards — so the fix is a
-cable swap, not a config flag.
+**Which physical panel is which quadrant** is a separate question from the
+canvas geometry, and it is recorded in `app/hardware.py`. That table is an
+assumption until bench-checked; run
+
+```bash
+sudo python3 -m app.hardware
+```
+
+from `apps/backend` to light one quadrant at a time and note which panel
+responds. If a chain is cabled in the reverse direction, two ids swap — the
+symptom is subtle, with Lauftext jumping backwards at the seam rather than
+obviously breaking. Fix it by editing that table, not by changing any other
+code.
 
 `ledwall-display.service` runs it straight out of the repo at
 `/home/pi/ledwall/apps/backend/pi_display.py` rather than from a copy at
@@ -424,29 +480,35 @@ sudo systemctl restart ledwall-display
 is the whole update path and there is no second copy to drift. If you prefer
 the old location, copy the file there and edit `ExecStart` in the unit.
 
-It needs `rgbmatrix` importable by the _system_ Python — it runs as root,
-outside the backend venv — and a BDF font. The font defaults to
-`/home/pi/rpi-rgb-led-matrix/fonts/10x20.bdf`; set `LEDWALL_FONT` in the
-display unit if your `rpi-rgb-led-matrix` checkout lives elsewhere, which it
-does whenever the Pi's login user is not `pi`.
+It needs `rgbmatrix` and `Pillow` importable by the _system_ Python — it runs
+as root, outside the backend venv:
+
+```bash
+sudo pip3 install --break-system-packages Pillow
+```
 
 ## MQTT
 
-On every successful state change the backend publishes to `ledwall/message` with
-`retain=true`, so an ESP32 that reboots gets the current message immediately on
-subscribe:
+On every successful apply the backend publishes **one retained message per
+screen** to `ledwall/screen/<id>` (prefix configurable via
+`LEDWALL_MQTT_TOPIC_PREFIX`). Retained-per-topic is what lets a device that
+reboots recover its own content immediately on subscribe, without the backend
+being up.
 
-```json
-{
-	"brightness": 60,
-	"color": [255, 0, 128],
-	"speed_ms": 30,
-	"text": "HELLO BERLIN"
-}
+The payload is **binary, not JSON** — a fixed 19-byte header (colour, window,
+scroll) followed by the bitmap block, specified in
+[`docs/wire-format.md`](../../docs/wire-format.md). It is binary because a
+worst-case Lauftext filmstrip is ~9 KB, and parsing that as JSON on an ESP32
+would cost roughly twice that in heap for the document plus the decoded
+base64 string.
+
+Publishing happens after the state file write, and its failure is logged per
+screen rather than raised: the state file stays authoritative.
+
+```bash
+# watch one screen's payload size (binary, so -v prints raw bytes)
+mosquitto_sub -h localhost -t 'ledwall/screen/+' -F '%t %l bytes'
 ```
-
-Keys are sorted, so `ArduinoJson` with a fixed document size is safe. Publishing
-happens after the state file write and its failure is logged, not raised.
 
 ## Layout
 

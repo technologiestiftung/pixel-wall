@@ -9,11 +9,12 @@ parses with pointer arithmetic.
 from dataclasses import dataclass
 from typing import Optional, Union
 
+from . import config
 from .mask import Mask, MaskFormatError, Palette4, decode_block, encode, encode_pal4
 
 MAGIC = 0x57
 VERSION = 0x01
-HEADER_BYTES = 19
+HEADER_BYTES = 21
 
 FLAG_SCROLL = 0x01
 
@@ -30,6 +31,10 @@ class Scroll:
     direction: str
     speed_px_per_sec: int
     pause_ms: int
+    #: Width of the area the content scrolls across — the whole selection,
+    #: which for Lauftext is wider than the screen and narrower than the
+    #: filmstrip. See docs/wire-format.md.
+    composite_width_px: int = 0
 
 
 @dataclass
@@ -76,13 +81,14 @@ def encode_frame(frame: ScreenFrame) -> bytes:
     header.extend(_u16(frame.window.height_px, "window.heightPx"))
 
     if scroll is None:
-        header.extend(bytes(5))
+        header.extend(bytes(7))
     else:
         if scroll.direction not in _DIRECTION_CODES:
             raise MaskFormatError(f"unknown scroll direction: {scroll.direction!r}")
         header.append(_DIRECTION_CODES[scroll.direction])
         header.extend(_u16(round(scroll.speed_px_per_sec), "scroll.speedPxPerSec"))
         header.extend(_u16(scroll.pause_ms, "scroll.pauseMs"))
+        header.extend(_u16(scroll.composite_width_px, "scroll.compositeWidthPx"))
 
     assert len(header) == HEADER_BYTES
     body = encode_pal4(frame.mask) if isinstance(frame.mask, Palette4) else encode(frame.mask)
@@ -101,7 +107,12 @@ def decode_frame(payload: bytes) -> ScreenFrame:
         direction = _DIRECTIONS.get(payload[14])
         if direction is None:
             raise MaskFormatError(f"unknown scroll direction code: {payload[14]}")
-        scroll = Scroll(direction, _read_u16(payload, 15), _read_u16(payload, 17))
+        scroll = Scroll(
+            direction,
+            _read_u16(payload, 15),
+            _read_u16(payload, 17),
+            _read_u16(payload, 19),
+        )
 
     return ScreenFrame(
         color=(payload[3], payload[4], payload[5]),
@@ -117,4 +128,4 @@ def decode_frame(payload: bytes) -> ScreenFrame:
 
 
 def topic_for(screen_id: str) -> str:
-    return f"ledwall/screen/{screen_id}"
+    return f"{config.MQTT_TOPIC_PREFIX}/{screen_id}"
