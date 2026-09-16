@@ -17,10 +17,10 @@ its own. Nothing here talks to the HTTP API, and nothing here publishes.
 
 Install via the Arduino IDE Library Manager:
 
-| Library                          | Author        |
-| -------------------------------- | ------------- |
-| `ESP32-HUB75-MatrixPanel-I2S-DMA` | mrcodetastic  |
-| `PubSubClient`                    | Nick O'Leary  |
+| Library                           | Author               |
+| --------------------------------- | -------------------- |
+| `ESP32-HUB75-MatrixPanel-I2S-DMA` | mrcodetastic         |
+| `PubSubClient`                    | Nick O'Leary         |
 | `ArduinoJson`                     | Benoit Blanchon (v7) |
 
 Board: **ESP32 Dev Module**.
@@ -84,10 +84,10 @@ made for the HTTP API, and acceptable only because this is LAN-only.
 Watch the serial monitor at 115200 baud. The sketch logs the Wi-Fi IP, the
 subscribe, and every state change it parses.
 
-| Symptom                        | Cause                                               |
-| ------------------------------ | --------------------------------------------------- |
-| `mqtt: failed, rc=-2`          | broker unreachable — check `MQTT_HOST` and the listener |
+| Symptom                        | Cause                                                             |
+| ------------------------------ | ----------------------------------------------------------------- |
+| `mqtt: failed, rc=-2`          | broker unreachable — check `MQTT_HOST` and the listener           |
 | Connects, but no state logged  | nothing has been published yet; the topic has no retained message |
-| Long messages truncate         | `setBufferSize` was removed or lowered              |
-| Image shifted one pixel across | flip `mxconfig.clkphase`                            |
-| Nothing lights up              | try `mxconfig.driver = HUB75_I2S_CFG::FM6126A`      |
+| Long messages truncate         | `setBufferSize` was removed or lowered                            |
+| Image shifted one pixel across | flip `mxconfig.clkphase`                                          |
+| Nothing lights up              | try `mxconfig.driver = HUB75_I2S_CFG::FM6126A`                    |

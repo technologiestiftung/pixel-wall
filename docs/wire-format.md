@@ -26,24 +26,24 @@ One JSON object per screen.
 
 ```json
 {
-  "format": "mask1",
-  "widthPx": 148,
-  "heightPx": 64,
-  "color": [254, 241, 119],
-  "data": "UAEBAJQAQAA...",
-  "window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
-  "scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 }
+	"format": "mask1",
+	"widthPx": 148,
+	"heightPx": 64,
+	"color": [254, 241, 119],
+	"data": "UAEBAJQAQAA...",
+	"window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
+	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 }
 }
 ```
 
-| Field | Type | Notes |
-|---|---|---|
-| `format` | string | `"mask1"` or `"pal4"`. A decoder MUST reject an unknown value and keep showing its previous frame rather than attempt to render it. |
-| `widthPx`, `heightPx` | uint16 | Size of the mask in `data`. Duplicated inside the binary header so a decoder can detect an envelope/payload mismatch. |
-| `color` | `[r, g, b]` | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette. |
-| `data` | string | base64 of the binary block below. |
-| `window` | object | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0. |
-| `scroll` | object or absent | Present only for Lauftext. Absent means a static frame. |
+| Field                 | Type             | Notes                                                                                                                                           |
+| --------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`              | string           | `"mask1"` or `"pal4"`. A decoder MUST reject an unknown value and keep showing its previous frame rather than attempt to render it.             |
+| `widthPx`, `heightPx` | uint16           | Size of the mask in `data`. Duplicated inside the binary header so a decoder can detect an envelope/payload mismatch.                           |
+| `color`               | `[r, g, b]`      | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette. |
+| `data`                | string           | base64 of the binary block below.                                                                                                               |
+| `window`              | object           | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0.                                  |
+| `scroll`              | object or absent | Present only for Lauftext. Absent means a static frame.                                                                                         |
 
 `widthPx` and `heightPx` describe the mask, which for Lauftext is the full
 filmstrip and is wider than the screen. `window` is how a screen finds its
@@ -51,12 +51,12 @@ slice of a shared composite.
 
 ### `scroll`
 
-| Field | Type | Notes |
-|---|---|---|
-| `direction` | `"left"` or `"right"` | Direction the content travels. |
-| `speedPxPerSec` | number | Device pixels per second. |
-| `pauseMs` | number | Hold between loop repeats. Fixed at 2000 in v1 (CONTEXT.md "Content"). |
-| `compositeWidthPx` | number | Width of the area the content scrolls across — the whole selection, including the phantom gaps between screens. |
+| Field              | Type                  | Notes                                                                                                           |
+| ------------------ | --------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `direction`        | `"left"` or `"right"` | Direction the content travels.                                                                                  |
+| `speedPxPerSec`    | number                | Device pixels per second.                                                                                       |
+| `pauseMs`          | number                | Hold between loop repeats. Fixed at 2000 in v1 (CONTEXT.md "Content").                                          |
+| `compositeWidthPx` | number                | Width of the area the content scrolls across — the whole selection, including the phantom gaps between screens. |
 
 `compositeWidthPx` is not the same as the mask's `widthPx`: for Lauftext the
 mask is a filmstrip as wide as the rendered text, while the composite is the

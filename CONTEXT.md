@@ -50,7 +50,7 @@ Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_P
 
 ## Rendering split
 
-The frontend renders one **static bitmap** per screen for the content being applied (full text laid out at the chosen font/size — potentially wider than the screen for Lauftext, or the scaled template image, or a flat color fill) and sends it once per screen. Actual scroll *motion* for Lauftext (panning that static bitmap over time) is performed on the backend/Pi side from speed/direction/pause metadata sent alongside the bitmap — the frontend does not stream animated frames.
+The frontend renders one **static bitmap** per screen for the content being applied (full text laid out at the chosen font/size — potentially wider than the screen for Lauftext, or the scaled template image, or a flat color fill) and sends it once per screen. Actual scroll _motion_ for Lauftext (panning that static bitmap over time) is performed on the backend/Pi side from speed/direction/pause metadata sent alongside the bitmap — the frontend does not stream animated frames.
 
 The live preview renders that same rasterized bitmap (device-pixel resolution, 32×32 or 64×64) scaled up with pixelated/nearest-neighbor image scaling rather than smooth vector text or icons — the preview is meant to look like the real coarse LED grid, not a clean scaled-up mockup.
 

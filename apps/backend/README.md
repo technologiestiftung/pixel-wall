@@ -164,7 +164,6 @@ reading the state file, and keeps scrolling throughout.
 Anyone holding the old password in a browser tab stays in until their next
 request, then gets a 401 and the password gate again.
 
-
 ## Finding the Pi's IP
 
 From the Pi:
@@ -266,7 +265,7 @@ Three `small` screens (`01`–`03`) and four `large` (`04`–`07`).
 ### `GET /api/layout` → `200`, `PUT /api/layout` → `200`
 
 The user-arranged physical positions, in millimetres, of every screen. This is
-a *planning* arrangement used to work out how content spans a selection — it is
+a _planning_ arrangement used to work out how content spans a selection — it is
 not the electrical topology, and the display process does not derive panel
 addresses from it.
 
@@ -288,7 +287,12 @@ Everything the wall is currently showing.
 	"layout": [{ "screenId": "01", "xMm": 508, "yMm": 3 }],
 	"screens": {
 		"04": {
-			"window": { "offsetXPx": 0, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
+			"window": {
+				"offsetXPx": 0,
+				"offsetYPx": 0,
+				"widthPx": 64,
+				"heightPx": 64
+			},
 			"content": {
 				"format": "mask1",
 				"widthPx": 64,
@@ -308,10 +312,10 @@ Everything the wall is currently showing.
 [`docs/wire-format.md`](../../docs/wire-format.md) — `data` is a base64 bitmap
 block in one of two formats:
 
-| `format` | Use | Colour |
-| -------- | --- | ------ |
+| `format` | Use                                          | Colour                   |
+| -------- | -------------------------------------------- | ------------------------ |
 | `mask1`  | text, flat colour fills, single-colour icons | one RGB value in `color` |
-| `pal4`   | multi-colour template artwork | a palette inside `data` |
+| `pal4`   | multi-colour template artwork                | a palette inside `data`  |
 
 ### `POST /api/apply` → `200`
 
@@ -321,10 +325,32 @@ Applies one content edit to a selection of screens.
 {
 	"selectionKind": "large",
 	"screens": [
-		{ "screenId": "04", "window": { "offsetXPx": 0, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 } },
-		{ "screenId": "05", "window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 } }
+		{
+			"screenId": "04",
+			"window": {
+				"offsetXPx": 0,
+				"offsetYPx": 0,
+				"widthPx": 64,
+				"heightPx": 64
+			}
+		},
+		{
+			"screenId": "05",
+			"window": {
+				"offsetXPx": 84,
+				"offsetYPx": 0,
+				"widthPx": 64,
+				"heightPx": 64
+			}
+		}
 	],
-	"content": { "format": "mask1", "widthPx": 148, "heightPx": 64, "color": [255, 255, 255], "data": "UAEB…" },
+	"content": {
+		"format": "mask1",
+		"widthPx": 148,
+		"heightPx": 64,
+		"color": [255, 255, 255],
+		"data": "UAEB…"
+	},
 	"brightness": { "small": 60, "large": 85 }
 }
 ```
@@ -340,7 +366,7 @@ Returns `{ "appliedAt": "2026-09-16T09:31:00Z" }`.
   must therefore pan from a shared phase, which is why all four large screens
   are driven from one process.
 - `brightness` is optional; omitting it leaves the current values alone. It is
-  per hardware *kind*, not per screen, because `matrix.brightness` and
+  per hardware _kind_, not per screen, because `matrix.brightness` and
   `setBrightness8` are whole-canvas properties.
 - Screens outside `screens[]` keep whatever they were showing.
 
@@ -360,8 +386,14 @@ nobody would see the error — fails at the API instead.
 ```json
 {
 	"brightness": { "min": 5, "max": 100 },
-	"bitmap": { "maxWidthPx": 16384, "maxHeightPx": 256, "formats": ["mask1", "pal4"] },
-	"screens": [{ "id": "01", "kind": "small", "pixelSize": 32, "physicalSizeMm": 128 }]
+	"bitmap": {
+		"maxWidthPx": 16384,
+		"maxHeightPx": 256,
+		"formats": ["mask1", "pal4"]
+	},
+	"screens": [
+		{ "id": "01", "kind": "small", "pixelSize": 32, "physicalSizeMm": 128 }
+	]
 }
 ```
 
@@ -389,14 +421,14 @@ gate.
 
 ### Status codes
 
-| Code  | When                                                              |
-| ----- | ----------------------------------------------------------------- |
-| `200` | success                                                           |
-| `307` | `/` redirects to `/docs`                                          |
-| `401` | missing or wrong password, when `LEDWALL_PASSWORD` is set         |
-| `405` | a retired route — `PUT`/`PATCH /api/state` no longer exist        |
-| `422` | payload failed validation (see above)                             |
-| `500` | the state file could not be written                               |
+| Code  | When                                                       |
+| ----- | ---------------------------------------------------------- |
+| `200` | success                                                    |
+| `307` | `/` redirects to `/docs`                                   |
+| `401` | missing or wrong password, when `LEDWALL_PASSWORD` is set  |
+| `405` | a retired route — `PUT`/`PATCH /api/state` no longer exist |
+| `422` | payload failed validation (see above)                      |
+| `500` | the state file could not be written                        |
 
 ## Display script
 

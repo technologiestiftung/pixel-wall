@@ -5,7 +5,7 @@ real wall) is outstanding. D and E are written and unit-tested but have never
 run on hardware. Written to be
 read alongside `CONTEXT.md`
 (the domain glossary), which this plan treats as the source of truth for
-*behaviour* and deliberately contradicts in two places on *hardware* (see
+_behaviour_ and deliberately contradicts in two places on _hardware_ (see
 "Open questions" — those need confirming against the physical wall).
 
 ## Where we are today
@@ -47,27 +47,27 @@ would still not support Animation/Bild.
 The key observation is in `src/render/rasterize.ts`: **every v1 content type
 is monochrome**. Text is drawn in `#ffffff`, template icons are drawn in
 `#ffffff`, and Farbe is a flat fill of one of four presets. So the entire v1
-content space is exactly *a 1-bit coverage mask plus one RGB colour*.
+content space is exactly _a 1-bit coverage mask plus one RGB colour_.
 
 That makes the wire payload dramatically smaller than an RGB bitmap:
 
-| Format | 64×64 frame |
-|---|---|
-| RGB888 | 12,288 B |
-| RGB565 | 8,192 B |
+| Format         | 64×64 frame              |
+| -------------- | ------------------------ |
+| RGB888         | 12,288 B                 |
+| RGB565         | 8,192 B                  |
 | **1-bit mask** | **512 B** (684 B base64) |
 
 Proposed per-screen payload:
 
 ```json
 {
-  "format": "mask1",
-  "widthPx": 148,
-  "heightPx": 64,
-  "color": [254, 241, 119],
-  "data": "<base64 of RLE-encoded 1-bit rows>",
-  "scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 },
-  "window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 }
+	"format": "mask1",
+	"widthPx": 148,
+	"heightPx": 64,
+	"color": [254, 241, 119],
+	"data": "<base64 of RLE-encoded 1-bit rows>",
+	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 },
+	"window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 }
 }
 ```
 
@@ -91,7 +91,7 @@ frontend  ──HTTP──▶  FastAPI backend  ──┬── state.json ─�
 
 The backend stays the single source of truth. The Pi reads the state file
 directly (so the wall survives a backend restart, as today); the ESP32 gets
-retained MQTT messages (as today). Only the *shape* of what they consume
+retained MQTT messages (as today). Only the _shape_ of what they consume
 changes.
 
 ### Screen addressing vs. user layout
@@ -99,10 +99,10 @@ changes.
 These are two different coordinate systems and must not be conflated:
 
 - **Wall layout** (mm, user-dragged, persisted via `/api/layout`) decides how
-  content is *split across* a selection. The frontend already resolves this
+  content is _split across_ a selection. The frontend already resolves this
   into per-screen `geometry` offsets in `src/domain/apply.ts`.
 - **Hardware layout** (which panel sits where in a HUB75 chain) is fixed by
-  cabling and is *not* user-editable. It belongs in device-side config.
+  cabling and is _not_ user-editable. It belongs in device-side config.
 
 So the devices never need to know about millimetres. They need a static map
 of `screenId → (originX, originY)` within their own physical canvas, and then
@@ -158,18 +158,18 @@ padding. `mask1` stays the default and is used for all text, because it is
 
 #### Measured payload sizes
 
-| Scenario | mask | `mask1` | on the wire |
-|---|---|---|---|
-| Any static frame (Farbe, template, static text) | ≤ 148×64 | ≤ 200 B | ≤ 268 B |
-| Small screen, 20-char Lauftext | 180×32 | 743 B | 762 B |
-| Small screen, 256-char Lauftext (max) | 2304×32 | 9,223 B | 9,242 B |
-| Large screen, 64-char Lauftext | 1856×64 | 8,316 B | 11,088 B |
-| Large screen, 256-char Lauftext (max) | 7424×64 | 32,494 B | 43,328 B |
+| Scenario                                        | mask     | `mask1`  | on the wire |
+| ----------------------------------------------- | -------- | -------- | ----------- |
+| Any static frame (Farbe, template, static text) | ≤ 148×64 | ≤ 200 B  | ≤ 268 B     |
+| Small screen, 20-char Lauftext                  | 180×32   | 743 B    | 762 B       |
+| Small screen, 256-char Lauftext (max)           | 2304×32  | 9,223 B  | 9,242 B     |
+| Large screen, 64-char Lauftext                  | 1856×64  | 8,316 B  | 11,088 B    |
+| Large screen, 256-char Lauftext (max)           | 7424×64  | 32,494 B | 43,328 B    |
 
 Small screens go to the ESP32 over the binary envelope; large screens go to
 the Pi through the state file as base64 JSON, where 43 KB does not matter.
 
-Worth knowing for later: RLE *loses* to raw on small-screen text, because a
+Worth knowing for later: RLE _loses_ to raw on small-screen text, because a
 16px font on a 32px-tall canvas leaves few long clear runs. The
 "emit whichever is smaller" rule means this costs nothing, but it does mean
 small-screen payloads will not shrink much if the format is revisited.
@@ -186,6 +186,7 @@ Rework `apps/backend/app/`:
 - `state.py` — keep the atomic-write machinery as-is (it's solid); only the
   payload shape changes. Bitmaps live in the state file as base64.
 - `main.py` — new endpoints matching `src/api/types.ts`:
+
   - `GET /api/screens` — the 7 specs. Static, from config.
   - `GET /api/layout` / `PUT /api/layout` — persisted mm positions.
   - `GET /api/state` — per-screen geometry + content.
@@ -244,7 +245,7 @@ compositor:
 - Read the new state file; for each large screen, decode its mask, tint it
   with `color`, and blit at that screen's hardware origin.
 - Drive Lauftext panning from `scroll` metadata: advance one position per
-  `speedPxPerSec`, hold `pauseMs` between loops, and pan *the composite*, not
+  `speedPxPerSec`, hold `pauseMs` between loops, and pan _the composite_, not
   each screen independently.
 - Keep the existing defensive `read_state` posture (never raise, keep showing
   the last good frame) and the mid-scroll re-poll.
@@ -262,12 +263,12 @@ matrix-space rectangle.
 With `chain_length = 2, parallel = 2`, `parallel` selects the bonnet output
 and `chain_length` the position along that output's chain:
 
-| Quadrant | Bonnet output | Position in chain |
-|---|---|---|
-| `04` → (0,0) | 1 | first |
-| `05` → (64,0) | 1 | second |
-| `06` → (0,64) | 2 | first |
-| `07` → (64,64) | 2 | second |
+| Quadrant       | Bonnet output | Position in chain |
+| -------------- | ------------- | ----------------- |
+| `04` → (0,0)   | 1             | first             |
+| `05` → (64,0)  | 1             | second            |
+| `06` → (0,64)  | 2             | first             |
+| `07` → (64,64) | 2             | second            |
 
 Two things in that table are assumptions until bench-checked: which bonnet
 output is the top half, and which end of each chain is the left quadrant
@@ -336,7 +337,7 @@ at several scales, all four Farbe presets, and a small-screen multi-selection
 1. ~~**Large-panel chain geometry.**~~ Resolved 2026-09-16: two bonnet outputs,
    two panels each → `chain_length = 2, parallel = 2`, one 128×128 canvas.
    **`build_matrix` is therefore wrong in the running code** (`chain_length = 4,
-   parallel = 1` → 256×64); the docstring above it was right. Fixing it is part
+parallel = 1` → 256×64); the docstring above it was right. Fixing it is part
    of Phase D but is a real bug today, not just an integration concern.
 2. ~~**Small-panel wiring.**~~ Resolved 2026-09-16: all three small panels are
    chained off a single ESP32 as one 96×32 canvas, as the firmware already
@@ -347,6 +348,7 @@ at several scales, all four Farbe presets, and a small-screen multi-selection
    Note this does **not** collapse to a single shared MQTT topic. A small-screen
    selection can be a subset (apply to 01+02 and 03 must keep its content), so
    per-screen topics are still required; the one board subscribes to all three.
+
 3. ~~**Colour depth.**~~ Resolved 2026-09-16: multi-colour means flat-colour
    template artwork, not photographs or multi-colour text. Implemented in
    Phase A as `pal4`; RGB565 is not needed and remains available as a future
