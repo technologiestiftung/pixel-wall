@@ -1,5 +1,11 @@
 import { useEffect, type Dispatch } from "react";
-import { getLayout, getScreens, getState, type Requester } from "../api/wall";
+import {
+	getLayout,
+	getScreens,
+	getState,
+	revertPreview,
+	type Requester,
+} from "../api/wall";
 import { DEFAULT_LAYOUT, SCREEN_SPECS } from "../domain/layout";
 import type { WallAction } from "./reducer";
 
@@ -48,6 +54,12 @@ export function useWallSync(
 				}
 			}
 		}
+
+		// A preview left behind by a previous session (reload, crashed tab) is
+		// still on the panels, and nothing else will ever revert it: this
+		// session has no record of it, so the wall would keep showing unsaved
+		// content indefinitely.
+		void revertPreview(request).catch(() => undefined);
 
 		void sync();
 		const interval = setInterval(sync, POLL_INTERVAL_MS);

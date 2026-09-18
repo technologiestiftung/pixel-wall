@@ -48,9 +48,22 @@ describe("brightness draft", () => {
 		expect(discarded.draftBrightness).toBeNull();
 	});
 
-	test("clearing the selection clears the brightness edit too", () => {
+	test("clearing the selection is confirmed first, then clears the brightness edit", () => {
+		// An unsaved brightness edit is a change like any other, so dropping
+		// the selection asks before throwing it away.
 		const edited = withDraftBrightness("large", 20);
-		const cleared = wallReducer(edited, { type: "clear-selection" });
+		const asked = wallReducer(edited, {
+			type: "request-intent",
+			intent: { kind: "clear-selection" },
+		});
+		expect(asked.pendingIntent).toEqual({ kind: "clear-selection" });
+		expect(asked.draftBrightness).toEqual({ small: 60, large: 20 });
+
+		const cleared = wallReducer(asked, {
+			type: "resolve-intent",
+			commit: true,
+		});
+		expect(cleared.selection).toBeNull();
 		expect(cleared.draftBrightness).toBeNull();
 	});
 

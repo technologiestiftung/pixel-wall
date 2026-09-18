@@ -11,7 +11,12 @@ export function Toolbar() {
 			</span>
 			<button
 				type="button"
-				onClick={() => dispatch({ type: "toggle-layout-edit-mode" })}
+				onClick={() =>
+					dispatch({
+						type: "request-intent",
+						intent: { kind: "toggle-layout-edit-mode" },
+					})
+				}
 				aria-pressed={layoutEditMode}
 				className={`whitespace-nowrap rounded-[8px] border px-[14px] py-2 text-[13px] font-medium ${
 					layoutEditMode

@@ -68,6 +68,12 @@ export interface ApplyResponse {
 	appliedAt: string;
 }
 
+/** Which screens are showing content that is not in the state file. */
+export interface PreviewResponse {
+	previewing: boolean;
+	screens: string[];
+}
+
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };

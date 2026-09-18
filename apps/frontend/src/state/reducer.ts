@@ -15,6 +15,7 @@ import type {
 	Selection,
 } from "../domain/types";
 import { wireToDataUrl } from "../render/wire";
+import { draftHasChanges } from "./selectors";
 
 export type AppliedRender =
 	| {
@@ -35,6 +36,18 @@ export type AppliedRender =
 			offsetYPx: number;
 	  };
 
+/**
+ * Something the user asked for that would throw away the current draft —
+ * every one of these clears it (see `applyIntent`). They are routed through
+ * `request-intent` rather than dispatched directly so the confirmation is in
+ * one place instead of at each button.
+ */
+export type NavigationIntent =
+	| { kind: "set-active-tab"; tab: ContentType }
+	| { kind: "toggle-screen"; screenId: string; additive: boolean }
+	| { kind: "clear-selection" }
+	| { kind: "toggle-layout-edit-mode" };
+
 export interface WallState {
 	specs: ScreenSpec[];
 	layout: LayoutPosition[];
@@ -46,6 +59,11 @@ export interface WallState {
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
 	applyError: string | null;
+	/** "Vorschau": the draft has been pushed to the real panels without being
+	 * saved. Until it is reverted (or superseded by a save) the wall is showing
+	 * something the state file does not contain. */
+	previewStatus: "idle" | "pending" | "active" | "error";
+	previewError: string | null;
 	/** Per hardware kind, not per screen — the panel drivers expose brightness
 	 * as a whole-canvas property. `draftBrightness` is the unsaved edit. */
 	brightness: BrightnessDto;
@@ -53,6 +71,9 @@ export interface WallState {
 	/** "Layout bearbeiten" — dragging screens around is a distinct mode from
 	 * everyday content editing (see CONTEXT.md "Layout"). */
 	layoutEditMode: boolean;
+	/** An intent held back pending confirmation, because carrying it out would
+	 * discard unsaved changes. Null whenever no dialog is open. */
+	pendingIntent: NavigationIntent | null;
 }
 
 export const initialWallState: WallState = {
@@ -65,15 +86,17 @@ export const initialWallState: WallState = {
 	syncStatus: "loading",
 	applyStatus: "idle",
 	applyError: null,
+	previewStatus: "idle",
+	previewError: null,
 	brightness: { small: 60, large: 60 },
 	draftBrightness: null,
 	layoutEditMode: false,
+	pendingIntent: null,
 };
 
 export type WallAction =
-	| { type: "toggle-screen"; screenId: string; additive: boolean }
-	| { type: "clear-selection" }
-	| { type: "set-active-tab"; tab: ContentType }
+	| { type: "request-intent"; intent: NavigationIntent }
+	| { type: "resolve-intent"; commit: boolean }
 	| { type: "set-draft-content"; content: Content }
 	| { type: "set-draft-brightness"; kind: ScreenKind; value: number }
 	| { type: "discard-draft" }
@@ -92,22 +115,51 @@ export type WallAction =
 	| { type: "brightness-applied"; brightness: BrightnessDto }
 	| { type: "apply-error"; message: string }
 	| {
+			type: "set-preview";
+			status: WallState["previewStatus"];
+			message?: string;
+	  }
+	| {
 			type: "hydrated";
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
 			remote: StateResponse["screens"];
 			brightness: BrightnessDto;
 	  }
-	| { type: "toggle-layout-edit-mode" }
 	| { type: "move-screen"; screenId: string; xMm: number; yMm: number };
 
 export function wallReducer(state: WallState, action: WallAction): WallState {
 	switch (action.type) {
-		case "clear-selection":
-			return { ...state, selection: null, draft: null, draftBrightness: null };
+		case "request-intent":
+			// Nothing to lose means no dialog: selecting screens and flipping
+			// between tabs has to stay a free action while the panel is
+			// untouched, or every click would cost a confirmation.
+			return draftHasChanges(state)
+				? { ...state, pendingIntent: action.intent }
+				: applyIntent(state, action.intent);
 
-		case "set-active-tab":
-			return { ...state, activeTab: action.tab };
+		case "resolve-intent": {
+			const intent = state.pendingIntent;
+			if (intent === null) {
+				return state;
+			}
+			const cleared = { ...state, pendingIntent: null };
+			// "Verwerfen": the draft is what the user chose to give up, so it
+			// goes along with the brightness edit that shares the same button.
+			return action.commit
+				? applyIntent(
+						{ ...cleared, draft: null, draftBrightness: null },
+						intent,
+					)
+				: cleared;
+		}
+
+		case "set-preview":
+			return {
+				...state,
+				previewStatus: action.status,
+				previewError: action.message ?? null,
+			};
 
 		case "set-draft-content":
 			return { ...state, draft: action.content };
@@ -134,6 +186,8 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 				draftBrightness: null,
 				applyStatus: "idle",
 				applyError: null,
+				previewStatus: "idle",
+				previewError: null,
 			};
 
 		case "apply-error":
@@ -164,6 +218,8 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 				draftBrightness: null,
 				applyStatus: "idle",
 				applyError: null,
+				previewStatus: "idle",
+				previewError: null,
 			};
 		}
 
@@ -187,17 +243,6 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			};
 		}
 
-		case "toggle-screen":
-			return toggleScreen(state, action.screenId, action.additive);
-
-		case "toggle-layout-edit-mode":
-			return {
-				...state,
-				layoutEditMode: !state.layoutEditMode,
-				selection: null,
-				draft: null,
-			};
-
 		case "move-screen":
 			return {
 				...state,
@@ -206,6 +251,31 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 						? { ...p, xMm: action.xMm, yMm: action.yMm }
 						: p,
 				),
+			};
+
+		default:
+			return state;
+	}
+}
+
+/** Carries out an intent once it is allowed to discard the draft. */
+function applyIntent(state: WallState, intent: NavigationIntent): WallState {
+	switch (intent.kind) {
+		case "set-active-tab":
+			return { ...state, activeTab: intent.tab };
+
+		case "toggle-screen":
+			return toggleScreen(state, intent.screenId, intent.additive);
+
+		case "clear-selection":
+			return { ...state, selection: null, draft: null, draftBrightness: null };
+
+		case "toggle-layout-edit-mode":
+			return {
+				...state,
+				layoutEditMode: !state.layoutEditMode,
+				selection: null,
+				draft: null,
 			};
 
 		default:

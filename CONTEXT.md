@@ -44,6 +44,14 @@ Editing a selection with mixed existing content does not reconcile/merge that ex
 
 Commits the in-progress (locally previewed, not-yet-sent) content edit for the current selection, to be forwarded on to the physical screens. Lives at the bottom of the edit panel itself (not the preview toolbar) — it's part of the same panel the user was just editing in, not a separate preview-level action. On load, the app fetches the actual currently-applied per-screen state from the backend so the preview reflects the real wall rather than starting blank. If saving fails (network/backend error), the UI surfaces an error with a retry; already-applied screens are left untouched and the failed edit remains in the local editor rather than being discarded.
 
+## Unsaved changes
+
+Any action that would throw away an in-progress edit — switching content tabs, selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen / abbrechen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. An unsaved brightness edit counts as a change like any other. If a preview is on the wall, discarding takes it back down too, and the dialog says so.
+
+## Preview on the wall ("Vorschau")
+
+Sits next to "Speichern" and pushes the same edit to the physical screens **without** committing it: the state file is untouched, so the wall is temporarily showing something that is not saved. "Verwerfen" — or walking away from the edit (changing the selection, discarding the draft, entering layout mode, reloading the app) — puts the saved content back on every screen the preview reached, blanking any screen that had nothing saved to begin with. Saving supersedes a preview. Because brightness is per hardware kind, previewing a brightness change also reaches the other screens on that board, and reverting restores them too.
+
 ## Client sync
 
 Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_PASSWORD` is set, so an internal/kiosk deployment on a trusted local network can run without it while a shared network can turn it on. The frontend shows its password gate only when `GET /api/health` reports `auth.enabled`. If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.

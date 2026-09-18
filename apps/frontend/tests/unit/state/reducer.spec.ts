@@ -5,6 +5,13 @@ import { initialWallState, wallReducer } from "../../../src/state/reducer";
 import type { StateResponse, WireContentDto } from "../../../src/api/types";
 import { createMask, encodeMaskBase64, setBit } from "../../../src/domain/mask";
 
+function selectFour() {
+	return wallReducer(initialWallState, {
+		type: "request-intent",
+		intent: { kind: "toggle-screen", screenId: "04", additive: false },
+	});
+}
+
 function wireContent(): WireContentDto {
 	const mask = createMask(32, 32);
 	setBit(mask, 1, 1);
@@ -72,11 +79,13 @@ describe("wallReducer: apply-success", () => {
 		// Simulate the exact race this guards against: the selection has
 		// already been cleared by the time apply-success is dispatched.
 		const cleared = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "02",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "02", additive: false },
 		});
-		const afterClear = wallReducer(cleared, { type: "clear-selection" });
+		const afterClear = wallReducer(cleared, {
+			type: "request-intent",
+			intent: { kind: "clear-selection" },
+		});
 		expect(afterClear.selection).toBeNull();
 
 		const next = wallReducer(afterClear, {
@@ -97,96 +106,122 @@ describe("wallReducer: apply-success", () => {
 describe("wallReducer: toggle-screen", () => {
 	test("a plain click always replaces the selection with just that screen", () => {
 		const withFour = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "04", additive: false },
 		});
 		expect(withFour.selection).toEqual({ kind: "large", screenIds: ["04"] });
 
 		// Plain-clicking a different screen replaces, it doesn't extend —
 		// even though 04+07 are a valid adjacent pair.
 		const withSeven = wallReducer(withFour, {
-			type: "toggle-screen",
-			screenId: "07",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: false },
 		});
 		expect(withSeven.selection).toEqual({ kind: "large", screenIds: ["07"] });
 	});
 
 	test("shift+click adds an adjacent same-kind screen to the selection", () => {
 		const withFour = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "04", additive: false },
 		});
 		const withBoth = wallReducer(withFour, {
-			type: "toggle-screen",
-			screenId: "07",
-			additive: true,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: true },
 		});
 		expect(withBoth.selection?.screenIds.sort()).toEqual(["04", "07"]);
 	});
 
 	test("shift+click on an already-selected screen removes it", () => {
 		const withFour = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "04", additive: false },
 		});
 		const withBoth = wallReducer(withFour, {
-			type: "toggle-screen",
-			screenId: "07",
-			additive: true,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: true },
 		});
 		const backToOne = wallReducer(withBoth, {
-			type: "toggle-screen",
-			screenId: "07",
-			additive: true,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: true },
 		});
 		expect(backToOne.selection).toEqual({ kind: "large", screenIds: ["04"] });
 	});
 
 	test("shift+click that would mix kinds or break contiguity is a no-op", () => {
 		const withSmall = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "01",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "01", additive: false },
 		});
 		const attempted = wallReducer(withSmall, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: true,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "04", additive: true },
 		});
 		expect(attempted.selection).toEqual({ kind: "small", screenIds: ["01"] });
 	});
 
-	test("any click clears the in-progress draft", () => {
-		const withFour = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: false,
-		});
-		const withDraft = wallReducer(withFour, {
+	test("a click with an unsaved draft is held back for confirmation", () => {
+		const withDraft = wallReducer(selectFour(), {
 			type: "set-draft-content",
 			content: { type: "color", hex: "#FE4441" },
 		});
-		expect(withDraft.draft).not.toBeNull();
 
-		const afterShiftClick = wallReducer(withDraft, {
-			type: "toggle-screen",
+		const asked = wallReducer(withDraft, {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: true },
+		});
+		// Nothing has happened yet: the dialog is open over an untouched wall.
+		expect(asked.pendingIntent).toEqual({
+			kind: "toggle-screen",
 			screenId: "07",
 			additive: true,
 		});
-		expect(afterShiftClick.draft).toBeNull();
+		expect(asked.selection).toEqual({ kind: "large", screenIds: ["04"] });
+		expect(asked.draft).not.toBeNull();
+
+		const discarded = wallReducer(asked, {
+			type: "resolve-intent",
+			commit: true,
+		});
+		expect(discarded.pendingIntent).toBeNull();
+		expect(discarded.selection?.screenIds.sort()).toEqual(["04", "07"]);
+		expect(discarded.draft).toBeNull();
+	});
+
+	test("cancelling a held-back click leaves the draft and selection alone", () => {
+		const withDraft = wallReducer(selectFour(), {
+			type: "set-draft-content",
+			content: { type: "color", hex: "#FE4441" },
+		});
+		const asked = wallReducer(withDraft, {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: true },
+		});
+
+		const cancelled = wallReducer(asked, {
+			type: "resolve-intent",
+			commit: false,
+		});
+		expect(cancelled.pendingIntent).toBeNull();
+		expect(cancelled.selection).toEqual({ kind: "large", screenIds: ["04"] });
+		expect(cancelled.draft).toEqual({ type: "color", hex: "#FE4441" });
+	});
+
+	test("a click with nothing to lose selects straight away, no dialog", () => {
+		const next = wallReducer(selectFour(), {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "07", additive: false },
+		});
+		expect(next.pendingIntent).toBeNull();
+		expect(next.selection).toEqual({ kind: "large", screenIds: ["07"] });
 	});
 });
 
 describe("wallReducer: discard-draft", () => {
 	test("clears the draft without touching the selection", () => {
 		const withFour = wallReducer(initialWallState, {
-			type: "toggle-screen",
-			screenId: "04",
-			additive: false,
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "04", additive: false },
 		});
 		const withDraft = wallReducer(withFour, {
 			type: "set-draft-content",
