@@ -1,6 +1,7 @@
 import type { TextContent } from "../../domain/types";
 import { ChevronDownIcon } from "../../render/TabIcons";
 import { AlignmentPicker } from "./AlignmentPicker";
+import { ColorPicker } from "./ColorPicker";
 
 interface TextPanelProps {
 	content: TextContent;
@@ -104,6 +105,12 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 					</div>
 				</div>
 			</div>
+
+			<ColorPicker
+				hex={content.color}
+				onChange={(color) => onChange({ ...content, color })}
+				label="Textfarbe"
+			/>
 
 			{content.mode === "static" ? (
 				<AlignmentPicker

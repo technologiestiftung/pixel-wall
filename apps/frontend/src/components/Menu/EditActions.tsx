@@ -24,11 +24,14 @@ export function EditActions() {
 		if (previewStatus === "pending") {
 			return "Wird übertragen…";
 		}
-		return isPreviewing ? "Vorschau aktualisieren" : "Vorschau";
+		// Half-width once the buttons sit side by side, so the running-preview
+		// state gets the shorter verb — the banner above already says what is
+		// being updated.
+		return isPreviewing ? "Aktualisieren" : "Vorschau";
 	}
 
 	return (
-		<div className="mt-auto flex flex-col gap-2 pt-4">
+		<div className="flex flex-col gap-2">
 			{applyStatus === "error" && (
 				<div className="flex items-center justify-between rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
 					<span>{applyError}</span>
@@ -67,33 +70,35 @@ export function EditActions() {
 				</div>
 			)}
 
-			<button
-				type="button"
-				disabled={!canPreview}
-				onClick={handlePreview}
-				title={
-					hasSelection
-						? undefined
-						: "Bildschirme auswählen und Inhalt bearbeiten, um eine Vorschau zu zeigen"
-				}
-				className="w-full rounded-[8px] border border-[#006fff] bg-white px-[18px] py-2.5 text-[13.5px] font-semibold text-[#006fff] disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				{previewLabel()}
-			</button>
+			<div className="flex gap-2">
+				<button
+					type="button"
+					disabled={!canPreview}
+					onClick={handlePreview}
+					title={
+						hasSelection
+							? undefined
+							: "Bildschirme auswählen und Inhalt bearbeiten, um eine Vorschau zu zeigen"
+					}
+					className="flex-1 whitespace-nowrap rounded-[8px] border border-[#006fff] bg-white px-3 py-2.5 text-[13.5px] font-semibold text-[#006fff] disabled:cursor-not-allowed disabled:opacity-40"
+				>
+					{previewLabel()}
+				</button>
 
-			<button
-				type="button"
-				disabled={!canApply}
-				onClick={handleApply}
-				title={
-					hasSelection
-						? undefined
-						: "Bildschirme auswählen und Inhalt bearbeiten, um zu speichern"
-				}
-				className="w-full rounded-[8px] bg-[#006fff] px-[18px] py-2.5 text-[13.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-			>
-				{applyStatus === "pending" ? "Wird gespeichert…" : "Speichern"}
-			</button>
+				<button
+					type="button"
+					disabled={!canApply}
+					onClick={handleApply}
+					title={
+						hasSelection
+							? undefined
+							: "Bildschirme auswählen und Inhalt bearbeiten, um zu speichern"
+					}
+					className="flex-1 whitespace-nowrap rounded-[8px] bg-[#006fff] px-3 py-2.5 text-[13.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+				>
+					{applyStatus === "pending" ? "Wird gespeichert…" : "Speichern"}
+				</button>
+			</div>
 		</div>
 	);
 }

@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { contentToWire } from "../../../src/render/wire";
 import { decodeMaskBase64, maskToRows } from "../../../src/domain/mask";
 import { hexToRgb } from "../../../src/domain/color";
-import type { ColorContent, TextContent } from "../../../src/domain/types";
+import type {
+	AnimationContent,
+	ColorContent,
+	TextContent,
+} from "../../../src/domain/types";
 
 const color: ColorContent = { type: "color", hex: "#FE4441" };
 
@@ -14,6 +18,15 @@ const text: TextContent = {
 	fontSizePx: 8,
 	fontFamily: "monospace",
 	fontWeight: "700",
+	color: "#FFFFFF",
+	hAlign: "center",
+	vAlign: "center",
+};
+
+const animation: AnimationContent = {
+	type: "animation",
+	templateId: "pfeil",
+	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
 };
@@ -41,9 +54,20 @@ describe("contentToWire", () => {
 	});
 
 	it("uses white for content that has no colour of its own", () => {
-		expect(contentToWire(text, { widthPx: 8, heightPx: 8 }).color).toEqual([
-			255, 255, 255,
-		]);
+		expect(contentToWire(animation, { widthPx: 8, heightPx: 8 }).color).toEqual(
+			[255, 255, 255],
+		);
+	});
+
+	it("carries the text's own colour", () => {
+		// mask1 is a 1-bit coverage mask plus one colour, so the tint has to
+		// ride alongside the bitmap rather than being baked into its pixels.
+		const wire = contentToWire(
+			{ ...text, color: "#FE4441" },
+			{ widthPx: 8, heightPx: 8 },
+		);
+		expect(wire.format).toBe("mask1");
+		expect(wire.color).toEqual([254, 68, 65]);
 	});
 
 	it("reports the requested dimensions", () => {

@@ -28,6 +28,10 @@ export interface TextContent {
 	fontSizePx: number;
 	fontFamily: string;
 	fontWeight: string;
+	/** Colour of the glyphs, as `#rrggbb`. The panels are monochrome per
+	 * frame (see docs/wire-format.md `mask1`), so this tints the whole text
+	 * rather than any part of it. */
+	color: string;
 	direction?: "left" | "right";
 	speedPxPerSec?: number;
 	/** Where the text sits within the (possibly multi-screen) composite.

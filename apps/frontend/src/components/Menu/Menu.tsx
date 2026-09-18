@@ -88,55 +88,61 @@ export function Menu() {
 	}
 
 	return (
-		<aside className="flex w-[360px] shrink-0 flex-col gap-5 overflow-y-auto border-r-[0.5px] border-[#595959] bg-white p-7">
-			<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
-				Inhalte hinzufügen
-			</h2>
-			<SelectionStatus />
-			<TabBar active={activeTab} onChange={handleTabChange} />
+		// Only the fields scroll: the actions are a footer outside the scroll
+		// area, so a long panel can never push Speichern out of sight.
+		<aside className="flex w-[360px] shrink-0 flex-col border-r-[0.5px] border-[#595959] bg-white">
+			<div className="flex flex-1 flex-col gap-5 overflow-y-auto p-7 pb-5">
+				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
+					Inhalte hinzufügen
+				</h2>
+				<SelectionStatus />
+				<TabBar active={activeTab} onChange={handleTabChange} />
 
-			{selection ? (
-				<>
-					{activeTab === "text" && (
-						<TextPanel
-							content={current as TextContent}
-							onChange={handleContentChange}
+				{selection ? (
+					<>
+						{activeTab === "text" && (
+							<TextPanel
+								content={current as TextContent}
+								onChange={handleContentChange}
+							/>
+						)}
+						{activeTab === "animation" && (
+							<AnimationPanel
+								content={current as AnimationContent}
+								onChange={handleContentChange}
+							/>
+						)}
+						{activeTab === "color" && (
+							<FarbePanel
+								content={current as ColorContent}
+								onChange={handleContentChange}
+							/>
+						)}
+
+						<hr className="border-[#e4e4e0]" />
+
+						<BrightnessSlider
+							kind={selection.kind}
+							value={effectiveBrightness(state)[selection.kind]}
+							onChange={(value) =>
+								dispatch({
+									type: "set-draft-brightness",
+									kind: selection.kind,
+									value,
+								})
+							}
 						/>
-					)}
-					{activeTab === "animation" && (
-						<AnimationPanel
-							content={current as AnimationContent}
-							onChange={handleContentChange}
-						/>
-					)}
-					{activeTab === "color" && (
-						<FarbePanel
-							content={current as ColorContent}
-							onChange={handleContentChange}
-						/>
-					)}
+					</>
+				) : (
+					<p className="text-[13px] text-[#6b6b66]">
+						Wähle einen oder mehrere Bildschirme in der Vorschau aus.
+					</p>
+				)}
+			</div>
 
-					<hr className="border-[#e4e4e0]" />
-
-					<BrightnessSlider
-						kind={selection.kind}
-						value={effectiveBrightness(state)[selection.kind]}
-						onChange={(value) =>
-							dispatch({
-								type: "set-draft-brightness",
-								kind: selection.kind,
-								value,
-							})
-						}
-					/>
-				</>
-			) : (
-				<p className="text-[13px] text-[#6b6b66]">
-					Wähle einen oder mehrere Bildschirme in der Vorschau aus.
-				</p>
-			)}
-
-			<EditActions />
+			<div className="border-t-[0.5px] border-[#e4e4e0] px-7 pb-7 pt-5">
+				<EditActions />
+			</div>
 
 			{pendingIntent !== null && (
 				<UnsavedChangesDialog

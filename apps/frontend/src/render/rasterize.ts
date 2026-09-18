@@ -195,7 +195,7 @@ export function drawContentToCanvas(
 		return canvas;
 	}
 
-	ctx.fillStyle = "#ffffff";
+	ctx.fillStyle = monochrome ? "#ffffff" : content.color;
 	ctx.font = `${content.fontWeight} ${content.fontSizePx}px ${content.fontFamily}`;
 
 	if (content.mode === "static") {

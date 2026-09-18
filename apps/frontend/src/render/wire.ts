@@ -47,10 +47,24 @@ export function contentToWire(
 		format: "mask1",
 		widthPx: width,
 		heightPx: height,
-		color: content.type === "color" ? hexToRgb(content.hex) : WHITE,
+		color: wireColor(content),
 		data: encodeMaskBase64(mask),
 		...(scroll ? { scroll } : {}),
 	};
+}
+
+/** `mask1` carries one colour beside a 1-bit coverage mask, so each content
+ * type contributes whatever single colour it is drawn in. Templates have no
+ * colour control yet and stay white. */
+function wireColor(content: Content): [number, number, number] {
+	switch (content.type) {
+		case "color":
+			return hexToRgb(content.hex);
+		case "text":
+			return hexToRgb(content.color);
+		default:
+			return WHITE;
+	}
 }
 
 /** Without a 2D context (jsdom without the optional `canvas` package) a flat
