@@ -94,8 +94,14 @@ export function ScreenTile({
 					? undefined
 					: `${spec.physicalSizeMm}×${spec.physicalSizeMm} mm · ${spec.pixelSize}×${spec.pixelSize} px (Shift+Klick für Mehrfachauswahl)`
 			}
+			// The extra thickness when selected is an outline rather than a
+			// wider border: the tile is sized to the screen's physical size, so
+			// growing the border would eat into the content box and nudge the
+			// rendered bitmap by a pixel or two on every click.
 			className={`absolute overflow-hidden rounded-sm border-2 bg-neutral-900 transition-colors ${
-				selected ? "border-blue-500" : "border-transparent"
+				selected
+					? "border-yellow-400 outline outline-2 outline-yellow-400"
+					: "border-transparent"
 			} ${dragCursorClass(draggable, dragging)}`}
 			style={{
 				left: position.xMm * mmToPx,

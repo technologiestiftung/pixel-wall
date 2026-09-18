@@ -32,7 +32,7 @@ Large-screen sizing detail: 192×192mm at 64×64px (3mm pixel pitch). Small-scre
 
 What a selection of screens is set to display. Exactly one of three types, chosen via a tab in the edit panel:
 
-- **Text**: `Statischer Text` (static) or `Lauftext` (scrolling), with speed and direction controls. Looping scroll text always repeats with a fixed 2-second pause between loops. When applied across a contiguous multi-large-screen selection, text flows continuously across the combined canvas, treating the real physical gap between screens as blank/phantom pixels so the text doesn't visually jump. Lauftext is restricted to a 1D-strip selection (single row or single column of large screens) — no defined behavior for scrolling across a 2D block. Farbe and Animation/Bild may apply to any contiguous shape (1D or 2D).
+- **Text**: `Statischer Text` (static) or `Lauftext` (scrolling), with speed and direction controls. Looping scroll text always repeats with a fixed 2-second pause between loops. When applied across a contiguous multi-large-screen selection, text flows continuously across the combined canvas, treating the real physical gap between screens as blank/phantom pixels so the text doesn't visually jump. The glyph colour is chosen with the same 4 presets + RGB entry as the Farbe tab; a frame carries one colour beside a 1-bit mask (docs/wire-format.md `mask1`), so it tints the whole text rather than any part of it. Lauftext is restricted to a 1D-strip selection (single row or single column of large screens) — no defined behavior for scrolling across a 2D block. Farbe and Animation/Bild may apply to any contiguous shape (1D or 2D).
 - **Animation/Bild**: chosen from a fixed, built-in template library (no user upload in v1). User can control the template's scale via a percentage control (e.g. 25–400%) — scaling beyond the canvas crops the template rather than being constrained to always fit. Scales/stretches across a contiguous multi-screen selection (rather than tiling/repeating per screen).
 - **Farbe**: chosen from a fixed palette of exactly 4 preset colors (no free color picker in v1).
 
@@ -43,6 +43,14 @@ Editing a selection with mixed existing content does not reconcile/merge that ex
 ## Apply changes ("Speichern")
 
 Commits the in-progress (locally previewed, not-yet-sent) content edit for the current selection, to be forwarded on to the physical screens. Lives at the bottom of the edit panel itself (not the preview toolbar) — it's part of the same panel the user was just editing in, not a separate preview-level action. On load, the app fetches the actual currently-applied per-screen state from the backend so the preview reflects the real wall rather than starting blank. If saving fails (network/backend error), the UI surfaces an error with a retry; already-applied screens are left untouched and the failed edit remains in the local editor rather than being discarded.
+
+## Unsaved changes
+
+Any action that would throw away an in-progress edit — switching content tabs, selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen / abbrechen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. An unsaved brightness edit counts as a change like any other. If a preview is on the wall, discarding takes it back down too, and the dialog says so.
+
+## Preview on the wall ("Vorschau")
+
+Sits next to "Speichern" and pushes the same edit to the physical screens **without** committing it: the state file is untouched, so the wall is temporarily showing something that is not saved. "Verwerfen" — or walking away from the edit (changing the selection, discarding the draft, entering layout mode, reloading the app) — puts the saved content back on every screen the preview reached, blanking any screen that had nothing saved to begin with. Saving supersedes a preview. Because brightness is per hardware kind, previewing a brightness change also reaches the other screens on that board, and reverting restores them too.
 
 ## Client sync
 

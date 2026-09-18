@@ -15,13 +15,15 @@ from .models import (
     LayoutRequest,
     LayoutResponse,
     MqttStatus,
+    PreviewResponse,
     ScreenStateModel,
     ScreensResponse,
     StateResponse,
     WallState,
 )
+from .mask import Mask
 from .mqtt import publisher
-from .wire import encode_frame
+from .wire import ScreenFrame, Window, encode_frame
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("ledwall.backend")
@@ -59,6 +61,12 @@ app.add_middleware(
 )
 
 
+#: Screens currently showing a preview that is not in the state file. A
+#: preview deliberately never writes state, so this is the only record of what
+#: a revert has to put back.
+_previewed_screens: set[str] = set()
+
+
 def _publish(screen_id: str, frame) -> None:
     if not publisher.publish_screen(screen_id, encode_frame(frame)):
         logger.warning(
@@ -80,6 +88,27 @@ def _republish_all(state: WallState) -> None:
             entry.content, entry.window, getattr(state.brightness, kind)
         )
         _publish(screen_id, frame)
+
+
+def _blank_frame(screen_id: str, brightness: int) -> ScreenFrame:
+    """What a screen shows when it has no persisted content — needed to revert
+    a preview on a screen that was never saved."""
+    size = screen_inventory.SPEC_BY_ID[screen_id]["pixelSize"]
+    return ScreenFrame(
+        color=(255, 255, 255),
+        window=Window(0, 0, size, size),
+        mask=Mask.blank(size, size),
+        brightness=brightness,
+    )
+
+
+def _require_matching_kind(payload: ApplyRequest) -> None:
+    kinds = {screen_inventory.kind_of(target.screenId) for target in payload.screens}
+    if kinds != {payload.selectionKind}:
+        raise HTTPException(
+            status_code=422,
+            detail=f"selectionKind {payload.selectionKind!r} does not match the selected screens",
+        )
 
 
 def _write(new_state: WallState) -> dict:
@@ -154,13 +183,7 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     "Apply changes" requires that already-applied screens are left untouched.
     """
     current = WallState.model_validate(state_store.read_state())
-
-    kinds = {screen_inventory.kind_of(target.screenId) for target in payload.screens}
-    if kinds != {payload.selectionKind}:
-        raise HTTPException(
-            status_code=422,
-            detail=f"selectionKind {payload.selectionKind!r} does not match the selected screens",
-        )
+    _require_matching_kind(payload)
 
     if payload.brightness is not None:
         current.brightness = payload.brightness
@@ -186,6 +209,76 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
         _republish_all(current)
 
     return ApplyResponse(appliedAt=written["updated_at"])
+
+
+@app.post("/api/preview", response_model=PreviewResponse, tags=["wall"])
+def post_preview(payload: ApplyRequest) -> PreviewResponse:
+    """Pushes an edit to the panels without committing it.
+
+    Same body as `POST /api/apply`, but the state file is left alone, so
+    `POST /api/preview/revert` (or a reboot) puts the saved content back.
+    """
+    current = WallState.model_validate(state_store.read_state())
+    _require_matching_kind(payload)
+
+    brightness = payload.brightness or current.brightness
+    kind_brightness = getattr(brightness, payload.selectionKind)
+
+    previewed = set()
+    for target in payload.screens:
+        content, window = compose.slice_for_screen(payload.content, target.window)
+        _publish(target.screenId, compose.frame_for_screen(content, window, kind_brightness))
+        previewed.add(target.screenId)
+
+    # Brightness is per hardware kind, so previewing it while editing one
+    # screen also changes the others on that board — they have to be resent at
+    # the previewed value, and remembered as previewed so the revert undoes it.
+    if payload.brightness is not None:
+        for screen_id, entry in current.screens.items():
+            if screen_id in previewed:
+                continue
+            kind = screen_inventory.kind_of(screen_id)
+            _publish(
+                screen_id,
+                compose.frame_for_screen(
+                    entry.content, entry.window, getattr(brightness, kind)
+                ),
+            )
+            previewed.add(screen_id)
+
+    _previewed_screens.update(previewed)
+    return PreviewResponse(previewing=True, screens=sorted(_previewed_screens))
+
+
+@app.post("/api/preview/revert", response_model=PreviewResponse, tags=["wall"])
+def post_preview_revert() -> PreviewResponse:
+    """Puts the saved content back on every screen a preview touched.
+
+    Safe to call when nothing is being previewed, so the client can fire it on
+    any exit from an edit without tracking whether it is needed.
+    """
+    current = WallState.model_validate(state_store.read_state())
+
+    for screen_id in sorted(_previewed_screens):
+        kind = screen_inventory.kind_of(screen_id)
+        kind_brightness = getattr(current.brightness, kind)
+        entry = current.screens.get(screen_id)
+        frame = (
+            compose.frame_for_screen(entry.content, entry.window, kind_brightness)
+            if entry is not None
+            else _blank_frame(screen_id, kind_brightness)
+        )
+        _publish(screen_id, frame)
+
+    _previewed_screens.clear()
+    return PreviewResponse(previewing=False, screens=[])
+
+
+@app.get("/api/preview", response_model=PreviewResponse, tags=["wall"])
+def get_preview() -> PreviewResponse:
+    return PreviewResponse(
+        previewing=bool(_previewed_screens), screens=sorted(_previewed_screens)
+    )
 
 
 @app.get("/api/limits", tags=["wall"])

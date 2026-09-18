@@ -137,7 +137,10 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 						draggable={layoutEditMode}
 						dragging={isDragging}
 						onToggle={(screenId, additive) =>
-							dispatch({ type: "toggle-screen", screenId, additive })
+							dispatch({
+								type: "request-intent",
+								intent: { kind: "toggle-screen", screenId, additive },
+							})
 						}
 						onDragStart={(clientXPx, clientYPx) =>
 							handleDragStart(spec.id, clientXPx, clientYPx)

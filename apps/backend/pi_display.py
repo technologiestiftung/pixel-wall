@@ -57,10 +57,23 @@ TARGET_FRAME_INTERVAL = 1 / 60
 # specific to the wiring and can only be found by looking at the wall. Lower
 # PWM_BITS is the usual first move against flicker: it cuts the refresh work
 # per frame at the cost of colour depth.
-PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "11"))
+#
+# These defaults are the bench-measured configuration, not guesses. Shifting
+# bits out is ~92% of frame time, so refresh scales almost linearly with
+# PWM_BITS: 8 bits at slowdown 2 measured 78.5 Hz on this wall, which is under
+# the ~100 Hz the eye stops seeing. 6 bits buys the headroom and is ample for
+# text and flat colour. Re-measure with LEDWALL_SHOW_REFRESH=1 after changing
+# either of these, and with the display service stopped so nothing else holds
+# the GPIO.
+PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "6"))
 PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "130"))
-GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "4"))
-LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "120"))
+GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "2"))
+
+# Pads short frames so the refresh period is constant. Left above the rate the
+# hardware actually achieves it does nothing at all, and refresh then drifts
+# with canvas content — which reads as flicker even when the average rate is
+# fine. Keep this just below the measured rate.
+LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "100"))
 
 # "regular" suits a generic multi-port adapter. An Adafruit HAT/bonnet needs
 # "adafruit-hat" (or "adafruit-hat-pwm" with the GPIO4-GPIO18 bridge made) —

@@ -345,3 +345,114 @@ def test_brightness_travels_in_the_published_frame(api, monkeypatch):
     api.put("/api/brightness", json={"small": 90, "large": 60})
     assert "01" in sent, "a brightness-only change must resend the frames"
     assert wire.decode_frame(sent["01"]).brightness == 90
+
+
+# ------------------------------------------------------------------- preview
+
+
+def capture_published(monkeypatch):
+    from app.mqtt import publisher
+
+    sent: dict[str, bytes] = {}
+    monkeypatch.setattr(
+        publisher,
+        "publish_screen",
+        lambda screen_id, payload: sent.update({screen_id: payload}) or True,
+    )
+    return sent
+
+
+def test_preview_publishes_without_writing_state(api, monkeypatch):
+    sent = capture_published(monkeypatch)
+
+    response = api.post("/api/preview", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "...."]),
+    })
+    assert response.status_code == 200
+    assert response.json() == {"previewing": True, "screens": ["01"]}
+
+    from app import wire
+
+    assert wire.decode_frame(sent["01"]).mask.to_rows() == ["####", "...."]
+    assert api.get("/api/state").json()["screens"] == {}
+
+
+def test_revert_restores_the_saved_content(api, monkeypatch):
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "####"]),
+    })
+    api.post("/api/preview", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["....", "...."]),
+    })
+
+    sent = capture_published(monkeypatch)
+    assert api.post("/api/preview/revert").json() == {
+        "previewing": False,
+        "screens": [],
+    }
+
+    from app import wire
+
+    assert wire.decode_frame(sent["01"]).mask.to_rows() == ["####", "####"]
+
+
+def test_revert_blanks_a_screen_that_was_never_saved(api, monkeypatch):
+    api.post("/api/preview", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "####"]),
+    })
+
+    sent = capture_published(monkeypatch)
+    api.post("/api/preview/revert")
+
+    from app import wire
+
+    frame = wire.decode_frame(sent["01"])
+    assert frame.mask.width_px == 32 and frame.mask.height_px == 32
+    assert set("".join(frame.mask.to_rows())) == {"."}
+
+
+def test_previewed_brightness_is_not_persisted(api, monkeypatch):
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "####"]),
+    })
+
+    sent = capture_published(monkeypatch)
+    api.post("/api/preview", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "####"]),
+        "brightness": {"small": 15, "large": 60},
+    })
+
+    from app import wire
+
+    assert wire.decode_frame(sent["01"]).brightness == 15
+    assert api.get("/api/state").json()["brightness"] == {"small": 60, "large": 60}
+
+    api.post("/api/preview/revert")
+    assert wire.decode_frame(sent["01"]).brightness == 60
+
+
+def test_revert_is_a_no_op_when_nothing_is_previewed(api, monkeypatch):
+    sent = capture_published(monkeypatch)
+    assert api.post("/api/preview/revert").status_code == 200
+    assert sent == {}
+
+
+def test_preview_rejects_mixed_kinds(api):
+    response = api.post("/api/preview", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "04", "window": window()}],
+        "content": mask_content(["####", "####"]),
+    })
+    assert response.status_code == 422

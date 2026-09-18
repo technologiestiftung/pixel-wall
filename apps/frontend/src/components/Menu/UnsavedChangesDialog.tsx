@@ -1,20 +1,48 @@
+import { useEffect, type MouseEvent as ReactMouseEvent } from "react";
+
 interface UnsavedChangesDialogProps {
 	onSave: () => void;
 	onDiscard: () => void;
 	onCancel: () => void;
+	/** Whether the wall is currently showing this draft as an unsaved preview,
+	 * which discarding will also take back down. */
+	previewActive: boolean;
 }
 
-/** Shown when switching to another content tab would silently drop an
- * unsaved draft — see CONTEXT.md "Apply changes" / state/reducer.ts
- * "discard-draft". The draft is a single value shared across tabs, so
- * editing another tab's fields overwrites it outright. */
+/** Shown when something the user asked for would silently drop an unsaved
+ * draft — switching content tabs, selecting other screens, clearing the
+ * selection, entering layout mode. See state/reducer.ts `NavigationIntent`. */
 export function UnsavedChangesDialog({
 	onSave,
 	onDiscard,
 	onCancel,
+	previewActive,
 }: UnsavedChangesDialogProps) {
+	useEffect(() => {
+		function handleKeyDown(event: KeyboardEvent) {
+			if (event.key === "Escape") {
+				onCancel();
+			}
+		}
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [onCancel]);
+
+	// Dismissing by clicking away cancels rather than discards: it is the
+	// gesture you make when you didn't mean to open this at all, so it must be
+	// the one that keeps the draft. On mousedown, not click, so that releasing
+	// a text selection outside the dialog doesn't close it.
+	function handleBackdropMouseDown(event: ReactMouseEvent<HTMLDivElement>) {
+		if (event.target === event.currentTarget) {
+			onCancel();
+		}
+	}
+
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+		<div
+			onMouseDown={handleBackdropMouseDown}
+			className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+		>
 			<div
 				role="alertdialog"
 				aria-labelledby="unsaved-changes-title"
@@ -30,6 +58,11 @@ export function UnsavedChangesDialog({
 					Für diesen Inhalt gibt es ungespeicherte Änderungen. Möchtest du sie
 					speichern oder verwerfen?
 				</p>
+				{previewActive && (
+					<p className="mt-2 text-[13px] text-[#6b6b66]">
+						Die Vorschau auf den Bildschirmen wird dabei zurückgesetzt.
+					</p>
+				)}
 				<div className="mt-5 flex justify-end gap-2">
 					<button
 						type="button"

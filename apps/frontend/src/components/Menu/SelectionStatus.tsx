@@ -15,7 +15,12 @@ export function SelectionStatus() {
 			{count > 0 && (
 				<button
 					type="button"
-					onClick={() => dispatch({ type: "clear-selection" })}
+					onClick={() =>
+						dispatch({
+							type: "request-intent",
+							intent: { kind: "clear-selection" },
+						})
+					}
 					className="text-[12.5px] text-[#767671] underline decoration-solid [text-underline-position:from-font]"
 				>
 					Auswahl aufheben

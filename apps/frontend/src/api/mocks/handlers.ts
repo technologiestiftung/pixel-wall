@@ -17,6 +17,9 @@ import type {
 let layout: LayoutPositionDto[] = DEFAULT_LAYOUT.map((p) => ({ ...p }));
 let brightness: BrightnessDto = { small: 60, large: 60 };
 const applied: StateResponse["screens"] = {};
+/** Screens showing an unsaved preview — the mock only has to remember which,
+ * since reverting just means serving `applied` again. */
+let previewed = new Set<string>();
 
 export const API_BASE = "/api";
 
@@ -82,4 +85,27 @@ export const handlers = [
 
 		return HttpResponse.json({ appliedAt: new Date().toISOString() });
 	}),
+
+	http.post(`${API_BASE}/preview`, async ({ request }) => {
+		const body = (await request.json()) as ApplyRequest;
+		for (const screen of body.screens) {
+			previewed.add(screen.screenId);
+		}
+		return HttpResponse.json({
+			previewing: true,
+			screens: [...previewed].sort(),
+		});
+	}),
+
+	http.post(`${API_BASE}/preview/revert`, () => {
+		previewed = new Set();
+		return HttpResponse.json({ previewing: false, screens: [] });
+	}),
+
+	http.get(`${API_BASE}/preview`, () =>
+		HttpResponse.json({
+			previewing: previewed.size > 0,
+			screens: [...previewed].sort(),
+		}),
+	),
 ];

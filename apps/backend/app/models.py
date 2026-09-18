@@ -183,6 +183,14 @@ class ApplyResponse(BaseModel):
     appliedAt: str
 
 
+class PreviewResponse(BaseModel):
+    """Which screens are currently showing content that is not in the state
+    file, so the client knows there is something to revert."""
+
+    previewing: bool
+    screens: list[str]
+
+
 class MqttStatus(BaseModel):
     enabled: bool
     connected: bool

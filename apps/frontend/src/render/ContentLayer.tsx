@@ -173,7 +173,12 @@ function ScrollingBitmap({
 				<img
 					src={bitmap}
 					alt=""
-					style={{ ...BITMAP_STYLE, position: "absolute", left: offset, top: 0 }}
+					style={{
+						...BITMAP_STYLE,
+						position: "absolute",
+						left: offset,
+						top: 0,
+					}}
 				/>
 			</div>
 		</div>
