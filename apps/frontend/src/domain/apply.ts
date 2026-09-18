@@ -3,8 +3,9 @@ import { LOOP_PAUSE_MS } from "./content";
 import { PITCH_MM_PER_PX, specById } from "./layout";
 import { computeDisplayComposite } from "./mapping";
 import type { Content, LayoutPosition, ScreenSpec, Selection } from "./types";
-import { contentToWire } from "../render/wire";
 import { measureTextWidthPx } from "../render/text";
+import { layersToWire } from "../render/layers";
+import type { ScreenLayers } from "./types";
 
 /**
  * Builds the wire payload for POST /api/apply: one device-pixel bitmap for the
@@ -15,9 +16,15 @@ import { measureTextWidthPx } from "../render/text";
 export async function buildApplyRequest(
 	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
 	selection: Selection,
-	edit: { content: Content; brightness?: BrightnessDto },
+	edit: { layers: ScreenLayers; brightness?: BrightnessDto },
 ): Promise<ApplyRequest> {
-	const { content, brightness } = edit;
+	const { layers, brightness } = edit;
+	// Only the foreground decides the bitmap's shape (a scrolling filmstrip is
+	// wider than the composite); a lone background fills whatever it is given.
+	const content: Content = layers.foreground ?? {
+		type: "color",
+		hex: layers.background,
+	};
 	const devicePxPerMm = 1 / PITCH_MM_PER_PX[selection.kind];
 	const composite = computeDisplayComposite(wall, selection, devicePxPerMm);
 
@@ -55,11 +62,12 @@ export async function buildApplyRequest(
 				},
 			};
 		}),
-		content: await contentToWire(
-			content,
+		content: await layersToWire(
+			layers,
 			{ widthPx: bitmapWidthPx, heightPx: bitmapHeightPx },
 			scroll,
 		),
+		source: layers,
 		...(brightness ? { brightness } : {}),
 	};
 }

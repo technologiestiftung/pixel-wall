@@ -1,5 +1,5 @@
 /** Selected-state checkmark badge, exact geometry from the Figma design
- * (used on the Animation/Bild template grid and the Farbe swatches). */
+ * (used on the Animation/Bild template grid and the colour swatches). */
 export function SelectedBadge({ className }: { className?: string }) {
 	return (
 		<svg
