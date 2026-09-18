@@ -1,8 +1,10 @@
 import { useMemo, type CSSProperties } from "react";
 import { LOOP_PAUSE_MS } from "../domain/content";
-import type { Content, TextContent } from "../domain/types";
+import type { ScreenLayers, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
 import { rasterizeContent } from "./rasterize";
+import { layersToWire } from "./layers";
+import { wireToDataUrl } from "./wire";
 import { measureTextWidthPx } from "./text";
 import { useMarqueeOffset } from "./useMarqueeOffset";
 
@@ -39,23 +41,22 @@ const PIXELATED: CSSProperties = {
  * what the real hardware contract expects.
  */
 export function ContentLayer({ render }: ContentLayerProps) {
-	if (render.source === "remote") {
+	const { layers, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
+		render;
+
+	// No layers to render from: this screen was hydrated from a state file
+	// that only had the flattened frame, so the picture is all there is.
+	if (render.bitmap !== null) {
 		return (
-			<Bitmap
-				src={render.bitmap}
-				offsetXPx={render.offsetXPx}
-				offsetYPx={render.offsetYPx}
-			/>
+			<Bitmap src={render.bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />
 		);
 	}
 
-	const { content, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
-		render;
-
-	if (content.type === "text" && content.mode === "scrolling") {
+	const { foreground } = layers;
+	if (foreground?.type === "text" && foreground.mode === "scrolling") {
 		return (
 			<ScrollingBitmap
-				content={content}
+				content={foreground}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}
@@ -66,7 +67,7 @@ export function ContentLayer({ render }: ContentLayerProps) {
 
 	return (
 		<StaticBitmap
-			content={content}
+			layers={layers}
 			widthPx={compositeWidthPx}
 			heightPx={compositeHeightPx}
 			offsetXPx={offsetXPx}
@@ -101,21 +102,24 @@ function Bitmap({
 }
 
 function StaticBitmap({
-	content,
+	layers,
 	widthPx,
 	heightPx,
 	offsetXPx,
 	offsetYPx,
 }: {
-	content: Content;
+	layers: ScreenLayers;
 	widthPx: number;
 	heightPx: number;
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
+	// Flattened through the wire encoder and straight back out, so the preview
+	// is decoded from the very bytes the panels would be sent rather than from
+	// a second, parallel implementation of the layering.
 	const bitmap = useMemo(
-		() => rasterizeContent(content, widthPx, heightPx),
-		[JSON.stringify(content), widthPx, heightPx],
+		() => wireToDataUrl(layersToWire(layers, { widthPx, heightPx })),
+		[JSON.stringify(layers), widthPx, heightPx],
 	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }

@@ -1,5 +1,7 @@
 import { PITCH_MM_PER_PX } from "../domain/layout";
 import { computeDisplayComposite } from "../domain/mapping";
+import { EMPTY_LAYERS, withEdit } from "../domain/types";
+import type { Content } from "../domain/types";
 import type { AppliedRender, WallState } from "./reducer";
 
 /**
@@ -26,12 +28,17 @@ export function resolveScreenRender(
 		const slot = composite.slots.find((s) => s.screenId === screenId);
 		if (slot) {
 			return {
-				source: "local",
-				content: state.draft,
+				// The edit folded into what this screen already shows, so a
+				// Hintergrund change keeps its text and vice versa.
+				layers: withEdit(
+					state.applied[screenId]?.layers ?? EMPTY_LAYERS,
+					state.draft,
+				),
 				compositeWidthPx: composite.widthPx,
 				compositeHeightPx: composite.heightPx,
 				offsetXPx: slot.offsetXPx,
 				offsetYPx: slot.offsetYPx,
+				bitmap: null,
 			};
 		}
 	}
@@ -40,14 +47,14 @@ export function resolveScreenRender(
 }
 
 /**
- * Whether the current draft actually differs from what's already applied to
- * every screen in the selection — "Speichern" should only be enabled when
- * there's a real change to save, not just because a field was touched (see
- * CONTEXT.md "Content": simply selecting/re-touching fields isn't itself a
- * change). If any selected screen has no local baseline to compare against
- * (never edited this session, or only hydrated as a remote bitmap with no
- * reconstructable content), we can't prove nothing changed, so we treat the
- * draft as a real change.
+ * Whether the draft would actually change any selected screen — "Speichern"
+ * should only be enabled when there is something to save, not because a field
+ * was touched (see CONTEXT.md "Content"). Folding the edit into a screen's
+ * layers and comparing against those same layers answers that per screen: an
+ * edit that sets the background to the colour it already is changes nothing.
+ *
+ * A screen hydrated without layers is only a flattened picture, so there is no
+ * baseline to compare against and the draft has to count as a change.
  */
 export function draftHasChanges(state: WallState): boolean {
 	// Brightness is a wall-level setting rather than part of the content draft,
@@ -61,25 +68,16 @@ export function draftHasChanges(state: WallState): boolean {
 		return false;
 	}
 
-	const draftJson = JSON.stringify(state.draft);
-	let baselineJson: string | null = null;
-
-	for (const screenId of state.selection.screenIds) {
+	return state.selection.screenIds.some((screenId) => {
 		const applied = state.applied[screenId];
-		if (!applied || applied.source !== "local") {
+		if (!applied || applied.bitmap !== null) {
 			return true;
 		}
-		const contentJson = JSON.stringify(applied.content);
-		if (baselineJson === null) {
-			baselineJson = contentJson;
-		} else if (baselineJson !== contentJson) {
-			// Selected screens don't even agree with each other — definitely
-			// not a no-op save.
-			return true;
-		}
-	}
-
-	return draftJson !== baselineJson;
+		return (
+			JSON.stringify(withEdit(applied.layers, state.draft as Content)) !==
+			JSON.stringify(applied.layers)
+		);
+	});
 }
 
 export function brightnessHasChanges(state: WallState): boolean {

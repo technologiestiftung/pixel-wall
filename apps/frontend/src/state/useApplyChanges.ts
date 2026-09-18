@@ -7,6 +7,7 @@ import {
 } from "../api/wall";
 import { useAuth } from "../auth/AuthContext";
 import { buildApplyRequest } from "../domain/apply";
+import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import {
 	brightnessHasChanges,
 	draftHasChanges,
@@ -21,6 +22,7 @@ export function useApplyChanges() {
 		layout,
 		selection,
 		draft,
+		applied,
 		applyStatus,
 		applyError,
 		previewStatus,
@@ -34,6 +36,20 @@ export function useApplyChanges() {
 	const canPreview =
 		!busy && hasChanges && selection !== null && draft !== null;
 	const isPreviewing = previewStatus === "active";
+
+	/** The edit folded into what the selection already shows — this is what
+	 * keeps a Hintergrund change from flattening the text on top of it. The
+	 * first screen stands for the rest: a selection is edited as one unit, so
+	 * they all end up with the same layers anyway. */
+	function editedLayers() {
+		if (!selection || !draft) {
+			return EMPTY_LAYERS;
+		}
+		return withEdit(
+			applied[selection.screenIds[0]]?.layers ?? EMPTY_LAYERS,
+			draft,
+		);
+	}
 
 	/** Restores what the state file says on every screen a preview touched.
 	 * Harmless when nothing is being previewed, so callers that just want to
@@ -64,7 +80,7 @@ export function useApplyChanges() {
 			const payload = buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
-				{ content: draft, brightness: effectiveBrightness(state) },
+				{ layers: editedLayers(), brightness: effectiveBrightness(state) },
 			);
 			await previewChanges(request, payload);
 			dispatch({ type: "set-preview", status: "active" });
@@ -110,16 +126,13 @@ export function useApplyChanges() {
 			const payload = buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
-				{
-					content: draft,
-					brightness,
-				},
+				{ layers: editedLayers(), brightness },
 			);
 			await applyChanges(request, payload);
 			dispatch({
 				type: "apply-success",
 				selection,
-				content: draft,
+				layers: editedLayers(),
 				specs,
 				layout,
 				brightness,

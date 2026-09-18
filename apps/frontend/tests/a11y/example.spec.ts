@@ -19,7 +19,7 @@ test.describe("homepage", () => {
 
 	// The Text/Animation/Farbe editor panels only render once a screen is
 	// selected — a scan of the empty state alone would miss issues in them.
-	for (const tabName of ["Text", "Animation/Bild", "Farbe"]) {
+	for (const tabName of ["Text", "Animation/Bild", "Hintergrund"]) {
 		test(`${tabName} panel: should not have any automatically detectable accessibility issues`, async ({
 			page,
 		}) => {

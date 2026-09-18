@@ -19,7 +19,7 @@ const TABS: {
 	},
 	{
 		type: "color",
-		label: "Farbe",
+		label: "Hintergrund",
 		icon: (c) => <FarbeTabIcon className={c} />,
 	},
 ];

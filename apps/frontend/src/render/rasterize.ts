@@ -173,8 +173,11 @@ export function drawContentToCanvas(
 	}
 
 	if (content.type === "color") {
-		ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
-		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		// "ohne" leaves the canvas clear, which is an unlit screen.
+		if (content.hex !== null) {
+			ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+		}
 		return canvas;
 	}
 

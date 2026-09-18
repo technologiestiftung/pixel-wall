@@ -185,6 +185,48 @@ def test_apply_accepts_pal4(api):
     assert rows_of(stored) == ["0121", "2010"]
 
 
+def test_pal4_composite_is_sliced_per_screen(api):
+    """Text on a background arrives as pal4 spanning the whole selection.
+
+    Slicing it is a different path from the mask1 one, and the palette has to
+    survive on both halves or a screen renders the wrong colours.
+    """
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [
+            {"screenId": "01", "window": window(0, 0, 4, 2)},
+            {"screenId": "02", "window": window(4, 0, 4, 2)},
+        ],
+        "content": pal4_content(["11112222", "11112222"]),
+    })
+
+    screens = api.get("/api/state").json()["screens"]
+    assert rows_of(screens["01"]["content"]) == ["1111", "1111"]
+    assert rows_of(screens["02"]["content"]) == ["2222", "2222"]
+    for screen_id in ("01", "02"):
+        stored = screens[screen_id]["content"]
+        assert stored["format"] == "pal4"
+        assert stored["widthPx"] == 4
+
+
+def test_pal4_frame_keeps_its_palette_on_the_wire(api, monkeypatch):
+    """Index 0 is an unlit pixel to every renderer, so a visible colour has to
+    ride at index 1 or higher — and reach the panel intact."""
+    sent = capture_published(monkeypatch)
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window(0, 0, 4, 2)}],
+        "content": pal4_content(["1212", "2121"], palette=PALETTE),
+    })
+
+    from app import wire
+
+    frame = wire.decode_frame(sent["01"])
+    assert frame.mask.palette[1] == PALETTE[1]
+    assert frame.mask.palette[2] == PALETTE[2]
+    assert frame.mask.to_rows() == ["1212", "2121"]
+
+
 def test_apply_rejects_mixed_kinds(api):
     response = api.post("/api/apply", json={
         "selectionKind": "small",

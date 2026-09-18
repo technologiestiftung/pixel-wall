@@ -12,7 +12,7 @@ import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
 import { BrightnessSlider } from "./BrightnessSlider";
 import { EditActions } from "./EditActions";
-import { FarbePanel } from "./FarbePanel";
+import { HintergrundPanel } from "./HintergrundPanel";
 import { SelectionStatus } from "./SelectionStatus";
 import { TabBar } from "./TabBar";
 import { TextPanel } from "./TextPanel";
@@ -113,7 +113,7 @@ export function Menu() {
 							/>
 						)}
 						{activeTab === "color" && (
-							<FarbePanel
+							<HintergrundPanel
 								content={current as ColorContent}
 								onChange={handleContentChange}
 							/>

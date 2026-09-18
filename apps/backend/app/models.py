@@ -118,6 +118,12 @@ class ScreenStateModel(BaseModel):
 
     window: ScreenWindow
     content: ContentModel
+    #: What the editor was showing when this frame was rendered, as its own
+    #: background/foreground layers. Opaque here: nothing in the backend or on
+    #: a panel reads it, and a frame renders identically without it. It exists
+    #: so the editor can change one layer without flattening the other, which
+    #: a rendered bitmap alone cannot support.
+    source: Optional[dict] = None
 
 
 class WallState(BaseModel):
@@ -177,6 +183,8 @@ class ApplyRequest(BaseModel):
     screens: list[ApplyTarget] = Field(min_length=1)
     content: ContentModel
     brightness: Optional[BrightnessByKind] = None
+    #: Editor-only layer description stored verbatim — see ScreenStateModel.
+    source: Optional[dict] = None
 
 
 class ApplyResponse(BaseModel):

@@ -42,7 +42,9 @@ describe("wallReducer: hydrated", () => {
 		});
 
 		const applied = next.applied["03"];
-		expect(applied?.source).toBe("remote");
+		// No layers came back with it, so only the flattened picture is known.
+		expect(applied?.bitmap).not.toBeNull();
+		expect(applied?.layers).toEqual({ background: null, foreground: null });
 		expect(applied).toMatchObject({ offsetXPx: 4, offsetYPx: 2 });
 		expect(next.brightness).toEqual({ small: 40, large: 80 });
 		expect(next.syncStatus).toBe("ready");
@@ -91,14 +93,13 @@ describe("wallReducer: apply-success", () => {
 		const next = wallReducer(afterClear, {
 			type: "apply-success",
 			selection: { kind: "large", screenIds: ["02"] },
-			content: { type: "color", hex: "#FE4441" },
+			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 		});
 
 		expect(next.applied["02"]).toMatchObject({
-			source: "local",
-			content: { type: "color", hex: "#FE4441" },
+			layers: { background: "#FE4441", foreground: null },
 		});
 	});
 });

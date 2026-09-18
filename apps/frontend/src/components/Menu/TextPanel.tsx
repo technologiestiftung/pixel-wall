@@ -108,7 +108,9 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 
 			<ColorPicker
 				hex={content.color}
-				onChange={(color) => onChange({ ...content, color })}
+				onChange={(color) =>
+					onChange({ ...content, color: color ?? "#FFFFFF" })
+				}
 				label="Textfarbe"
 			/>
 

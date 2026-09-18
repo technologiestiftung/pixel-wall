@@ -1,14 +1,20 @@
 import type { ScrollDto, WireContentDto } from "../api/types";
 import {
+	PAL4_MAX_COLORS,
 	createMask,
 	decodeBlock,
 	encodeMaskBase64,
+	encodePal4Base64,
+	getBit,
 	maskFromImageData,
 	setBit,
+	type Mask,
+	type Palette4,
 } from "../domain/mask";
-import { hexToRgb } from "../domain/color";
+import { hexToRgb, type Rgb } from "../domain/color";
 import type { Content } from "../domain/types";
 import { drawContentToCanvas } from "./rasterize";
+import { pixelAt, type Rgba } from "./underlay";
 
 const WHITE: [number, number, number] = [255, 255, 255];
 
@@ -24,8 +30,9 @@ const WHITE: [number, number, number] = [255, 255, 255];
 export function contentToWire(
 	content: Content,
 	size: { widthPx: number; heightPx: number },
-	scroll?: ScrollDto,
+	options: { scroll?: ScrollDto; underlay?: Rgba | null } = {},
 ): WireContentDto {
+	const { scroll, underlay } = options;
 	const width = Math.max(1, Math.round(size.widthPx));
 	const height = Math.max(1, Math.round(size.heightPx));
 	const canvas = drawContentToCanvas(
@@ -43,6 +50,25 @@ export function contentToWire(
 					heightPx: height,
 				});
 
+	// Anything behind the glyphs needs a second colour in the same frame, which
+	// mask1 cannot carry — it is one tint plus a coverage mask. pal4 can, and
+	// every renderer already decodes it (apps/esp32 wire_decode.h, the Pi
+	// compositor), so this is the one case that emits it.
+	const layered =
+		content.type === "text" && underlay
+			? overlay(mask, hexToRgb(content.color), underlay)
+			: null;
+
+	if (layered !== null) {
+		return {
+			format: "pal4",
+			widthPx: width,
+			heightPx: height,
+			data: encodePal4Base64(layered),
+			...(scroll ? { scroll } : {}),
+		};
+	}
+
 	return {
 		format: "mask1",
 		widthPx: width,
@@ -53,13 +79,71 @@ export function contentToWire(
 	};
 }
 
+/**
+ * Lays a coverage mask over the pixels already on the screens, as an indexed
+ * image. Returns null when nothing is actually behind the glyphs, so the
+ * cheaper mask1 encoding is kept for the ordinary case.
+ *
+ * Palette entry 0 is left black and unused: every renderer treats index 0 as
+ * an unlit pixel rather than a colour (apps/esp32 wire_decode.h
+ * `pixelWallSample`), so a visible colour has to start at index 1.
+ */
+function overlay(mask: Mask, textRgb: Rgb, underlay: Rgba): Palette4 | null {
+	const { widthPx, heightPx } = mask;
+	const palette: number[][] = [[0, 0, 0]];
+	const indices = new Uint8Array(widthPx * heightPx);
+	let sawUnderlay = false;
+
+	function indexFor(rgb: Rgb): number {
+		const existing = palette.findIndex(
+			(entry, at) =>
+				at > 0 &&
+				entry[0] === rgb[0] &&
+				entry[1] === rgb[1] &&
+				entry[2] === rgb[2],
+		);
+		if (existing > 0) {
+			return existing;
+		}
+		if (palette.length >= PAL4_MAX_COLORS) {
+			// 16 colours is the format's ceiling. Content this varied cannot
+			// occur from the editor (a fill or a template behind one text
+			// colour), so reusing the last entry is a safety net, not a path
+			// anyone should hit.
+			return palette.length - 1;
+		}
+		palette.push([rgb[0], rgb[1], rgb[2]]);
+		return palette.length - 1;
+	}
+
+	const textIndex = indexFor(textRgb);
+
+	for (let y = 0; y < heightPx; y++) {
+		for (let x = 0; x < widthPx; x++) {
+			const at = y * widthPx + x;
+			if (getBit(mask, x, y)) {
+				indices[at] = textIndex;
+				continue;
+			}
+			const behind = pixelAt(underlay, { x, y });
+			if (behind === null) {
+				continue;
+			}
+			sawUnderlay = true;
+			indices[at] = indexFor(behind);
+		}
+	}
+
+	return sawUnderlay ? { widthPx, heightPx, palette, indices } : null;
+}
+
 /** `mask1` carries one colour beside a 1-bit coverage mask, so each content
  * type contributes whatever single colour it is drawn in. Templates have no
  * colour control yet and stay white. */
 function wireColor(content: Content): [number, number, number] {
 	switch (content.type) {
 		case "color":
-			return hexToRgb(content.hex);
+			return content.hex === null ? WHITE : hexToRgb(content.hex);
 		case "text":
 			return hexToRgb(content.color);
 		default:
@@ -72,7 +156,7 @@ function wireColor(content: Content): [number, number, number] {
  * rather than throwing. */
 function emptyMask(content: Content, widthPx: number, heightPx: number) {
 	const mask = createMask(widthPx, heightPx);
-	if (content.type === "color") {
+	if (content.type === "color" && content.hex !== null) {
 		for (let y = 0; y < heightPx; y++) {
 			for (let x = 0; x < widthPx; x++) {
 				setBit(mask, x, y);
