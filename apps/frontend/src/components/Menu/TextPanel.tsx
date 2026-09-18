@@ -1,7 +1,6 @@
 import type { TextContent } from "../../domain/types";
 import { ChevronDownIcon } from "../../render/TabIcons";
 import { AlignmentPicker } from "./AlignmentPicker";
-import { ColorPicker } from "./ColorPicker";
 
 interface TextPanelProps {
 	content: TextContent;
@@ -46,43 +45,45 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				/>
 			</div>
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="text-color">
-					Textfarbe
-				</label>
-				<div className="flex w-full items-center gap-2.5 rounded-[7px] border border-[#dededa] px-2.5 py-1.5">
-					<input
-						id="text-color"
-						type="color"
-						value={content.color}
-						onChange={(e) => onChange({ ...content, color: e.target.value })}
-						className="size-7 shrink-0 cursor-pointer rounded-[6px] border border-[#e5e4df] bg-transparent p-0"
-					/>
-					<span className="font-mono text-[13px] uppercase text-[#20201b]">
-						{content.color}
-					</span>
+			<div className="flex w-full items-end gap-2.5">
+				<div className="flex flex-col gap-2">
+					<label className="text-[12px] text-[#767671]" htmlFor="font-size">
+						Textgröße
+					</label>
+					<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
+						<input
+							id="font-size"
+							type="number"
+							min={8}
+							max={64}
+							value={content.fontSizePx}
+							onChange={(e) =>
+								onChange({ ...content, fontSizePx: Number(e.target.value) })
+							}
+							className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+						/>
+						<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
+							px
+						</span>
+					</div>
 				</div>
-			</div>
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="font-size">
-					Textgröße
-				</label>
-				<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
-					<input
-						id="font-size"
-						type="number"
-						min={8}
-						max={64}
-						value={content.fontSizePx}
-						onChange={(e) =>
-							onChange({ ...content, fontSizePx: Number(e.target.value) })
-						}
-						className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
-					/>
-					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
-						px
-					</span>
+				<div className="flex min-w-0 flex-1 flex-col gap-2">
+					<label className="text-[12px] text-[#767671]" htmlFor="text-color">
+						Textfarbe
+					</label>
+					<div className="flex w-full items-center gap-2.5 rounded-[7px] border border-[#dededa] px-2.5 py-[7px]">
+						<input
+							id="text-color"
+							type="color"
+							value={content.color}
+							onChange={(e) => onChange({ ...content, color: e.target.value })}
+							className="size-7 shrink-0 cursor-pointer rounded-[6px] border border-[#e5e4df] bg-transparent p-0"
+						/>
+						<span className="truncate font-mono text-[13px] uppercase text-[#20201b]">
+							{content.color}
+						</span>
+					</div>
 				</div>
 			</div>
 
@@ -123,12 +124,6 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 					</div>
 				</div>
 			</div>
-
-			<ColorPicker
-				hex={content.color}
-				onChange={(color) => onChange({ ...content, color })}
-				label="Textfarbe"
-			/>
 
 			{content.mode === "static" ? (
 				<AlignmentPicker
