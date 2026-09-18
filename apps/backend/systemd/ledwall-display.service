@@ -7,6 +7,14 @@ Type=simple
 User=root
 WorkingDirectory=/home/pi/ledwall/apps/backend
 Environment=LEDWALL_STATE_FILE=/var/lib/ledwall/state.json
+
+# Panel tuning. These must live here, not only in pi_display.py's defaults and
+# not in a shell: env vars exported by hand do not survive a reboot, and the
+# unit is what actually drives the wall. Keep them in step with the defaults in
+# pi_display.py, and re-measure (LEDWALL_SHOW_REFRESH=1) after any change.
+Environment=LEDWALL_PWM_BITS=6
+Environment=LEDWALL_GPIO_SLOWDOWN=2
+Environment=LEDWALL_REFRESH_HZ=100
 ExecStart=/usr/bin/python3 /home/pi/ledwall/apps/backend/pi_display.py
 Restart=always
 RestartSec=3
