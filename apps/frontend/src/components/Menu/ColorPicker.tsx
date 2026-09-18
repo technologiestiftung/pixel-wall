@@ -1,6 +1,6 @@
+import { useId } from "react";
 import { PALETTE } from "../../domain/content";
 import { SelectedBadge } from "../../render/SelectedBadge";
-import { RgbInputs } from "./RgbInputs";
 
 interface ColorPickerProps {
 	hex: string | null;
@@ -23,6 +23,8 @@ export function ColorPicker({
 	label,
 	allowNone = false,
 }: ColorPickerProps) {
+	const customId = useId();
+
 	return (
 		<div className="flex w-full flex-col gap-3">
 			<span className="w-full text-[12px] text-[#767671]">{label}</span>
@@ -78,7 +80,28 @@ export function ColorPicker({
 				})}
 			</div>
 
-			<RgbInputs hex={hex ?? "#000000"} onChange={onChange} />
+			<div className="flex w-full flex-col gap-2">
+				<label className="text-[12px] text-[#767671]" htmlFor={customId}>
+					Eigene Farbe
+				</label>
+				<div className="flex w-full items-center gap-2.5 rounded-[7px] border border-[#dededa] px-2.5 py-[7px]">
+					<input
+						id={customId}
+						type="color"
+						// A native colour input has no "no colour" state, so
+						// "ohne" shows black in the swatch; the text beside it
+						// is what says which is actually selected.
+						value={hex ?? "#000000"}
+						onChange={(e) => onChange(e.target.value.toUpperCase())}
+						className="size-7 shrink-0 cursor-pointer rounded-[6px] border border-[#e5e4df] bg-transparent p-0"
+					/>
+					<span
+						className={`truncate font-mono text-[13px] text-[#20201b] ${hex === null ? "" : "uppercase"}`}
+					>
+						{hex ?? "ohne"}
+					</span>
+				</div>
+			</div>
 		</div>
 	);
 }

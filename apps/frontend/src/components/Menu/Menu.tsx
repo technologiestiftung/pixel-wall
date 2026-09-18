@@ -91,7 +91,7 @@ export function Menu() {
 		// Only the fields scroll: the actions are a footer outside the scroll
 		// area, so a long panel can never push Speichern out of sight.
 		<aside className="flex w-[360px] shrink-0 flex-col border-r-[0.5px] border-[#595959] bg-white">
-			<div className="flex flex-1 flex-col gap-5 overflow-y-auto p-7 pb-5">
+			<div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 pb-5">
 				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
 					Inhalte hinzufügen
 				</h2>
