@@ -9,9 +9,11 @@ import { useAuth } from "../auth/AuthContext";
 import { buildApplyRequest } from "../domain/apply";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import {
+	activeContentDrafts,
 	brightnessHasChanges,
 	draftHasChanges,
 	effectiveBrightness,
+	hasContentDraft,
 } from "./selectors";
 import { useWallDispatch, useWallState } from "./WallProvider";
 
@@ -21,7 +23,6 @@ export function useApplyChanges() {
 		specs,
 		layout,
 		selection,
-		draft,
 		applied,
 		applyStatus,
 		applyError,
@@ -34,20 +35,20 @@ export function useApplyChanges() {
 	const busy = applyStatus === "pending" || previewStatus === "pending";
 	const canApply = !busy && hasChanges;
 	const canPreview =
-		!busy && hasChanges && selection !== null && draft !== null;
+		!busy && hasChanges && selection !== null && hasContentDraft(state);
 	const isPreviewing = previewStatus === "active";
 
-	/** The edit folded into what the selection already shows — this is what
+	/** The edits folded into what the selection already shows — this is what
 	 * keeps a Hintergrund change from flattening the text on top of it. The
 	 * first screen stands for the rest: a selection is edited as one unit, so
 	 * they all end up with the same layers anyway. */
 	function editedLayers() {
-		if (!selection || !draft) {
+		if (!selection) {
 			return EMPTY_LAYERS;
 		}
-		return withEdit(
+		return activeContentDrafts(state).reduce(
+			withEdit,
 			applied[selection.screenIds[0]]?.layers ?? EMPTY_LAYERS,
-			draft,
 		);
 	}
 
@@ -70,9 +71,9 @@ export function useApplyChanges() {
 		}
 	}, [dispatch, request]);
 
-	/** Pushes the draft to the real panels without saving it. */
+	/** Pushes the draft(s) to the real panels without saving them. */
 	async function handlePreview(): Promise<boolean> {
-		if (!selection || !draft) {
+		if (!selection || !hasContentDraft(state)) {
 			return false;
 		}
 		dispatch({ type: "set-preview", status: "pending" });
@@ -103,7 +104,7 @@ export function useApplyChanges() {
 
 		// Moving only the slider is a legitimate save with nothing to rasterise,
 		// so it goes to the brightness endpoint rather than through an apply.
-		if (!selection || !draft) {
+		if (!selection || !hasContentDraft(state)) {
 			if (!brightnessHasChanges(state)) {
 				return false;
 			}
@@ -157,6 +158,7 @@ export function useApplyChanges() {
 	return {
 		canApply,
 		canPreview,
+		hasChanges,
 		isPreviewing,
 		applyStatus,
 		applyError,

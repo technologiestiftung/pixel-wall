@@ -43,7 +43,7 @@ export async function buildApplyRequest(
 		scroll = {
 			direction: content.direction ?? "left",
 			speedPxPerSec: content.speedPxPerSec ?? 60,
-			pauseMs: LOOP_PAUSE_MS,
+			pauseMs: content.pauseMs ?? LOOP_PAUSE_MS,
 			compositeWidthPx,
 		};
 	}

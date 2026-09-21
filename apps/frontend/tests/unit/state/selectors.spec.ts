@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { draftHasChanges } from "../../../src/state/selectors";
+import {
+	draftHasChanges,
+	resolveScreenRender,
+} from "../../../src/state/selectors";
 import { initialWallState } from "../../../src/state/reducer";
 import type { AppliedRender, WallState } from "../../../src/state/reducer";
 
@@ -46,7 +49,7 @@ describe("draftHasChanges", () => {
 	test("true for a freshly-selected screen with no applied baseline yet", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04"] },
-			draft: colorA,
+			draftColor: colorA,
 		});
 		expect(draftHasChanges(state)).toBe(true);
 	});
@@ -54,7 +57,7 @@ describe("draftHasChanges", () => {
 	test("false once the draft matches what's already applied to every selected screen", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04"] },
-			draft: colorA,
+			draftColor: colorA,
 			applied: {
 				"04": showing({ background: colorA.hex }),
 			},
@@ -65,7 +68,7 @@ describe("draftHasChanges", () => {
 	test("true once the draft diverges again from the applied baseline", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04"] },
-			draft: colorB,
+			draftColor: colorB,
 			applied: {
 				"04": showing({ background: colorA.hex }),
 			},
@@ -76,7 +79,7 @@ describe("draftHasChanges", () => {
 	test("true when a selected screen's baseline is a remote bitmap (can't prove no change)", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04"] },
-			draft: colorA,
+			draftColor: colorA,
 			applied: {
 				"04": {
 					...showing({}),
@@ -90,12 +93,39 @@ describe("draftHasChanges", () => {
 	test("true when selected screens don't already agree with each other", () => {
 		const state = stateWith({
 			selection: { kind: "large", screenIds: ["04", "07"] },
-			draft: colorA,
+			draftColor: colorA,
 			applied: {
 				"04": showing({ background: colorA.hex }),
 				"07": showing({ background: colorB.hex }),
 			},
 		});
 		expect(draftHasChanges(state)).toBe(true);
+	});
+
+	test("a background draft and a foreground draft combine onto the same screen", () => {
+		const state = stateWith({
+			selection: { kind: "large", screenIds: ["04"] },
+			draftColor: colorA,
+			draftText: text,
+			applied: {
+				"04": showing({}),
+			},
+		});
+		expect(draftHasChanges(state)).toBe(true);
+	});
+});
+
+describe("resolveScreenRender", () => {
+	test("folds a background draft and a foreground draft together, neither overwriting the other", () => {
+		const state = stateWith({
+			selection: { kind: "large", screenIds: ["04"] },
+			draftColor: colorA,
+			draftText: text,
+			applied: { "04": showing({}) },
+		});
+		expect(resolveScreenRender(state, "04")?.layers).toEqual({
+			background: colorA.hex,
+			foreground: text,
+		});
 	});
 });

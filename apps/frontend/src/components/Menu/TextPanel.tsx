@@ -1,3 +1,4 @@
+import { LOOP_PAUSE_MS } from "../../domain/content";
 import type { TextContent } from "../../domain/types";
 import { ChevronDownIcon } from "../../render/TabIcons";
 import { AlignmentPicker } from "./AlignmentPicker";
@@ -89,7 +90,7 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 
 			<div className="flex flex-col gap-2">
 				<label className="text-[12px] text-[#767671]" htmlFor="font-family">
-					Schriftart &amp; Schnitt
+					Schriftart
 				</label>
 				<div className="flex w-full gap-2.5">
 					<div className="relative flex-1">
@@ -101,10 +102,13 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 							}
 							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
 						>
-							<option value="Pixel Grotesk, ui-monospace, monospace">
-								Pixel Grotesk
+							<option value="Pixelify Sans, ui-monospace, monospace">
+								Pixelify Sans
 							</option>
 							<option value="ui-monospace, monospace">Monospace</option>
+							<option value="Host Grotesk, ui-monospace, monospace">
+								Host Grotesk
+							</option>
 						</select>
 						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
 					</div>
@@ -139,6 +143,28 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				/>
 			)}
 
+			<div className="flex flex-col gap-2">
+				<label className="text-[12px] text-[#767671]" htmlFor="padding">
+					Abstand zum Rand
+				</label>
+				<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
+					<input
+						id="padding"
+						type="number"
+						min={0}
+						max={8}
+						value={content.paddingPx ?? 0}
+						onChange={(e) =>
+							onChange({ ...content, paddingPx: Number(e.target.value) })
+						}
+						className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+					/>
+					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
+						px
+					</span>
+				</div>
+			</div>
+
 			{content.mode === "scrolling" && (
 				<>
 					<div className="flex flex-col gap-2">
@@ -163,28 +189,56 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 						</div>
 					</div>
 
-					<div className="flex flex-col gap-2">
-						<label className="text-[12px] text-[#767671]" htmlFor="speed">
-							Geschwindigkeit
-						</label>
-						<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
-							<input
-								id="speed"
-								type="number"
-								min={5}
-								max={500}
-								value={content.speedPxPerSec}
-								onChange={(e) =>
-									onChange({
-										...content,
-										speedPxPerSec: Number(e.target.value),
-									})
-								}
-								className="w-full min-w-16 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
-							/>
-							<span className="shrink-0 border-l border-[#edede9] px-1 py-2.5 text-[12.5px] text-[#767671]">
-								px/s
-							</span>
+					<div className="flex w-full items-end gap-2.5">
+						<div className="flex flex-col gap-2">
+							<label className="text-[12px] text-[#767671]" htmlFor="speed">
+								Geschwindigkeit
+							</label>
+							<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
+								<input
+									id="speed"
+									type="number"
+									min={5}
+									max={500}
+									value={content.speedPxPerSec}
+									onChange={(e) =>
+										onChange({
+											...content,
+											speedPxPerSec: Number(e.target.value),
+										})
+									}
+									className="w-full min-w-16 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+								/>
+								<span className="shrink-0 border-l border-[#edede9] px-1 py-2.5 text-[12.5px] text-[#767671]">
+									px/s
+								</span>
+							</div>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<label className="text-[12px] text-[#767671]" htmlFor="pause">
+								Pause
+							</label>
+							<div className="flex w-[86px] items-center rounded-[7px] border border-[#dededa]">
+								<input
+									id="pause"
+									type="number"
+									min={0}
+									max={5}
+									step={0.5}
+									value={(content.pauseMs ?? LOOP_PAUSE_MS) / 1000}
+									onChange={(e) =>
+										onChange({
+											...content,
+											pauseMs: Number(e.target.value) * 1000,
+										})
+									}
+									className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+								/>
+								<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
+									s
+								</span>
+							</div>
 						</div>
 					</div>
 				</>

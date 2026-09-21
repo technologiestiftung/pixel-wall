@@ -13,10 +13,10 @@ interface ColorPickerProps {
 	allowNone?: boolean;
 }
 
-/** The preset swatches plus per-channel entry, shared by the Hintergrund and Text
- * tabs so a colour is chosen the same way wherever it appears. A hex outside
- * the fixed palette (typed into the RGB fields) simply leaves no swatch
- * selected. */
+/** The preset swatches plus a free colour picker, shared by the Hintergrund and
+ * Text tabs so a colour is chosen the same way wherever it appears. A hex
+ * outside the fixed palette (chosen via the colour picker) simply leaves no
+ * swatch selected. */
 export function ColorPicker({
 	hex,
 	onChange,

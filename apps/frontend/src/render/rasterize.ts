@@ -2,17 +2,20 @@ import type { Content, HorizontalAlign, VerticalAlign } from "../domain/types";
 import { getTemplateImage } from "./templateImages";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
- * given alignment — shared by both the animation icon and static text. */
+ * given alignment — shared by both the animation icon and static text.
+ * `paddingPx` insets the span from whichever edge it's pushed toward; a
+ * "center" alignment ignores it, since there's no edge to inset from. */
 function alignOffset(
 	align: "left" | "center" | "right" | "top" | "bottom",
 	containerSize: number,
 	size: number,
+	paddingPx = 0,
 ): number {
 	if (align === "left" || align === "top") {
-		return 0;
+		return paddingPx;
 	}
 	if (align === "right" || align === "bottom") {
-		return containerSize - size;
+		return containerSize - size - paddingPx;
 	}
 	return (containerSize - size) / 2;
 }
@@ -143,12 +146,18 @@ export function drawContentToCanvas(
 			fontSizePx: content.fontSizePx,
 			hAlign: content.hAlign,
 			vAlign: content.vAlign,
+			paddingPx: content.paddingPx ?? 0,
 		});
 	} else {
 		ctx.textAlign = "left";
 		ctx.textBaseline = "middle";
 		const y =
-			alignOffset(content.vAlign, canvas.height, content.fontSizePx) +
+			alignOffset(
+				content.vAlign,
+				canvas.height,
+				content.fontSizePx,
+				content.paddingPx ?? 0,
+			) +
 			content.fontSizePx / 2;
 		ctx.fillText(content.value, 0, y);
 	}
@@ -166,17 +175,19 @@ function drawStaticText(
 		fontSizePx: number;
 		hAlign: HorizontalAlign;
 		vAlign: VerticalAlign;
+		paddingPx: number;
 	},
 ) {
-	const { value, widthPx, heightPx, fontSizePx, hAlign, vAlign } = options;
+	const { value, widthPx, heightPx, fontSizePx, hAlign, vAlign, paddingPx } =
+		options;
 	const lines = value.split("\n");
 	const lineHeight = fontSizePx * 1.2;
 	const blockHeight = lines.length * lineHeight;
-	const blockTop = alignOffset(vAlign, heightPx, blockHeight);
+	const blockTop = alignOffset(vAlign, heightPx, blockHeight, paddingPx);
 
 	ctx.textAlign = hAlign;
 	ctx.textBaseline = "middle";
-	const x = alignOffset(hAlign, widthPx, 0);
+	const x = alignOffset(hAlign, widthPx, 0, paddingPx);
 
 	lines.forEach((line, i) => {
 		ctx.fillText(line, x, blockTop + i * lineHeight + lineHeight / 2);

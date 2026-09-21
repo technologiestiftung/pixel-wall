@@ -17,7 +17,7 @@ export function Header() {
 		<header className="flex h-[72px] items-center gap-3 border-b-[0.5px] border-[#595959] bg-white px-7">
 			<Logo />
 			<h1 className="whitespace-nowrap text-[19px] font-semibold text-[#20201b]">
-				Pixel Displays Foyer
+				CityLAB Pixel Screens
 			</h1>
 		</header>
 	);

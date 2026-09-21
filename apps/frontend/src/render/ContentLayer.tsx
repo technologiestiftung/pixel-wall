@@ -2,6 +2,7 @@ import { useMemo, type CSSProperties } from "react";
 import { LOOP_PAUSE_MS } from "../domain/content";
 import type { ScreenLayers, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
+import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
 import { measureTextWidthPx } from "./text";
 import { useTemplateImagesVersion } from "./templateImages";
@@ -117,6 +118,9 @@ function StaticBitmap({
 	// bumps once it's ready so an animation template's first render — drawn
 	// before its image decoded — gets replaced with the real bitmap.
 	const templateImagesVersion = useTemplateImagesVersion();
+	// Custom Schriftart fonts (see render/fonts.ts) load async, just like
+	// template artwork — this re-rasterizes once the real typeface is ready.
+	const fontsVersion = useFontsVersion();
 	// Same canvas the wire encoder rasterizes: background painted first, then
 	// the foreground over it, which is what makes one pal4 frame out of two
 	// layers (see render/layers.ts).
@@ -127,7 +131,13 @@ function StaticBitmap({
 				{ widthPx, heightPx },
 				layers.foreground === null ? null : layers.background,
 			),
-		[JSON.stringify(layers), widthPx, heightPx, templateImagesVersion],
+		[
+			JSON.stringify(layers),
+			widthPx,
+			heightPx,
+			templateImagesVersion,
+			fontsVersion,
+		],
 	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
@@ -150,9 +160,16 @@ function ScrollingBitmap({
 		fontWeight: content.fontWeight,
 		fontFamily: content.fontFamily,
 	};
+	const fontsVersion = useFontsVersion();
 	const textWidthPx = useMemo(
 		() => Math.max(1, Math.round(measureTextWidthPx(content.value, font))),
-		[content.value, content.fontSizePx, content.fontWeight, content.fontFamily],
+		[
+			content.value,
+			content.fontSizePx,
+			content.fontWeight,
+			content.fontFamily,
+			fontsVersion,
+		],
 	);
 	const bitmap = useMemo(
 		() =>
@@ -160,13 +177,13 @@ function ScrollingBitmap({
 				widthPx: textWidthPx,
 				heightPx: compositeHeightPx,
 			}),
-		[JSON.stringify(content), textWidthPx, compositeHeightPx],
+		[JSON.stringify(content), textWidthPx, compositeHeightPx, fontsVersion],
 	);
 	const offset = useMarqueeOffset(content.value.length > 0, {
 		compositeWidthPx,
 		textWidthPx,
 		speedPxPerSec: content.speedPxPerSec ?? 60,
-		pauseMs: LOOP_PAUSE_MS,
+		pauseMs: content.pauseMs ?? LOOP_PAUSE_MS,
 		direction: content.direction ?? "left",
 	});
 

@@ -7,13 +7,16 @@ import {
 	specById,
 } from "../domain/layout";
 import type {
+	AnimationContent,
 	Content,
+	ColorContent,
 	ContentType,
 	LayoutPosition,
 	ScreenKind,
 	ScreenLayers,
 	ScreenSpec,
 	Selection,
+	TextContent,
 } from "../domain/types";
 import { EMPTY_LAYERS } from "../domain/types";
 import { wireToDataUrl } from "../render/wire";
@@ -38,13 +41,14 @@ export interface AppliedRender {
 }
 
 /**
- * Something the user asked for that would throw away the current draft —
- * every one of these clears it (see `applyIntent`). They are routed through
- * `request-intent` rather than dispatched directly so the confirmation is in
- * one place instead of at each button.
+ * Something the user asked for that would throw away the current draft(s) —
+ * every one of these clears them (see `applyIntent`). They are routed
+ * through `request-intent` rather than dispatched directly so the
+ * confirmation is in one place instead of at each button. Switching content
+ * tabs is *not* one of these — see `WallState.draftText`/`draftAnimation`/
+ * `draftColor` and CONTEXT.md "Unsaved changes".
  */
 export type NavigationIntent =
-	| { kind: "set-active-tab"; tab: ContentType }
 	| { kind: "toggle-screen"; screenId: string; additive: boolean }
 	| { kind: "clear-selection" }
 	| { kind: "toggle-layout-edit-mode" };
@@ -54,8 +58,16 @@ export interface WallState {
 	layout: LayoutPosition[];
 	selection: Selection | null;
 	activeTab: ContentType;
-	/** In-progress, not-yet-applied edit for the current selection — see CONTEXT.md "Content". */
-	draft: Content | null;
+	/**
+	 * In-progress, not-yet-applied edits for the current selection — see
+	 * CONTEXT.md "Content". Text and Animation/Bild both write the same
+	 * foreground layer, so at most one of `draftText`/`draftAnimation` is ever
+	 * set — `set-draft-content` clears the other one. `draftColor` (the
+	 * background layer) is independent of both.
+	 */
+	draftText: TextContent | null;
+	draftAnimation: AnimationContent | null;
+	draftColor: ColorContent | null;
 	applied: Record<string, AppliedRender>;
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
@@ -82,7 +94,9 @@ export const initialWallState: WallState = {
 	layout: DEFAULT_LAYOUT,
 	selection: null,
 	activeTab: "text",
-	draft: null,
+	draftText: null,
+	draftAnimation: null,
+	draftColor: null,
 	applied: {},
 	syncStatus: "loading",
 	applyStatus: "idle",
@@ -98,6 +112,7 @@ export const initialWallState: WallState = {
 export type WallAction =
 	| { type: "request-intent"; intent: NavigationIntent }
 	| { type: "resolve-intent"; commit: boolean }
+	| { type: "set-active-tab"; tab: ContentType }
 	| { type: "set-draft-content"; content: Content }
 	| { type: "set-draft-brightness"; kind: ScreenKind; value: number }
 	| { type: "discard-draft" }
@@ -132,28 +147,21 @@ export type WallAction =
 export function wallReducer(state: WallState, action: WallAction): WallState {
 	switch (action.type) {
 		case "request-intent":
-			// Nothing to lose means no dialog: selecting screens and flipping
-			// between tabs has to stay a free action while the panel is
-			// untouched, or every click would cost a confirmation.
+			// Nothing to lose means no dialog: selecting screens has to stay a
+			// free action while the panel is untouched, or every click would
+			// cost a confirmation.
 			return draftHasChanges(state)
 				? { ...state, pendingIntent: action.intent }
 				: applyIntent(state, action.intent);
 
-		case "resolve-intent": {
-			const intent = state.pendingIntent;
-			if (intent === null) {
-				return state;
-			}
-			const cleared = { ...state, pendingIntent: null };
-			// "Verwerfen": the draft is what the user chose to give up, so it
-			// goes along with the brightness edit that shares the same button.
-			return action.commit
-				? applyIntent(
-						{ ...cleared, draft: null, draftBrightness: null },
-						intent,
-					)
-				: cleared;
-		}
+		case "resolve-intent":
+			return resolveIntent(state, action.commit);
+
+		case "set-active-tab":
+			// Free, unlike the NavigationIntents above: each tab keeps its own
+			// draft (see WallState.draftText/draftAnimation/draftColor), so
+			// nothing is at risk of being silently lost by switching.
+			return { ...state, activeTab: action.tab };
 
 		case "set-preview":
 			return {
@@ -163,7 +171,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			};
 
 		case "set-draft-content":
-			return { ...state, draft: action.content };
+			return setDraftContent(state, action.content);
 
 		case "set-draft-brightness":
 			return {
@@ -175,7 +183,13 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			};
 
 		case "discard-draft":
-			return { ...state, draft: null, draftBrightness: null };
+			return {
+				...state,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
+				draftBrightness: null,
+			};
 
 		case "apply-pending":
 			return { ...state, applyStatus: "pending", applyError: null };
@@ -264,24 +278,67 @@ function settled(state: WallState): WallState {
 	};
 }
 
-/** Carries out an intent once it is allowed to discard the draft. */
+/** Carries out (or cancels) whatever was held back by "request-intent". */
+function resolveIntent(state: WallState, commit: boolean): WallState {
+	const intent = state.pendingIntent;
+	if (intent === null) {
+		return state;
+	}
+	const cleared = { ...state, pendingIntent: null };
+	if (!commit) {
+		return cleared;
+	}
+	// "Verwerfen": the draft(s) are what the user chose to give up, so they go
+	// along with the brightness edit that shares the same button.
+	return applyIntent(
+		{
+			...cleared,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
+			draftBrightness: null,
+		},
+		intent,
+	);
+}
+
+/** Text and Animation/Bild are the same foreground layer, so drafting one has
+ * to give up whatever was drafted for the other — there is no way to
+ * reconcile them into a single foreground. */
+function setDraftContent(state: WallState, content: Content): WallState {
+	if (content.type === "text") {
+		return { ...state, draftText: content, draftAnimation: null };
+	}
+	if (content.type === "animation") {
+		return { ...state, draftAnimation: content, draftText: null };
+	}
+	return { ...state, draftColor: content };
+}
+
+/** Carries out an intent once it is allowed to discard the draft(s). */
 function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 	switch (intent.kind) {
-		case "set-active-tab":
-			return { ...state, activeTab: intent.tab };
-
 		case "toggle-screen":
 			return toggleScreen(state, intent.screenId, intent.additive);
 
 		case "clear-selection":
-			return { ...state, selection: null, draft: null, draftBrightness: null };
+			return {
+				...state,
+				selection: null,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
+				draftBrightness: null,
+			};
 
 		case "toggle-layout-edit-mode":
 			return {
 				...state,
 				layoutEditMode: !state.layoutEditMode,
 				selection: null,
-				draft: null,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
 			};
 
 		default:
@@ -304,7 +361,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: { kind, screenIds: [screenId] },
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 
@@ -316,7 +375,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: remaining.length > 0 ? { kind, screenIds: remaining } : null,
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 
@@ -326,7 +387,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: { kind, screenIds: attempted },
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 

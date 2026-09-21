@@ -1,15 +1,56 @@
+import type { ReactElement } from "react";
+import {
+	AlignHorizontalCenterIcon,
+	AlignHorizontalLeftIcon,
+	AlignHorizontalRightIcon,
+	AlignVerticalBottomIcon,
+	AlignVerticalCenterIcon,
+	AlignVerticalTopIcon,
+} from "../../render/AlignIcons";
 import type { HorizontalAlign, VerticalAlign } from "../../domain/types";
 
-const H_OPTIONS: { value: HorizontalAlign; label: string }[] = [
-	{ value: "left", label: "Links" },
-	{ value: "center", label: "Mitte" },
-	{ value: "right", label: "Rechts" },
+const H_OPTIONS: {
+	value: HorizontalAlign;
+	label: string;
+	icon: (className: string) => ReactElement;
+}[] = [
+	{
+		value: "left",
+		label: "Links",
+		icon: (c) => <AlignHorizontalLeftIcon className={c} />,
+	},
+	{
+		value: "center",
+		label: "Mitte",
+		icon: (c) => <AlignHorizontalCenterIcon className={c} />,
+	},
+	{
+		value: "right",
+		label: "Rechts",
+		icon: (c) => <AlignHorizontalRightIcon className={c} />,
+	},
 ];
 
-const V_OPTIONS: { value: VerticalAlign; label: string }[] = [
-	{ value: "top", label: "Oben" },
-	{ value: "center", label: "Mitte" },
-	{ value: "bottom", label: "Unten" },
+const V_OPTIONS: {
+	value: VerticalAlign;
+	label: string;
+	icon: (className: string) => ReactElement;
+}[] = [
+	{
+		value: "top",
+		label: "Oben",
+		icon: (c) => <AlignVerticalTopIcon className={c} />,
+	},
+	{
+		value: "center",
+		label: "Mitte",
+		icon: (c) => <AlignVerticalCenterIcon className={c} />,
+	},
+	{
+		value: "bottom",
+		label: "Unten",
+		icon: (c) => <AlignVerticalBottomIcon className={c} />,
+	},
 ];
 
 interface AlignmentPickerProps {
@@ -39,13 +80,16 @@ export function AlignmentPicker({
 								key={option.value}
 								type="button"
 								onClick={() => onChangeHAlign(option.value)}
-								className={`flex-1 rounded-[7px] border py-1.5 text-[12.5px] ${
+								aria-label={option.label}
+								aria-pressed={hAlign === option.value}
+								title={option.label}
+								className={`flex flex-1 items-center justify-center rounded-[7px] border py-1.5 ${
 									hAlign === option.value
-										? "border-[#20201b] bg-[#20201b] font-medium text-white"
+										? "border-[#20201b] bg-[#20201b] text-white"
 										: "border-[#e4e4e0] text-[#6b6b66]"
 								}`}
 							>
-								{option.label}
+								{option.icon("shrink-0")}
 							</button>
 						))}
 					</div>
@@ -56,13 +100,16 @@ export function AlignmentPicker({
 							key={option.value}
 							type="button"
 							onClick={() => onChangeVAlign(option.value)}
-							className={`flex-1 rounded-[7px] border py-1.5 text-[12.5px] ${
+							aria-label={option.label}
+							aria-pressed={vAlign === option.value}
+							title={option.label}
+							className={`flex flex-1 items-center justify-center rounded-[7px] border py-1.5 ${
 								vAlign === option.value
-									? "border-[#20201b] bg-[#20201b] font-medium text-white"
+									? "border-[#20201b] bg-[#20201b] text-white"
 									: "border-[#e4e4e0] text-[#6b6b66]"
 							}`}
 						>
-							{option.label}
+							{option.icon("shrink-0")}
 						</button>
 					))}
 				</div>

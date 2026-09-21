@@ -1,12 +1,13 @@
 import { useApplyChanges } from "../../state/useApplyChanges";
 
-/** "Vorschau" and "Speichern" at the bottom of the edit panel. Vorschau puts
- * the draft on the real panels without committing it; leaving it unsaved (or
- * pressing "Verwerfen") puts the saved content back. */
+/** "Vorschau auf Screens" and "Speichern" at the bottom of the edit panel.
+ * Vorschau puts the draft(s) on the real panels without committing them;
+ * leaving it unsaved (or pressing "Verwerfen") puts the saved content back. */
 export function EditActions() {
 	const {
 		canApply,
 		canPreview,
+		hasChanges,
 		isPreviewing,
 		applyStatus,
 		applyError,
@@ -24,10 +25,7 @@ export function EditActions() {
 		if (previewStatus === "pending") {
 			return "Wird übertragen…";
 		}
-		// Half-width once the buttons sit side by side, so the running-preview
-		// state gets the shorter verb — the banner above already says what is
-		// being updated.
-		return isPreviewing ? "Aktualisieren" : "Vorschau";
+		return isPreviewing ? "Vorschau aktualisieren" : "Vorschau auf Screens";
 	}
 
 	return (
@@ -56,7 +54,7 @@ export function EditActions() {
 					</button>
 				</div>
 			)}
-			{isPreviewing && (
+			{isPreviewing ? (
 				<div className="flex items-center justify-between gap-2 rounded-md bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
 					<span>Vorschau läuft — noch nicht gespeichert.</span>
 					<button
@@ -68,6 +66,12 @@ export function EditActions() {
 						{previewStatus === "pending" ? "Wird verworfen…" : "Verwerfen"}
 					</button>
 				</div>
+			) : (
+				hasChanges && (
+					<div className="rounded-md bg-[#f4f4f2] px-3 py-2 text-[12.5px] text-[#6b6b66]">
+						Änderungen noch nicht gespeichert.
+					</div>
+				)
 			)}
 
 			<div className="flex gap-2">

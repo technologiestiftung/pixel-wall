@@ -34,11 +34,17 @@ export interface TextContent {
 	color: string;
 	direction?: "left" | "right";
 	speedPxPerSec?: number;
+	/** Pause between Lauftext loop repeats, in milliseconds — see
+	 * domain/content.ts's LOOP_PAUSE_MS for the default. Ignored for static text. */
+	pauseMs?: number;
 	/** Where the text sits within the (possibly multi-screen) composite.
 	 * Horizontal alignment only applies to static text — scrolling text's
 	 * horizontal position is driven by the animation itself. */
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
+	/** Inset from whichever edge(s) `hAlign`/`vAlign` push the text toward, in
+	 * device pixels. Has no effect on an axis aligned to "center". */
+	paddingPx?: number;
 }
 
 export interface AnimationContent {

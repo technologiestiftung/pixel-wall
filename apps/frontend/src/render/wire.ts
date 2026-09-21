@@ -10,6 +10,7 @@ import {
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
+import { waitForFont } from "./fonts";
 import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
 import { waitForTemplateImage } from "./templateImages";
 
@@ -94,6 +95,9 @@ async function contentToPal4Wire(
 	const { width, height, scroll, background = null } = size;
 	if (content.type === "animation" && hasCanvasSupport()) {
 		await waitForTemplateImage(content.templateId);
+	}
+	if (content.type === "text" && hasCanvasSupport()) {
+		await waitForFont(content.fontFamily, content.fontWeight);
 	}
 
 	const canvas = drawContentToCanvas(

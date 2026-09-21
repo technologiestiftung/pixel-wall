@@ -2,7 +2,11 @@ import type {
 	MouseEvent as ReactMouseEvent,
 	PointerEvent as ReactPointerEvent,
 } from "react";
-import { displayScaleForKind, pitchMmPerPx } from "../../domain/layout";
+import {
+	displayScaleForKind,
+	displayScreenId,
+	pitchMmPerPx,
+} from "../../domain/layout";
 import type { LayoutPosition, ScreenSpec } from "../../domain/types";
 import { ContentLayer } from "../../render/ContentLayer";
 import type { AppliedRender } from "../../state/reducer";
@@ -136,10 +140,10 @@ export function ScreenTile({
 				/>
 			)}
 			<span className="absolute left-1.5 top-1.5 z-10 rounded-sm bg-white/90 px-1 text-[11px] font-medium leading-[15px] text-neutral-900">
-				{spec.id}
+				{displayScreenId(spec.id)}
 			</span>
 			<span className="sr-only">
-				Bildschirm {spec.id} ({pitchMmPerPx(spec)}mm Pitch)
+				Bildschirm {displayScreenId(spec.id)} ({pitchMmPerPx(spec)}mm Pitch)
 			</span>
 		</button>
 	);

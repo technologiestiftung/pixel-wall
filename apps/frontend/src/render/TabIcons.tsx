@@ -4,8 +4,8 @@
 export function CommentIcon({ className }: { className?: string }) {
 	return (
 		<svg
-			width="15"
-			height="15"
+			width="16"
+			height="16"
 			viewBox="0 0 15 15"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
@@ -22,8 +22,8 @@ export function CommentIcon({ className }: { className?: string }) {
 export function AnimationTabIcon({ className }: { className?: string }) {
 	return (
 		<svg
-			width="15"
-			height="15"
+			width="18"
+			height="18"
 			viewBox="0 0 15 15"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
