@@ -86,7 +86,7 @@ describe("contentToWire", () => {
 		const withScroll = await contentToWire(
 			color,
 			{ widthPx: 4, heightPx: 2 },
-			{ direction: "right", speedPxPerSec: 60, pauseMs: 2000 },
+			{ scroll: { direction: "right", speedPxPerSec: 60, pauseMs: 2000 } },
 		);
 		expect(withScroll.scroll).toEqual({
 			direction: "right",

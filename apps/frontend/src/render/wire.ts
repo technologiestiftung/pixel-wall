@@ -32,19 +32,20 @@ const WHITE: [number, number, number] = [255, 255, 255];
 export async function contentToWire(
 	content: Content,
 	size: { widthPx: number; heightPx: number },
-	scroll?: ScrollDto,
+	options: { scroll?: ScrollDto; background?: string | null } = {},
 ): Promise<WireContentDto> {
+	const { scroll, background = null } = options;
 	const width = Math.max(1, Math.round(size.widthPx));
 	const height = Math.max(1, Math.round(size.heightPx));
 
 	if (content.type === "animation" || content.type === "text") {
-		return contentToPal4Wire(content, { width, height, scroll });
+		return contentToPal4Wire(content, { width, height, scroll, background });
 	}
 
 	const canvas = drawContentToCanvas(
 		content,
 		{ widthPx: width, heightPx: height },
-		true,
+		{ monochrome: true },
 	);
 	const context = canvas?.getContext("2d") ?? null;
 
@@ -60,7 +61,11 @@ export async function contentToWire(
 		format: "mask1",
 		widthPx: width,
 		heightPx: height,
-		color: content.type === "color" ? hexToRgb(content.hex) : WHITE,
+		// "ohne" has no colour of its own; the mask is empty anyway.
+		color:
+			content.type === "color" && content.hex !== null
+				? hexToRgb(content.hex)
+				: WHITE,
 		data: encodeMaskBase64(mask),
 		...(scroll ? { scroll } : {}),
 	};
@@ -79,9 +84,14 @@ export async function contentToWire(
  */
 async function contentToPal4Wire(
 	content: AnimationContent | TextContent,
-	size: { width: number; height: number; scroll?: ScrollDto },
+	size: {
+		width: number;
+		height: number;
+		scroll?: ScrollDto;
+		background?: string | null;
+	},
 ): Promise<WireContentDto> {
-	const { width, height, scroll } = size;
+	const { width, height, scroll, background = null } = size;
 	if (content.type === "animation" && hasCanvasSupport()) {
 		await waitForTemplateImage(content.templateId);
 	}
@@ -89,7 +99,7 @@ async function contentToPal4Wire(
 	const canvas = drawContentToCanvas(
 		content,
 		{ widthPx: width, heightPx: height },
-		false,
+		{ background },
 	);
 	const context = canvas?.getContext("2d") ?? null;
 
@@ -119,7 +129,7 @@ async function contentToPal4Wire(
  * rather than throwing. */
 function emptyMask(content: Content, widthPx: number, heightPx: number) {
 	const mask = createMask(widthPx, heightPx);
-	if (content.type === "color") {
+	if (content.type === "color" && content.hex !== null) {
 		for (let y = 0; y < heightPx; y++) {
 			for (let x = 0; x < widthPx; x++) {
 				setBit(mask, x, y);

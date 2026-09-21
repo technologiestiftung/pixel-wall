@@ -49,12 +49,39 @@ export interface AnimationContent {
 	vAlign: VerticalAlign;
 }
 
+/** The Hintergrund tab: what fills a screen behind everything else.
+ * `hex` of `null` is "ohne" — the screen is left unlit. */
 export interface ColorContent {
 	type: "color";
-	hex: string;
+	hex: string | null;
 }
 
 export type Content = TextContent | AnimationContent | ColorContent;
+
+/**
+ * What one screen is showing, as the two layers the editor works in. A frame
+ * sent to a panel is these flattened together; keeping them apart is what lets
+ * the Hintergrund tab recolour behind existing text instead of replacing it.
+ */
+export interface ScreenLayers {
+	background: string | null;
+	foreground: TextContent | AnimationContent | null;
+}
+
+export const EMPTY_LAYERS: ScreenLayers = {
+	background: null,
+	foreground: null,
+};
+
+/** Folds one edit into a screen's layers: the Hintergrund tab writes the
+ * background, every other tab writes the foreground, and neither disturbs the
+ * other. */
+export function withEdit(layers: ScreenLayers, edit: Content): ScreenLayers {
+	if (edit.type === "color") {
+		return { ...layers, background: edit.hex };
+	}
+	return { ...layers, foreground: edit };
+}
 
 export interface Selection {
 	kind: ScreenKind;

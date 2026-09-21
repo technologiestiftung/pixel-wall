@@ -2,14 +2,18 @@
 import { describe, expect, test } from "vitest";
 import { buildApplyRequest } from "../../../src/domain/apply";
 import type { Content } from "../../../src/domain/types";
+import { EMPTY_LAYERS, withEdit } from "../../../src/domain/types";
 
-/** Keeps these cases reading as (wall, selection, content). */
+/** Keeps these cases reading as (wall, selection, content) — the content is
+ * folded into empty layers, i.e. an edit on screens showing nothing yet. */
 function build(
 	wall: Parameters<typeof buildApplyRequest>[0],
 	selection: Parameters<typeof buildApplyRequest>[1],
 	content: Content,
 ) {
-	return buildApplyRequest(wall, selection, { content });
+	return buildApplyRequest(wall, selection, {
+		layers: withEdit(EMPTY_LAYERS, content),
+	});
 }
 
 import type { LayoutPosition, ScreenSpec } from "../../../src/domain/types";

@@ -136,7 +136,7 @@ test("a large-screen selection splits a solid color across both screens", async 
 		.click({ modifiers: ["Shift"] });
 	await expect(page.getByText("2 Bildschirme ausgewählt")).toBeVisible();
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#FE4441").click();
 
 	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
@@ -157,7 +157,7 @@ test("saving goes through a real network round-trip, not just local state", asyn
 
 	const screen03 = page.getByRole("button", { name: /Bildschirm 03/ });
 	await screen03.click();
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#B4B9FF").click();
 
 	const applyRequestPromise = page.waitForRequest(
@@ -289,7 +289,7 @@ test("dragging a screen that has saved content moves the tile itself, not just i
 
 	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
 	await screen07.click();
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#FE4441").click();
 	await page.getByRole("button", { name: "Speichern" }).click();
 	await expect(screen07.locator("img")).toHaveCount(1);
@@ -381,7 +381,7 @@ test("switching tabs with an unsaved draft asks whether to save or discard it", 
 	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
 	await page.getByLabel("Text", { exact: true }).fill("HALLO");
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	const dialog = page.getByRole("alertdialog", {
 		name: "Ungespeicherte Änderungen",
 	});
@@ -397,10 +397,10 @@ test("switching tabs with an unsaved draft asks whether to save or discard it", 
 	).toHaveAttribute("aria-selected", "true");
 
 	// "Verwerfen" drops the draft and completes the switch.
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await dialog.getByRole("button", { name: "Verwerfen" }).click();
 	await expect(dialog).not.toBeVisible();
-	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute(
+	await expect(page.getByRole("tab", { name: "Hintergrund" })).toHaveAttribute(
 		"aria-selected",
 		"true",
 	);
@@ -414,7 +414,7 @@ test("switching tabs can save the draft first, then completes the switch", async
 	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
 	await page.getByLabel("Text", { exact: true }).fill("HALLO");
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	const dialog = page.getByRole("alertdialog", {
 		name: "Ungespeicherte Änderungen",
 	});
@@ -427,7 +427,7 @@ test("switching tabs can save the draft first, then completes the switch", async
 	await applyRequestPromise;
 
 	await expect(dialog).not.toBeVisible();
-	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute(
+	await expect(page.getByRole("tab", { name: "Hintergrund" })).toHaveAttribute(
 		"aria-selected",
 		"true",
 	);

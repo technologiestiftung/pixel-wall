@@ -63,10 +63,10 @@ export function hasCanvasSupport(): boolean {
  */
 export function rasterizeContent(
 	content: Content,
-	widthPx: number,
-	heightPx: number,
+	size: { widthPx: number; heightPx: number },
+	background: string | null = null,
 ): string {
-	const canvas = drawContentToCanvas(content, { widthPx, heightPx }, false);
+	const canvas = drawContentToCanvas(content, size, { background });
 	return canvas === null ? "" : canvas.toDataURL("image/png");
 }
 
@@ -86,8 +86,9 @@ export function rasterizeContent(
 export function drawContentToCanvas(
 	content: Content,
 	canvasSize: { widthPx: number; heightPx: number },
-	monochrome: boolean,
+	options: { monochrome?: boolean; background?: string | null } = {},
 ): HTMLCanvasElement | null {
+	const { monochrome = false, background = null } = options;
 	const canvas = document.createElement("canvas");
 	canvas.width = Math.max(1, Math.round(canvasSize.widthPx));
 	canvas.height = Math.max(1, Math.round(canvasSize.heightPx));
@@ -96,9 +97,21 @@ export function drawContentToCanvas(
 		return null;
 	}
 
-	if (content.type === "color") {
-		ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
+	// The background layer goes down first so the foreground is drawn over it
+	// and the whole thing quantizes to one pal4 frame — see render/layers.ts.
+	// Under `monochrome` it is skipped: that path wants a coverage mask, and a
+	// filled canvas would make every pixel covered.
+	if (background !== null && !monochrome) {
+		ctx.fillStyle = background;
 		ctx.fillRect(0, 0, canvas.width, canvas.height);
+	}
+
+	if (content.type === "color") {
+		// "ohne" leaves the canvas clear, which is an unlit screen.
+		if (content.hex !== null) {
+			ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+		}
 		return canvas;
 	}
 

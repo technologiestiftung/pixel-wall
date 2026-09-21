@@ -11,30 +11,31 @@ import type {
 	ContentType,
 	LayoutPosition,
 	ScreenKind,
+	ScreenLayers,
 	ScreenSpec,
 	Selection,
 } from "../domain/types";
+import { EMPTY_LAYERS } from "../domain/types";
 import { wireToDataUrl } from "../render/wire";
 import { draftHasChanges } from "./selectors";
 
-export type AppliedRender =
-	| {
-			source: "local";
-			content: Content;
-			compositeWidthPx: number;
-			compositeHeightPx: number;
-			offsetXPx: number;
-			offsetYPx: number;
-	  }
-	| {
-			/** Server-hydrated: a wire payload decoded to a data URL at its own
-			 * natural size — no composite dimensions needed, CSS just uses the
-			 * image's intrinsic size (see render/ContentLayer.tsx). */
-			source: "remote";
-			bitmap: string;
-			offsetXPx: number;
-			offsetYPx: number;
-	  };
+/**
+ * What one screen is showing. `layers` is the editable truth — a background
+ * colour and at most one foreground — and the geometry places this screen's
+ * window into the foreground's composite.
+ *
+ * `bitmap` is the fallback for a screen hydrated without layers: a state file
+ * written before layers existed knows only the flattened frame, so the tile
+ * shows that picture and the next edit starts from a blank background.
+ */
+export interface AppliedRender {
+	layers: ScreenLayers;
+	compositeWidthPx: number;
+	compositeHeightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+	bitmap: string | null;
+}
 
 /**
  * Something the user asked for that would throw away the current draft —
@@ -107,7 +108,7 @@ export type WallAction =
 			// the selection (or the layout, in a future drag-to-rearrange
 			// world) may have changed while the request was in flight.
 			selection: Selection;
-			content: Content;
+			layers: ScreenLayers;
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
 			brightness: BrightnessDto;
@@ -180,15 +181,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			return { ...state, applyStatus: "pending", applyError: null };
 
 		case "brightness-applied":
-			return {
-				...state,
-				brightness: action.brightness,
-				draftBrightness: null,
-				applyStatus: "idle",
-				applyError: null,
-				previewStatus: "idle",
-				previewError: null,
-			};
+			return { ...settled(state), brightness: action.brightness };
 
 		case "apply-error":
 			return { ...state, applyStatus: "error", applyError: action.message };
@@ -203,35 +196,21 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			const applied = { ...state.applied };
 			for (const slot of composite.slots) {
 				applied[slot.screenId] = {
-					source: "local",
-					content: action.content,
+					layers: action.layers,
 					compositeWidthPx: composite.widthPx,
 					compositeHeightPx: composite.heightPx,
 					offsetXPx: slot.offsetXPx,
 					offsetYPx: slot.offsetYPx,
+					bitmap: null,
 				};
 			}
-			return {
-				...state,
-				applied,
-				brightness: action.brightness,
-				draftBrightness: null,
-				applyStatus: "idle",
-				applyError: null,
-				previewStatus: "idle",
-				previewError: null,
-			};
+			return { ...settled(state), applied, brightness: action.brightness };
 		}
 
 		case "hydrated": {
 			const applied: Record<string, AppliedRender> = {};
 			for (const [screenId, entry] of Object.entries(action.remote)) {
-				applied[screenId] = {
-					source: "remote",
-					bitmap: wireToDataUrl(entry.content),
-					offsetXPx: entry.window.offsetXPx,
-					offsetYPx: entry.window.offsetYPx,
-				};
+				applied[screenId] = hydrateScreen(entry);
 			}
 			return {
 				...state,
@@ -256,6 +235,33 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		default:
 			return state;
 	}
+}
+
+/** One screen as the server has it. With layers we can rebuild the picture —
+ * and animate it, which a flat frame could never do; without them (a state
+ * file written before layers) the flattened frame is all there is. */
+function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
+	return {
+		layers: entry.source ?? EMPTY_LAYERS,
+		compositeWidthPx: entry.content.widthPx,
+		compositeHeightPx: entry.content.heightPx,
+		offsetXPx: entry.window.offsetXPx,
+		offsetYPx: entry.window.offsetYPx,
+		bitmap: entry.source ? null : wireToDataUrl(entry.content),
+	};
+}
+
+/** The state every successful save lands in: nothing left unsaved, and no
+ * preview outstanding, because the wall now holds what the draft held. */
+function settled(state: WallState): WallState {
+	return {
+		...state,
+		draftBrightness: null,
+		applyStatus: "idle",
+		applyError: null,
+		previewStatus: "idle",
+		previewError: null,
+	};
 }
 
 /** Carries out an intent once it is allowed to discard the draft. */
