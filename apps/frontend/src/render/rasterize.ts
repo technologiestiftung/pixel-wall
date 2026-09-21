@@ -5,6 +5,7 @@ import { getTemplateImage } from "./templateImages";
  * given alignment — shared by both the animation icon and static text.
  * `paddingPx` insets the span from whichever edge it's pushed toward; a
  * "center" alignment ignores it, since there's no edge to inset from. */
+// eslint-disable-next-line max-params -- all four are needed; splitting into an options object adds indirection for no benefit here.
 function alignOffset(
 	align: "left" | "center" | "right" | "top" | "bottom",
 	containerSize: number,

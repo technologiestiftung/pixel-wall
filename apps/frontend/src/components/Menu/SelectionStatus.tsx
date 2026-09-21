@@ -9,11 +9,20 @@ function formatGermanList(items: string[]): string {
 	return `${items.slice(0, -1).join(", ")} und ${items[items.length - 1]}`;
 }
 
+/** Renders nothing when no screen is selected — that state now has its own
+ * fuller explanation just below (see Menu.tsx's info box), so this compact
+ * line would otherwise just repeat "Kein Bildschirm ausgewählt" a second
+ * time on screen. */
 export function SelectionStatus() {
 	const { selection } = useWallState();
 	const dispatch = useWallDispatch();
 	const screenIds = selection?.screenIds ?? [];
 	const count = screenIds.length;
+
+	if (count === 0) {
+		return null;
+	}
+
 	const numbers = [...screenIds]
 		.sort((a, b) => Number(a) - Number(b))
 		.map(displayScreenId);
@@ -21,24 +30,20 @@ export function SelectionStatus() {
 	return (
 		<div className="flex w-full items-center justify-between whitespace-nowrap">
 			<p className="text-[13.5px] text-[#6b6b66]">
-				{count === 0
-					? "Kein Bildschirm ausgewählt"
-					: `Bildschirm${count === 1 ? "" : "e"} ${formatGermanList(numbers)} ausgewählt`}
+				{`Bildschirm${count === 1 ? "" : "e"} ${formatGermanList(numbers)} ausgewählt`}
 			</p>
-			{count > 0 && (
-				<button
-					type="button"
-					onClick={() =>
-						dispatch({
-							type: "request-intent",
-							intent: { kind: "clear-selection" },
-						})
-					}
-					className="text-[12.5px] text-[#767671] underline decoration-solid [text-underline-position:from-font]"
-				>
-					Auswahl aufheben
-				</button>
-			)}
+			<button
+				type="button"
+				onClick={() =>
+					dispatch({
+						type: "request-intent",
+						intent: { kind: "clear-selection" },
+					})
+				}
+				className="text-[12.5px] text-[#767671] underline decoration-solid [text-underline-position:from-font]"
+			>
+				Auswahl aufheben
+			</button>
 		</div>
 	);
 }
