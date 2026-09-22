@@ -6,41 +6,13 @@
 
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
-# {template-vite-react}
+# Pixel Wall
 
-## TODO (after you generated the repo)
-
-- [ ] Review the content of the README.md and adjust to your liking
-- [ ] Read the README.md till the end and adjust the content licensing,
-      logos, etc (I know you stopped at tbd...)
-- [ ] Adjust the file [.github/CODEOWNERS](./.github/CODEOWNERS)
-- [ ] Adjust the files under [.github/ISSUE_TEMPLATE](./.github/ISSUE_TEMPLATE)
-- [ ] If you need unit, 2e2, a11y tests, or releases, you can enable them in this file: [pipeline.yml](.github/workflows/pipeline.yml)
-- [ ] If you use staging and main branches use this template for [.github/renovate.json](./.github/renovate.json)
-
-```json
-{
-	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"extends": ["github>technologiestiftung/renovate-config"],
-	"baseBranches": ["staging"]
-}
-```
-
-- [ ] Do you want to honor all kinds of contributions? Use [all-contributors](https://allcontributors.org/)
-
-```bash
-npx all-contributors-cli check
-npx all-contributors-cli add ff6347 doc
-```
-
-You can use it on GitHub just by commenting on PRs and issues:
-
-```plain
-@all-contributors please add @ff6347 for infrastructure, tests and code
-```
-
-- [ ] Add your project description
-- [ ] Get fancy shields at https://shields.io
+A wall of 7 physical LED panels — 4 large 64×64 HUB75 panels driven by a
+Raspberry Pi and 3 small 32×32 panels chained off an ESP32 — controlled
+through a web interface. The app lets you arrange the panels' real-world
+layout, select one or more of them, and push text, template
+animations/images, or a background colour to the wall.
 
 ## Repository structure
 
@@ -51,6 +23,14 @@ This is an npm workspaces monorepo:
 | [`apps/backend`](./apps/backend)   | Python/FastAPI service on the Raspberry Pi: state API, MQTT fan-out, HUB75 display driver |
 | [`apps/frontend`](./apps/frontend) | Vite + React web interface, built as a static bundle and hosted separately                |
 | [`apps/esp32`](./apps/esp32)       | Arduino sketch for the ESP32 driving 3x 32x32 panels over MQTT                            |
+
+Further documentation:
+
+- [CONTEXT.md](./CONTEXT.md) — domain glossary (screens, layout, selection, content, layers)
+- [HARDWARE.md](./HARDWARE.md) — physical wiring, power, and network architecture
+- [RENDERING.md](./RENDERING.md) — how a selection/content edit becomes pixels on the panels
+- [INTEGRATION-PLAN.md](./INTEGRATION-PLAN.md) — status of the frontend → backend → panels integration
+- [docs/wire-format.md](./docs/wire-format.md) — the wire payload shared by the TypeScript encoder and the Python/C++ decoders
 
 ## Prerequisites
 
@@ -109,9 +89,10 @@ the real Pi. The API contract is documented in
 npm run test:unit
 npm run test:e2e
 npm run test:a11y
+npm run test:backend  # pytest, needs apps/backend/.venv set up (see Installation)
 ```
 
-Frontend only; CI does not yet run anything against the Python backend.
+CI does not yet run anything against the Python backend.
 
 ## Contributing
 
@@ -140,8 +121,6 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 
 Texts and content available as [CC BY](https://creativecommons.org/licenses/by/3.0/de/).
 
-Illustrations by {MARIA_MUSTERFRAU}, all rights reserved.
-
 ## Credits
 
 <table>
@@ -169,5 +148,3 @@ Illustrations by {MARIA_MUSTERFRAU}, all rights reserved.
     </td>
   </tr>
 </table>
-
-## Related Projects

@@ -109,7 +109,6 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 								Pixelify Sans
 							</option>
 							<option value="ui-monospace, monospace">Monospace</option>
-							
 						</select>
 						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
 					</div>
