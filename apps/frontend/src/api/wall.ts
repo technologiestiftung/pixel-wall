@@ -6,7 +6,6 @@ import type {
 	HealthResponse,
 	LayoutPositionDto,
 	LayoutResponse,
-	PreviewResponse,
 	ScreensResponse,
 	StateResponse,
 } from "./types";
@@ -53,26 +52,6 @@ export function applyChanges(
 		method: "POST",
 		body: JSON.stringify(body),
 	});
-}
-
-/**
- * Same payload as `applyChanges`, but the wall's saved state is left alone:
- * the panels show it until `revertPreview` (or another apply) replaces it.
- */
-export function previewChanges(
-	request: Requester,
-	body: ApplyRequest,
-): Promise<PreviewResponse> {
-	return request<PreviewResponse>("/api/preview", {
-		method: "POST",
-		body: JSON.stringify(body),
-	});
-}
-
-/** Puts the saved content back on every screen a preview touched. A no-op
- * server-side when nothing is being previewed, so callers need not track it. */
-export function revertPreview(request: Requester): Promise<PreviewResponse> {
-	return request<PreviewResponse>("/api/preview/revert", { method: "POST" });
 }
 
 export function putBrightness(

@@ -72,11 +72,6 @@ export interface WallState {
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
 	applyError: string | null;
-	/** "Vorschau": the draft has been pushed to the real panels without being
-	 * saved. Until it is reverted (or superseded by a save) the wall is showing
-	 * something the state file does not contain. */
-	previewStatus: "idle" | "pending" | "active" | "error";
-	previewError: string | null;
 	/** Per hardware kind, not per screen — the panel drivers expose brightness
 	 * as a whole-canvas property. `draftBrightness` is the unsaved edit. */
 	brightness: BrightnessDto;
@@ -101,8 +96,6 @@ export const initialWallState: WallState = {
 	syncStatus: "loading",
 	applyStatus: "idle",
 	applyError: null,
-	previewStatus: "idle",
-	previewError: null,
 	brightness: { small: 60, large: 60 },
 	draftBrightness: null,
 	layoutEditMode: false,
@@ -131,11 +124,6 @@ export type WallAction =
 	| { type: "brightness-applied"; brightness: BrightnessDto }
 	| { type: "apply-error"; message: string }
 	| {
-			type: "set-preview";
-			status: WallState["previewStatus"];
-			message?: string;
-	  }
-	| {
 			type: "hydrated";
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
@@ -162,13 +150,6 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			// draft (see WallState.draftText/draftAnimation/draftColor), so
 			// nothing is at risk of being silently lost by switching.
 			return { ...state, activeTab: action.tab };
-
-		case "set-preview":
-			return {
-				...state,
-				previewStatus: action.status,
-				previewError: action.message ?? null,
-			};
 
 		case "set-draft-content":
 			return setDraftContent(state, action.content);
@@ -265,16 +246,14 @@ function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
 	};
 }
 
-/** The state every successful save lands in: nothing left unsaved, and no
- * preview outstanding, because the wall now holds what the draft held. */
+/** The state every successful save lands in: nothing left unsaved, because
+ * the wall now holds what the draft held. */
 function settled(state: WallState): WallState {
 	return {
 		...state,
 		draftBrightness: null,
 		applyStatus: "idle",
 		applyError: null,
-		previewStatus: "idle",
-		previewError: null,
 	};
 }
 

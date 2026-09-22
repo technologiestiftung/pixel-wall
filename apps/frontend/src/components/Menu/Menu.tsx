@@ -8,7 +8,6 @@ import type {
 } from "../../domain/types";
 import { effectiveBrightness } from "../../state/selectors";
 import { useApplyChanges } from "../../state/useApplyChanges";
-import { usePreviewGuard } from "../../state/usePreviewGuard";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
 import { BrightnessSlider } from "./BrightnessSlider";
@@ -31,8 +30,7 @@ export function Menu() {
 		pendingIntent,
 	} = state;
 	const dispatch = useWallDispatch();
-	const { handleApply, isPreviewing } = useApplyChanges();
-	usePreviewGuard();
+	const { handleApply } = useApplyChanges();
 
 	function currentContentFor(tab: ContentType): Content {
 		switch (tab) {
@@ -94,7 +92,6 @@ export function Menu() {
 						onSave={handleSaveAndContinue}
 						onDiscard={handleDiscardAndContinue}
 						onCancel={handleCancelIntent}
-						previewActive={isPreviewing}
 					/>
 				)}
 			</aside>
@@ -172,7 +169,6 @@ export function Menu() {
 					onSave={handleSaveAndContinue}
 					onDiscard={handleDiscardAndContinue}
 					onCancel={handleCancelIntent}
-					previewActive={isPreviewing}
 				/>
 			)}
 		</aside>

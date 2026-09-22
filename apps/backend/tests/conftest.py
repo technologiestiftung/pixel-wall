@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import config
-from app.main import app, _previewed_screens
+from app.main import app
 
 
 @pytest.fixture
@@ -17,9 +17,6 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "PASSWORD", None)
     monkeypatch.setattr(config, "AUTH_ENABLED", False)
     monkeypatch.setattr(config, "MQTT_ENABLED", False)
-    # Previews live in a module-level set rather than the state file, so they
-    # would otherwise leak from one test to the next.
-    _previewed_screens.clear()
 
     with TestClient(app) as client:
         yield client

@@ -4,9 +4,6 @@ interface UnsavedChangesDialogProps {
 	onSave: () => void;
 	onDiscard: () => void;
 	onCancel: () => void;
-	/** Whether the wall is currently showing this draft as an unsaved preview,
-	 * which discarding will also take back down. */
-	previewActive: boolean;
 }
 
 /** Shown when something the user asked for would silently drop an unsaved
@@ -16,7 +13,6 @@ export function UnsavedChangesDialog({
 	onSave,
 	onDiscard,
 	onCancel,
-	previewActive,
 }: UnsavedChangesDialogProps) {
 	useEffect(() => {
 		function handleKeyDown(event: KeyboardEvent) {
@@ -79,11 +75,6 @@ export function UnsavedChangesDialog({
 					Für diesen Inhalt gibt es ungespeicherte Änderungen. Möchtest du sie
 					speichern oder verwerfen?
 				</p>
-				{previewActive && (
-					<p className="mt-2 text-[13px] text-[#6b6b66]">
-						Die Vorschau auf den Bildschirmen wird dabei zurückgesetzt.
-					</p>
-				)}
 				<div className="mt-5 flex justify-end gap-2">
 					<button
 						type="button"
