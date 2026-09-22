@@ -43,7 +43,7 @@ export function PasswordGate({ children }: { children: ReactNode }) {
 				onSubmit={handleSubmit}
 				className="w-full max-w-sm flex flex-col gap-4"
 			>
-				<h1 className="text-2xl font-bold">Pixel Wall</h1>
+				<h1 className="text-2xl font-bold">CityLAB Pixel Screens</h1>
 
 				<div className="flex flex-col gap-1">
 					<label htmlFor="password" className="font-medium">

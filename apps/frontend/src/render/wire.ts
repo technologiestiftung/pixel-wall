@@ -3,35 +3,50 @@ import {
 	createMask,
 	decodeBlock,
 	encodeMaskBase64,
+	encodePal4Base64,
 	maskFromImageData,
+	pal4FromImageData,
 	setBit,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
-import type { Content } from "../domain/types";
-import { drawContentToCanvas } from "./rasterize";
+import type { AnimationContent, Content, TextContent } from "../domain/types";
+import { waitForFont } from "./fonts";
+import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
+import { waitForTemplateImage } from "./templateImages";
 
 const WHITE: [number, number, number] = [255, 255, 255];
 
 /**
- * Rasterises `content` into the `mask1` wire envelope — see
- * docs/wire-format.md. Every v1 content type is monochrome, so the colour
- * travels alongside the coverage mask rather than being baked into pixels.
+ * Rasterises `content` into a wire envelope — see docs/wire-format.md. Farbe
+ * is genuinely single-coloured, so its colour travels alongside a coverage
+ * mask (`mask1`) rather than being baked into pixels. Text and Animation/Bild
+ * both go out as `pal4` instead (see contentToPal4Wire): text carries a
+ * user-chosen colour (see TextContent.color) rather than always being white,
+ * and every template is real, possibly multi-coloured SVG artwork (see
+ * domain/content.ts's `TEMPLATES`) — neither should be silhouetted down to a
+ * flat colour baked in elsewhere.
  *
- * `pal4` exists in the format and is understood by the backend, but nothing
- * produces it yet: it is for multi-colour template artwork, and the current
- * template library is single-colour.
+ * Async because a template's artwork must finish decoding before it can be
+ * drawn; the `mask1` path stays synchronous internally, it just resolves
+ * immediately.
  */
-export function contentToWire(
+export async function contentToWire(
 	content: Content,
 	size: { widthPx: number; heightPx: number },
-	scroll?: ScrollDto,
-): WireContentDto {
+	options: { scroll?: ScrollDto; background?: string | null } = {},
+): Promise<WireContentDto> {
+	const { scroll, background = null } = options;
 	const width = Math.max(1, Math.round(size.widthPx));
 	const height = Math.max(1, Math.round(size.heightPx));
+
+	if (content.type === "animation" || content.type === "text") {
+		return contentToPal4Wire(content, { width, height, scroll, background });
+	}
+
 	const canvas = drawContentToCanvas(
 		content,
 		{ widthPx: width, heightPx: height },
-		true,
+		{ monochrome: true },
 	);
 	const context = canvas?.getContext("2d") ?? null;
 
@@ -47,24 +62,70 @@ export function contentToWire(
 		format: "mask1",
 		widthPx: width,
 		heightPx: height,
-		color: wireColor(content),
+		// "ohne" has no colour of its own; the mask is empty anyway.
+		color:
+			content.type === "color" && content.hex !== null
+				? hexToRgb(content.hex)
+				: WHITE,
 		data: encodeMaskBase64(mask),
 		...(scroll ? { scroll } : {}),
 	};
 }
 
-/** `mask1` carries one colour beside a 1-bit coverage mask, so each content
- * type contributes whatever single colour it is drawn in. Templates have no
- * colour control yet and stay white. */
-function wireColor(content: Content): [number, number, number] {
-	switch (content.type) {
-		case "color":
-			return hexToRgb(content.hex);
-		case "text":
-			return hexToRgb(content.color);
-		default:
-			return WHITE;
+/**
+ * Builds the `pal4` envelope for an Animation/Bild template or Text: for a
+ * template, waits for its artwork to finish decoding first; either way, draws
+ * the content in true colour, then quantizes to <=16 palette entries (see
+ * domain/mask.ts's pal4FromImageData) — for text this is normally just 1-2
+ * colours (background + the chosen text colour). Skips the artwork wait
+ * without a real 2D context (jsdom without the optional `canvas` package) —
+ * jsdom's `Image` never actually fires `load`/`error` there, so waiting would
+ * hang forever — and falls back to a blank frame instead, mirroring emptyMask
+ * below.
+ */
+async function contentToPal4Wire(
+	content: AnimationContent | TextContent,
+	size: {
+		width: number;
+		height: number;
+		scroll?: ScrollDto;
+		background?: string | null;
+	},
+): Promise<WireContentDto> {
+	const { width, height, scroll, background = null } = size;
+	if (content.type === "animation" && hasCanvasSupport()) {
+		await waitForTemplateImage(content.templateId);
 	}
+	if (content.type === "text" && hasCanvasSupport()) {
+		await waitForFont(content.fontFamily, content.fontWeight);
+	}
+
+	const canvas = drawContentToCanvas(
+		content,
+		{ widthPx: width, heightPx: height },
+		{ background },
+	);
+	const context = canvas?.getContext("2d") ?? null;
+
+	const image = context
+		? pal4FromImageData(context.getImageData(0, 0, width, height).data, {
+				widthPx: width,
+				heightPx: height,
+			})
+		: {
+				widthPx: width,
+				heightPx: height,
+				palette: [[0, 0, 0]],
+				indices: new Uint8Array(width * height),
+			};
+
+	return {
+		format: "pal4",
+		widthPx: width,
+		heightPx: height,
+		data: encodePal4Base64(image),
+		...(scroll ? { scroll } : {}),
+	};
 }
 
 /** Without a 2D context (jsdom without the optional `canvas` package) a flat
@@ -72,7 +133,7 @@ function wireColor(content: Content): [number, number, number] {
  * rather than throwing. */
 function emptyMask(content: Content, widthPx: number, heightPx: number) {
 	const mask = createMask(widthPx, heightPx);
-	if (content.type === "color") {
+	if (content.type === "color" && content.hex !== null) {
 		for (let y = 0; y < heightPx; y++) {
 			for (let x = 0; x < widthPx; x++) {
 				setBit(mask, x, y);

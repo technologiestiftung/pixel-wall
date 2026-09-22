@@ -1,4 +1,4 @@
-import type { ScreenKind, ScreenSpec } from "../domain/types";
+import type { ScreenKind, ScreenLayers, ScreenSpec } from "../domain/types";
 
 export interface LayoutPositionDto {
 	screenId: string;
@@ -53,7 +53,14 @@ export interface BrightnessDto {
 export interface StateResponse {
 	brightness: BrightnessDto;
 	layout: LayoutPositionDto[];
-	screens: Record<string, { window: ScreenWindowDto; content: WireContentDto }>;
+	screens: Record<
+		string,
+		{
+			window: ScreenWindowDto;
+			content: WireContentDto;
+			source?: ScreenLayers | null;
+		}
+	>;
 	updated_at: string;
 }
 
@@ -62,6 +69,9 @@ export interface ApplyRequest {
 	screens: { screenId: string; window: ScreenWindowDto }[];
 	content: WireContentDto;
 	brightness?: BrightnessDto;
+	/** The editor's layers behind `content`. Stored verbatim by the backend and
+	 * never rendered from — see domain/types.ts ScreenLayers. */
+	source?: ScreenLayers;
 }
 
 export interface ApplyResponse {

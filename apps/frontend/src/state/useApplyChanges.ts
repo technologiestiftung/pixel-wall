@@ -7,10 +7,13 @@ import {
 } from "../api/wall";
 import { useAuth } from "../auth/AuthContext";
 import { buildApplyRequest } from "../domain/apply";
+import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import {
+	activeContentDrafts,
 	brightnessHasChanges,
 	draftHasChanges,
 	effectiveBrightness,
+	hasContentDraft,
 } from "./selectors";
 import { useWallDispatch, useWallState } from "./WallProvider";
 
@@ -20,7 +23,7 @@ export function useApplyChanges() {
 		specs,
 		layout,
 		selection,
-		draft,
+		applied,
 		applyStatus,
 		applyError,
 		previewStatus,
@@ -32,8 +35,22 @@ export function useApplyChanges() {
 	const busy = applyStatus === "pending" || previewStatus === "pending";
 	const canApply = !busy && hasChanges;
 	const canPreview =
-		!busy && hasChanges && selection !== null && draft !== null;
+		!busy && hasChanges && selection !== null && hasContentDraft(state);
 	const isPreviewing = previewStatus === "active";
+
+	/** The edits folded into what the selection already shows — this is what
+	 * keeps a Hintergrund change from flattening the text on top of it. The
+	 * first screen stands for the rest: a selection is edited as one unit, so
+	 * they all end up with the same layers anyway. */
+	function editedLayers() {
+		if (!selection) {
+			return EMPTY_LAYERS;
+		}
+		return activeContentDrafts(state).reduce(
+			withEdit,
+			applied[selection.screenIds[0]]?.layers ?? EMPTY_LAYERS,
+		);
+	}
 
 	/** Restores what the state file says on every screen a preview touched.
 	 * Harmless when nothing is being previewed, so callers that just want to
@@ -54,17 +71,17 @@ export function useApplyChanges() {
 		}
 	}, [dispatch, request]);
 
-	/** Pushes the draft to the real panels without saving it. */
+	/** Pushes the draft(s) to the real panels without saving them. */
 	async function handlePreview(): Promise<boolean> {
-		if (!selection || !draft) {
+		if (!selection || !hasContentDraft(state)) {
 			return false;
 		}
 		dispatch({ type: "set-preview", status: "pending" });
 		try {
-			const payload = buildApplyRequest(
+			const payload = await buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
-				{ content: draft, brightness: effectiveBrightness(state) },
+				{ layers: editedLayers(), brightness: effectiveBrightness(state) },
 			);
 			await previewChanges(request, payload);
 			dispatch({ type: "set-preview", status: "active" });
@@ -87,7 +104,7 @@ export function useApplyChanges() {
 
 		// Moving only the slider is a legitimate save with nothing to rasterise,
 		// so it goes to the brightness endpoint rather than through an apply.
-		if (!selection || !draft) {
+		if (!selection || !hasContentDraft(state)) {
 			if (!brightnessHasChanges(state)) {
 				return false;
 			}
@@ -107,19 +124,16 @@ export function useApplyChanges() {
 
 		dispatch({ type: "apply-pending" });
 		try {
-			const payload = buildApplyRequest(
+			const payload = await buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
-				{
-					content: draft,
-					brightness,
-				},
+				{ layers: editedLayers(), brightness },
 			);
 			await applyChanges(request, payload);
 			dispatch({
 				type: "apply-success",
 				selection,
-				content: draft,
+				layers: editedLayers(),
 				specs,
 				layout,
 				brightness,
@@ -144,6 +158,7 @@ export function useApplyChanges() {
 	return {
 		canApply,
 		canPreview,
+		hasChanges,
 		isPreviewing,
 		applyStatus,
 		applyError,

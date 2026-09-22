@@ -7,43 +7,48 @@ import {
 	specById,
 } from "../domain/layout";
 import type {
+	AnimationContent,
 	Content,
+	ColorContent,
 	ContentType,
 	LayoutPosition,
 	ScreenKind,
+	ScreenLayers,
 	ScreenSpec,
 	Selection,
+	TextContent,
 } from "../domain/types";
+import { EMPTY_LAYERS } from "../domain/types";
 import { wireToDataUrl } from "../render/wire";
 import { draftHasChanges } from "./selectors";
 
-export type AppliedRender =
-	| {
-			source: "local";
-			content: Content;
-			compositeWidthPx: number;
-			compositeHeightPx: number;
-			offsetXPx: number;
-			offsetYPx: number;
-	  }
-	| {
-			/** Server-hydrated: a wire payload decoded to a data URL at its own
-			 * natural size — no composite dimensions needed, CSS just uses the
-			 * image's intrinsic size (see render/ContentLayer.tsx). */
-			source: "remote";
-			bitmap: string;
-			offsetXPx: number;
-			offsetYPx: number;
-	  };
+/**
+ * What one screen is showing. `layers` is the editable truth — a background
+ * colour and at most one foreground — and the geometry places this screen's
+ * window into the foreground's composite.
+ *
+ * `bitmap` is the fallback for a screen hydrated without layers: a state file
+ * written before layers existed knows only the flattened frame, so the tile
+ * shows that picture and the next edit starts from a blank background.
+ */
+export interface AppliedRender {
+	layers: ScreenLayers;
+	compositeWidthPx: number;
+	compositeHeightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+	bitmap: string | null;
+}
 
 /**
- * Something the user asked for that would throw away the current draft —
- * every one of these clears it (see `applyIntent`). They are routed through
- * `request-intent` rather than dispatched directly so the confirmation is in
- * one place instead of at each button.
+ * Something the user asked for that would throw away the current draft(s) —
+ * every one of these clears them (see `applyIntent`). They are routed
+ * through `request-intent` rather than dispatched directly so the
+ * confirmation is in one place instead of at each button. Switching content
+ * tabs is *not* one of these — see `WallState.draftText`/`draftAnimation`/
+ * `draftColor` and CONTEXT.md "Unsaved changes".
  */
 export type NavigationIntent =
-	| { kind: "set-active-tab"; tab: ContentType }
 	| { kind: "toggle-screen"; screenId: string; additive: boolean }
 	| { kind: "clear-selection" }
 	| { kind: "toggle-layout-edit-mode" };
@@ -53,8 +58,16 @@ export interface WallState {
 	layout: LayoutPosition[];
 	selection: Selection | null;
 	activeTab: ContentType;
-	/** In-progress, not-yet-applied edit for the current selection — see CONTEXT.md "Content". */
-	draft: Content | null;
+	/**
+	 * In-progress, not-yet-applied edits for the current selection — see
+	 * CONTEXT.md "Content". Text and Animation/Bild both write the same
+	 * foreground layer, so at most one of `draftText`/`draftAnimation` is ever
+	 * set — `set-draft-content` clears the other one. `draftColor` (the
+	 * background layer) is independent of both.
+	 */
+	draftText: TextContent | null;
+	draftAnimation: AnimationContent | null;
+	draftColor: ColorContent | null;
 	applied: Record<string, AppliedRender>;
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
@@ -81,7 +94,9 @@ export const initialWallState: WallState = {
 	layout: DEFAULT_LAYOUT,
 	selection: null,
 	activeTab: "text",
-	draft: null,
+	draftText: null,
+	draftAnimation: null,
+	draftColor: null,
 	applied: {},
 	syncStatus: "loading",
 	applyStatus: "idle",
@@ -97,6 +112,7 @@ export const initialWallState: WallState = {
 export type WallAction =
 	| { type: "request-intent"; intent: NavigationIntent }
 	| { type: "resolve-intent"; commit: boolean }
+	| { type: "set-active-tab"; tab: ContentType }
 	| { type: "set-draft-content"; content: Content }
 	| { type: "set-draft-brightness"; kind: ScreenKind; value: number }
 	| { type: "discard-draft" }
@@ -107,7 +123,7 @@ export type WallAction =
 			// the selection (or the layout, in a future drag-to-rearrange
 			// world) may have changed while the request was in flight.
 			selection: Selection;
-			content: Content;
+			layers: ScreenLayers;
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
 			brightness: BrightnessDto;
@@ -131,28 +147,21 @@ export type WallAction =
 export function wallReducer(state: WallState, action: WallAction): WallState {
 	switch (action.type) {
 		case "request-intent":
-			// Nothing to lose means no dialog: selecting screens and flipping
-			// between tabs has to stay a free action while the panel is
-			// untouched, or every click would cost a confirmation.
+			// Nothing to lose means no dialog: selecting screens has to stay a
+			// free action while the panel is untouched, or every click would
+			// cost a confirmation.
 			return draftHasChanges(state)
 				? { ...state, pendingIntent: action.intent }
 				: applyIntent(state, action.intent);
 
-		case "resolve-intent": {
-			const intent = state.pendingIntent;
-			if (intent === null) {
-				return state;
-			}
-			const cleared = { ...state, pendingIntent: null };
-			// "Verwerfen": the draft is what the user chose to give up, so it
-			// goes along with the brightness edit that shares the same button.
-			return action.commit
-				? applyIntent(
-						{ ...cleared, draft: null, draftBrightness: null },
-						intent,
-					)
-				: cleared;
-		}
+		case "resolve-intent":
+			return resolveIntent(state, action.commit);
+
+		case "set-active-tab":
+			// Free, unlike the NavigationIntents above: each tab keeps its own
+			// draft (see WallState.draftText/draftAnimation/draftColor), so
+			// nothing is at risk of being silently lost by switching.
+			return { ...state, activeTab: action.tab };
 
 		case "set-preview":
 			return {
@@ -162,7 +171,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			};
 
 		case "set-draft-content":
-			return { ...state, draft: action.content };
+			return setDraftContent(state, action.content);
 
 		case "set-draft-brightness":
 			return {
@@ -174,21 +183,19 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			};
 
 		case "discard-draft":
-			return { ...state, draft: null, draftBrightness: null };
+			return {
+				...state,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
+				draftBrightness: null,
+			};
 
 		case "apply-pending":
 			return { ...state, applyStatus: "pending", applyError: null };
 
 		case "brightness-applied":
-			return {
-				...state,
-				brightness: action.brightness,
-				draftBrightness: null,
-				applyStatus: "idle",
-				applyError: null,
-				previewStatus: "idle",
-				previewError: null,
-			};
+			return { ...settled(state), brightness: action.brightness };
 
 		case "apply-error":
 			return { ...state, applyStatus: "error", applyError: action.message };
@@ -203,35 +210,21 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			const applied = { ...state.applied };
 			for (const slot of composite.slots) {
 				applied[slot.screenId] = {
-					source: "local",
-					content: action.content,
+					layers: action.layers,
 					compositeWidthPx: composite.widthPx,
 					compositeHeightPx: composite.heightPx,
 					offsetXPx: slot.offsetXPx,
 					offsetYPx: slot.offsetYPx,
+					bitmap: null,
 				};
 			}
-			return {
-				...state,
-				applied,
-				brightness: action.brightness,
-				draftBrightness: null,
-				applyStatus: "idle",
-				applyError: null,
-				previewStatus: "idle",
-				previewError: null,
-			};
+			return { ...settled(state), applied, brightness: action.brightness };
 		}
 
 		case "hydrated": {
 			const applied: Record<string, AppliedRender> = {};
 			for (const [screenId, entry] of Object.entries(action.remote)) {
-				applied[screenId] = {
-					source: "remote",
-					bitmap: wireToDataUrl(entry.content),
-					offsetXPx: entry.window.offsetXPx,
-					offsetYPx: entry.window.offsetYPx,
-				};
+				applied[screenId] = hydrateScreen(entry);
 			}
 			return {
 				...state,
@@ -258,24 +251,94 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 	}
 }
 
-/** Carries out an intent once it is allowed to discard the draft. */
+/** One screen as the server has it. With layers we can rebuild the picture —
+ * and animate it, which a flat frame could never do; without them (a state
+ * file written before layers) the flattened frame is all there is. */
+function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
+	return {
+		layers: entry.source ?? EMPTY_LAYERS,
+		compositeWidthPx: entry.content.widthPx,
+		compositeHeightPx: entry.content.heightPx,
+		offsetXPx: entry.window.offsetXPx,
+		offsetYPx: entry.window.offsetYPx,
+		bitmap: entry.source ? null : wireToDataUrl(entry.content),
+	};
+}
+
+/** The state every successful save lands in: nothing left unsaved, and no
+ * preview outstanding, because the wall now holds what the draft held. */
+function settled(state: WallState): WallState {
+	return {
+		...state,
+		draftBrightness: null,
+		applyStatus: "idle",
+		applyError: null,
+		previewStatus: "idle",
+		previewError: null,
+	};
+}
+
+/** Carries out (or cancels) whatever was held back by "request-intent". */
+function resolveIntent(state: WallState, commit: boolean): WallState {
+	const intent = state.pendingIntent;
+	if (intent === null) {
+		return state;
+	}
+	const cleared = { ...state, pendingIntent: null };
+	if (!commit) {
+		return cleared;
+	}
+	// "Verwerfen": the draft(s) are what the user chose to give up, so they go
+	// along with the brightness edit that shares the same button.
+	return applyIntent(
+		{
+			...cleared,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
+			draftBrightness: null,
+		},
+		intent,
+	);
+}
+
+/** Text and Animation/Bild are the same foreground layer, so drafting one has
+ * to give up whatever was drafted for the other — there is no way to
+ * reconcile them into a single foreground. */
+function setDraftContent(state: WallState, content: Content): WallState {
+	if (content.type === "text") {
+		return { ...state, draftText: content, draftAnimation: null };
+	}
+	if (content.type === "animation") {
+		return { ...state, draftAnimation: content, draftText: null };
+	}
+	return { ...state, draftColor: content };
+}
+
+/** Carries out an intent once it is allowed to discard the draft(s). */
 function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 	switch (intent.kind) {
-		case "set-active-tab":
-			return { ...state, activeTab: intent.tab };
-
 		case "toggle-screen":
 			return toggleScreen(state, intent.screenId, intent.additive);
 
 		case "clear-selection":
-			return { ...state, selection: null, draft: null, draftBrightness: null };
+			return {
+				...state,
+				selection: null,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
+				draftBrightness: null,
+			};
 
 		case "toggle-layout-edit-mode":
 			return {
 				...state,
 				layoutEditMode: !state.layoutEditMode,
 				selection: null,
-				draft: null,
+				draftText: null,
+				draftAnimation: null,
+				draftColor: null,
 			};
 
 		default:
@@ -298,7 +361,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: { kind, screenIds: [screenId] },
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 
@@ -310,7 +375,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: remaining.length > 0 ? { kind, screenIds: remaining } : null,
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 
@@ -320,7 +387,9 @@ function toggleScreen(
 		return {
 			...state,
 			selection: { kind, screenIds: attempted },
-			draft: null,
+			draftText: null,
+			draftAnimation: null,
+			draftColor: null,
 		};
 	}
 

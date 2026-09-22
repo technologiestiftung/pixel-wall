@@ -32,11 +32,17 @@ Large-screen sizing detail: 192×192mm at 64×64px (3mm pixel pitch). Small-scre
 
 What a selection of screens is set to display. Exactly one of three types, chosen via a tab in the edit panel:
 
-- **Text**: `Statischer Text` (static) or `Lauftext` (scrolling), with speed and direction controls. Looping scroll text always repeats with a fixed 2-second pause between loops. When applied across a contiguous multi-large-screen selection, text flows continuously across the combined canvas, treating the real physical gap between screens as blank/phantom pixels so the text doesn't visually jump. The glyph colour is chosen with the same 4 presets + RGB entry as the Farbe tab; a frame carries one colour beside a 1-bit mask (docs/wire-format.md `mask1`), so it tints the whole text rather than any part of it. Lauftext is restricted to a 1D-strip selection (single row or single column of large screens) — no defined behavior for scrolling across a 2D block. Farbe and Animation/Bild may apply to any contiguous shape (1D or 2D).
+- **Text**: `Statischer Text` (static) or `Lauftext` (scrolling), with speed and direction controls. Looping scroll text always repeats with a fixed 2-second pause between loops. When applied across a contiguous multi-large-screen selection, text flows continuously across the combined canvas, treating the real physical gap between screens as blank/phantom pixels so the text doesn't visually jump. The glyph colour is chosen from the same 6 presets + free colour picker as the Hintergrund tab, and tints the whole text (a `mask1` frame carries one colour beside a 1-bit mask). Text sits on top of the screen's Hintergrund; a frame carrying both goes out as `pal4` (indexed — palette index 0 means unlit on every renderer, so real colours start at 1). Lauftext never layers: the scrolling frame _is_ the bitmap, so a background behind the glyphs would slide along with them, and it is dropped. Lauftext is restricted to a 1D-strip selection (single row or single column of large screens) — no defined behavior for scrolling across a 2D block. Hintergrund and Animation/Bild may apply to any contiguous shape (1D or 2D).
 - **Animation/Bild**: chosen from a fixed, built-in template library (no user upload in v1). User can control the template's scale via a percentage control (e.g. 25–400%) — scaling beyond the canvas crops the template rather than being constrained to always fit. Scales/stretches across a contiguous multi-screen selection (rather than tiling/repeating per screen).
-- **Farbe**: chosen from a fixed palette of exactly 4 preset colors (no free color picker in v1).
+- **Hintergrund**: what fills a screen behind everything else — one of 6 presets, a free colour, or "ohne" for an unlit screen. Changing it recolours _behind_ whatever foreground the screen has, rather than replacing it.
 
-There is no distinct "off"/blank content state in v1 — every screen always shows one of the three content types; a plain black Farbe swatch serves as the de facto "off" look if needed.
+### Layers
+
+A screen is a **background colour** plus at most one **foreground** (text or Animation/Bild). Each tab writes its own layer and leaves the other alone, so recolouring a background keeps its text and retyping text keeps its background. Panels still only ever receive the two flattened together — one bitmap, exactly as before.
+
+Because a rendered bitmap cannot say which pixels were text, the layers are stored alongside it: `POST /api/apply` carries a `source` field that the backend persists per screen and returns from `GET /api/state`, without ever reading it. It is editor-only metadata — a frame renders identically without it, and a screen hydrated from a state file that predates it shows its flattened picture and starts its next edit from a blank background.
+
+"Hintergrund: ohne" is the blank/off state: the screen keeps showing one of the three content types, but that one renders no lit pixels.
 
 Editing a selection with mixed existing content does not reconcile/merge that existing state — the edit panel only takes effect once the user changes something in it; simply selecting screens leaves their current displayed content untouched until an edit is made and applied.
 
@@ -46,7 +52,9 @@ Commits the in-progress (locally previewed, not-yet-sent) content edit for the c
 
 ## Unsaved changes
 
-Any action that would throw away an in-progress edit — switching content tabs, selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen / abbrechen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. An unsaved brightness edit counts as a change like any other. If a preview is on the wall, discarding takes it back down too, and the dialog says so.
+Any action that would throw away an in-progress edit — selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. An unsaved brightness edit counts as a change like any other. If a preview is on the wall, discarding takes it back down too, and the dialog says so. Closing the dialog without choosing — the × button, Escape, or clicking outside — keeps the draft and does nothing else.
+
+Switching content tabs is _not_ gated by this dialog: Text, Animation/Bild and Hintergrund each keep their own in-progress draft, so moving between them never silently loses anything — with one exception. Text and Animation/Bild both write the same foreground layer (see "Layers" above), so only one of them can actually be drafted at a time: editing one silently drops whatever was drafted for the other, no confirmation asked, since there is no way to reconcile "scrolling text" and "a logo" into a single foreground.
 
 ## Preview on the wall ("Vorschau")
 

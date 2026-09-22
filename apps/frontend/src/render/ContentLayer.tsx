@@ -1,9 +1,11 @@
 import { useMemo, type CSSProperties } from "react";
 import { LOOP_PAUSE_MS } from "../domain/content";
-import type { Content, TextContent } from "../domain/types";
+import type { ScreenLayers, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
+import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
 import { measureTextWidthPx } from "./text";
+import { useTemplateImagesVersion } from "./templateImages";
 import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
@@ -16,7 +18,7 @@ interface ContentLayerProps {
 // one screen — exactly the case this whole mechanism exists for. Explicit
 // width/height + maxWidth: "none" defeats that reset so the negative-offset
 // slicing technique actually gets the true, natural-pixel-sized image.
-const PIXELATED: CSSProperties = {
+const BITMAP_STYLE: CSSProperties = {
 	imageRendering: "pixelated",
 	maxWidth: "none",
 };
@@ -39,23 +41,22 @@ const PIXELATED: CSSProperties = {
  * what the real hardware contract expects.
  */
 export function ContentLayer({ render }: ContentLayerProps) {
-	if (render.source === "remote") {
+	const { layers, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
+		render;
+
+	// No layers to render from: this screen was hydrated from a state file
+	// that only had the flattened frame, so the picture is all there is.
+	if (render.bitmap !== null) {
 		return (
-			<Bitmap
-				src={render.bitmap}
-				offsetXPx={render.offsetXPx}
-				offsetYPx={render.offsetYPx}
-			/>
+			<Bitmap src={render.bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />
 		);
 	}
 
-	const { content, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
-		render;
-
-	if (content.type === "text" && content.mode === "scrolling") {
+	const { foreground } = layers;
+	if (foreground?.type === "text" && foreground.mode === "scrolling") {
 		return (
 			<ScrollingBitmap
-				content={content}
+				content={foreground}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}
@@ -66,7 +67,7 @@ export function ContentLayer({ render }: ContentLayerProps) {
 
 	return (
 		<StaticBitmap
-			content={content}
+			layers={layers}
 			widthPx={compositeWidthPx}
 			heightPx={compositeHeightPx}
 			offsetXPx={offsetXPx}
@@ -90,7 +91,7 @@ function Bitmap({
 				src={src}
 				alt=""
 				style={{
-					...PIXELATED,
+					...BITMAP_STYLE,
 					position: "absolute",
 					left: -offsetXPx,
 					top: -offsetYPx,
@@ -101,21 +102,42 @@ function Bitmap({
 }
 
 function StaticBitmap({
-	content,
+	layers,
 	widthPx,
 	heightPx,
 	offsetXPx,
 	offsetYPx,
 }: {
-	content: Content;
+	layers: ScreenLayers;
 	widthPx: number;
 	heightPx: number;
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
+	// Template artwork loads async (see templateImages.ts); this version
+	// bumps once it's ready so an animation template's first render — drawn
+	// before its image decoded — gets replaced with the real bitmap.
+	const templateImagesVersion = useTemplateImagesVersion();
+	// Custom Schriftart fonts (see render/fonts.ts) load async, just like
+	// template artwork — this re-rasterizes once the real typeface is ready.
+	const fontsVersion = useFontsVersion();
+	// Same canvas the wire encoder rasterizes: background painted first, then
+	// the foreground over it, which is what makes one pal4 frame out of two
+	// layers (see render/layers.ts).
 	const bitmap = useMemo(
-		() => rasterizeContent(content, widthPx, heightPx),
-		[JSON.stringify(content), widthPx, heightPx],
+		() =>
+			rasterizeContent(
+				layers.foreground ?? { type: "color", hex: layers.background },
+				{ widthPx, heightPx },
+				layers.foreground === null ? null : layers.background,
+			),
+		[
+			JSON.stringify(layers),
+			widthPx,
+			heightPx,
+			templateImagesVersion,
+			fontsVersion,
+		],
 	);
 	return <Bitmap src={bitmap} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
@@ -138,19 +160,30 @@ function ScrollingBitmap({
 		fontWeight: content.fontWeight,
 		fontFamily: content.fontFamily,
 	};
+	const fontsVersion = useFontsVersion();
 	const textWidthPx = useMemo(
 		() => Math.max(1, Math.round(measureTextWidthPx(content.value, font))),
-		[content.value, content.fontSizePx, content.fontWeight, content.fontFamily],
+		[
+			content.value,
+			content.fontSizePx,
+			content.fontWeight,
+			content.fontFamily,
+			fontsVersion,
+		],
 	);
 	const bitmap = useMemo(
-		() => rasterizeContent(content, textWidthPx, compositeHeightPx),
-		[JSON.stringify(content), textWidthPx, compositeHeightPx],
+		() =>
+			rasterizeContent(content, {
+				widthPx: textWidthPx,
+				heightPx: compositeHeightPx,
+			}),
+		[JSON.stringify(content), textWidthPx, compositeHeightPx, fontsVersion],
 	);
 	const offset = useMarqueeOffset(content.value.length > 0, {
 		compositeWidthPx,
 		textWidthPx,
 		speedPxPerSec: content.speedPxPerSec ?? 60,
-		pauseMs: LOOP_PAUSE_MS,
+		pauseMs: content.pauseMs ?? LOOP_PAUSE_MS,
 		direction: content.direction ?? "left",
 	});
 
@@ -168,7 +201,12 @@ function ScrollingBitmap({
 				<img
 					src={bitmap}
 					alt=""
-					style={{ ...PIXELATED, position: "absolute", left: offset, top: 0 }}
+					style={{
+						...BITMAP_STYLE,
+						position: "absolute",
+						left: offset,
+						top: 0,
+					}}
 				/>
 			</div>
 		</div>

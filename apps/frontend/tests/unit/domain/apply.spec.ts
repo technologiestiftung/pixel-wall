@@ -2,15 +2,20 @@
 import { describe, expect, test } from "vitest";
 import { buildApplyRequest } from "../../../src/domain/apply";
 import type { Content } from "../../../src/domain/types";
+import { EMPTY_LAYERS, withEdit } from "../../../src/domain/types";
 
-/** Keeps these cases reading as (wall, selection, content). */
+/** Keeps these cases reading as (wall, selection, content) — the content is
+ * folded into empty layers, i.e. an edit on screens showing nothing yet. */
 function build(
 	wall: Parameters<typeof buildApplyRequest>[0],
 	selection: Parameters<typeof buildApplyRequest>[1],
 	content: Content,
 ) {
-	return buildApplyRequest(wall, selection, { content });
+	return buildApplyRequest(wall, selection, {
+		layers: withEdit(EMPTY_LAYERS, content),
+	});
 }
+
 import type { LayoutPosition, ScreenSpec } from "../../../src/domain/types";
 
 const largeA: ScreenSpec = {
@@ -31,8 +36,8 @@ const positions: LayoutPosition[] = [
 ];
 
 describe("buildApplyRequest", () => {
-	test("color content: per-screen window uses each screen's own device pixel size", () => {
-		const request = build(
+	test("color content: per-screen window uses each screen's own device pixel size", async () => {
+		const request = await build(
 			{ specs: [largeA, largeB], positions },
 			{ kind: "large", screenIds: ["a", "b"] },
 			{ type: "color", hex: "#FE4441" },
@@ -57,8 +62,8 @@ describe("buildApplyRequest", () => {
 		expect(request.content.scroll).toBeUndefined();
 	});
 
-	test("scrolling text: includes scroll metadata with the fixed loop pause", () => {
-		const request = build(
+	test("scrolling text: includes scroll metadata with the fixed loop pause", async () => {
+		const request = await build(
 			{ specs: [largeA], positions },
 			{ kind: "large", screenIds: ["a"] },
 			{
@@ -86,8 +91,8 @@ describe("buildApplyRequest", () => {
 		expect(request.content.scroll?.compositeWidthPx).toBe(64);
 	});
 
-	test("static content has no scroll metadata", () => {
-		const request = build(
+	test("static content has no scroll metadata", async () => {
+		const request = await build(
 			{ specs: [largeA], positions },
 			{ kind: "large", screenIds: ["a"] },
 			{

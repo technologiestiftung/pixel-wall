@@ -28,14 +28,14 @@ async function samplePixel(
 test("has title", async ({ page }) => {
 	await page.goto("/");
 
-	await expect(page).toHaveTitle("Pixel Displays Foyer");
+	await expect(page).toHaveTitle("CityLAB Pixel Screens");
 });
 
 test("has h1", async ({ page }) => {
 	await page.goto("/");
 
 	await expect(
-		page.getByRole("heading", { name: "Pixel Displays Foyer", level: 1 }),
+		page.getByRole("heading", { name: "CityLAB Pixel Screens", level: 1 }),
 	).toBeVisible();
 });
 
@@ -44,9 +44,9 @@ test("selecting a screen updates the selection status", async ({ page }) => {
 
 	await expect(page.getByText("Kein Bildschirm ausgewählt")).toBeVisible();
 
-	await page.getByRole("button", { name: /Bildschirm 02/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 2/ }).click();
 
-	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirm 2 ausgewählt")).toBeVisible();
 });
 
 test("editing text and saving renders it on the screen, and it persists after deselecting", async ({
@@ -57,7 +57,7 @@ test("editing text and saving renders it on the screen, and it persists after de
 	const saveButton = page.getByRole("button", { name: "Speichern" });
 	await expect(saveButton).toBeDisabled();
 
-	const screen03 = page.getByRole("button", { name: /Bildschirm 03/ });
+	const screen03 = page.getByRole("button", { name: /Bildschirm 3/ });
 	await screen03.click();
 
 	await page.getByLabel("Text", { exact: true }).fill("HALLO");
@@ -87,13 +87,13 @@ test("composite bitmaps render at their true natural size, not shrunk by the bro
 	// does vary spatially, so a regression here can't hide the same way.
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 04/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 4/ }).click();
 	await page
-		.getByRole("button", { name: /Bildschirm 05/ })
+		.getByRole("button", { name: /Bildschirm 5/ })
 		.click({ modifiers: ["Shift"] });
 	await page.getByLabel("Text", { exact: true }).fill("HALLO WELT");
 
-	for (const id of ["04", "05"]) {
+	for (const id of ["4", "5"]) {
 		const img = page
 			.getByRole("button", { name: new RegExp(`Bildschirm ${id}`) })
 			.locator("img");
@@ -111,18 +111,18 @@ test("shift+click adds an adjacent large screen; a plain click on either replace
 }) => {
 	await page.goto("/");
 
-	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
-	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	const screen04 = page.getByRole("button", { name: /Bildschirm 4/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 7/ });
 
 	await screen04.click();
-	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirm 4 ausgewählt")).toBeVisible();
 
 	await screen07.click({ modifiers: ["Shift"] });
-	await expect(page.getByText("2 Bildschirme ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirme 4 und 7 ausgewählt")).toBeVisible();
 
 	// A plain click (no shift) on either replaces the whole selection.
 	await screen04.click();
-	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirm 4 ausgewählt")).toBeVisible();
 });
 
 test("a large-screen selection splits a solid color across both screens", async ({
@@ -130,17 +130,17 @@ test("a large-screen selection splits a solid color across both screens", async 
 }) => {
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 04/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 4/ }).click();
 	await page
-		.getByRole("button", { name: /Bildschirm 07/ })
+		.getByRole("button", { name: /Bildschirm 7/ })
 		.click({ modifiers: ["Shift"] });
-	await expect(page.getByText("2 Bildschirme ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirme 4 und 7 ausgewählt")).toBeVisible();
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#FE4441").click();
 
-	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
-	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	const screen04 = page.getByRole("button", { name: /Bildschirm 4/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 7/ });
 	await expect(screen04.locator("img")).toHaveCount(1);
 	await expect(screen07.locator("img")).toHaveCount(1);
 
@@ -155,9 +155,9 @@ test("saving goes through a real network round-trip, not just local state", asyn
 }) => {
 	await page.goto("/");
 
-	const screen03 = page.getByRole("button", { name: /Bildschirm 03/ });
+	const screen03 = page.getByRole("button", { name: /Bildschirm 3/ });
 	await screen03.click();
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#B4B9FF").click();
 
 	const applyRequestPromise = page.waitForRequest(
@@ -192,17 +192,17 @@ test("shift+clicking a screen of the other kind is rejected, not merged", async 
 }) => {
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 01/ }).click();
-	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await page.getByRole("button", { name: /Bildschirm 1/ }).click();
+	await expect(page.getByText("Bildschirm 1 ausgewählt")).toBeVisible();
 
 	// 04 is large, 01 is small — shift+click can't mix kinds, so this is a
 	// no-op: the small-screen selection is left exactly as it was.
 	await page
-		.getByRole("button", { name: /Bildschirm 04/ })
+		.getByRole("button", { name: /Bildschirm 4/ })
 		.click({ modifiers: ["Shift"] });
-	await expect(page.getByText("1 Bildschirm ausgewählt")).toBeVisible();
+	await expect(page.getByText("Bildschirm 1 ausgewählt")).toBeVisible();
 	await expect(
-		page.getByRole("button", { name: /Bildschirm 01/ }),
+		page.getByRole("button", { name: /Bildschirm 1/ }),
 	).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -218,12 +218,12 @@ test("layout edit mode disables selection and shows the drag instructions", asyn
 	await expect(page.getByText(/Ziehe die Bildschirme/)).toBeVisible();
 
 	// Clicking a screen in layout-edit mode must not select it.
-	await page.getByRole("button", { name: /Bildschirm 02/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 2/ }).click();
 	await expect(page.getByText(/Bildschirm.*ausgewählt/)).not.toBeVisible();
 
 	await page.getByRole("button", { name: "Layout fertig" }).click();
 	await expect(
-		page.getByRole("heading", { name: "Inhalte hinzufügen" }),
+		page.getByRole("heading", { name: "Screens anpassen" }),
 	).toBeVisible();
 });
 
@@ -233,7 +233,7 @@ test("dragging a screen moves it and persists the new layout to the backend", as
 	await page.goto("/");
 	await page.getByRole("button", { name: "Layout bearbeiten" }).click();
 
-	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 7/ });
 	const before = (await screen07.boundingBox())!;
 
 	const putPromise = page.waitForRequest(
@@ -287,9 +287,9 @@ test("dragging a screen that has saved content moves the tile itself, not just i
 	// instead of moving the screen.
 	await page.goto("/");
 
-	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 7/ });
 	await screen07.click();
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
 	await page.getByLabel("#FE4441").click();
 	await page.getByRole("button", { name: "Speichern" }).click();
 	await expect(screen07.locator("img")).toHaveCount(1);
@@ -321,8 +321,8 @@ test("dragging a screen onto another screen's position is prevented (no overlap)
 	await page.goto("/");
 	await page.getByRole("button", { name: "Layout bearbeiten" }).click();
 
-	const screen07 = page.getByRole("button", { name: /Bildschirm 07/ });
-	const screen04 = page.getByRole("button", { name: /Bildschirm 04/ });
+	const screen07 = page.getByRole("button", { name: /Bildschirm 7/ });
+	const screen04 = page.getByRole("button", { name: /Bildschirm 4/ });
 	const start = (await screen07.boundingBox())!;
 	const target = (await screen04.boundingBox())!;
 
@@ -362,59 +362,104 @@ test("the preview never needs to scroll, even in a fairly small window", async (
 	expect(scrollable).toBe(false);
 
 	// All 7 screens are still present, just scaled down to fit.
-	for (const id of ["01", "02", "03", "04", "05", "06", "07"]) {
+	for (const id of ["1", "2", "3", "4", "5", "6", "7"]) {
 		await expect(
 			page.getByRole("button", { name: new RegExp(`Bildschirm ${id}`) }),
 		).toBeVisible();
 	}
 });
 
-test("switching tabs with an unsaved draft asks whether to save or discard it", async ({
+test("switching tabs never asks to save or discard — each tab keeps its own draft", async ({
 	page,
 }) => {
-	// The draft is a single value shared across all three tabs (see
-	// state/reducer.ts "set-draft-content"): editing another tab's fields
-	// overwrites it outright, so leaving a tab with unsaved changes needs
-	// confirmation or the edit is silently lost.
+	// Text and Hintergrund write independent layers (see domain/types.ts
+	// "withEdit"), so an unsaved edit in one survives a trip through the
+	// other — no confirmation needed, and nothing gets silently dropped.
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 3/ }).click();
 	await page.getByLabel("Text", { exact: true }).fill("HALLO");
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("tab", { name: "Hintergrund" }).click();
+	await expect(
+		page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" }),
+	).not.toBeVisible();
+	await expect(page.getByRole("tab", { name: "Hintergrund" })).toHaveAttribute(
+		"aria-selected",
+		"true",
+	);
+	await page.getByLabel("#FE4441").click();
+
+	await page.getByRole("tab", { name: "Text", exact: true }).click();
+	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("HALLO");
+
+	// Both edits are still there to save together.
+	await expect(
+		page.getByText("Änderungen noch nicht gespeichert."),
+	).toBeVisible();
+	const saveButton = page.getByRole("button", { name: "Speichern" });
+	await expect(saveButton).toBeEnabled();
+});
+
+test("switching from Text to Animation/Bild silently drops the unsaved text draft (they share one foreground layer)", async ({
+	page,
+}) => {
+	await page.goto("/");
+
+	await page.getByRole("button", { name: /Bildschirm 3/ }).click();
+	await page.getByLabel("Text", { exact: true }).fill("HALLO");
+
+	await page.getByRole("tab", { name: "Animation/Bild" }).click();
+	await expect(
+		page.getByRole("alertdialog", { name: "Ungespeicherte Änderungen" }),
+	).not.toBeVisible();
+	await page.getByRole("button", { name: "Logo" }).click();
+
+	await page.getByRole("tab", { name: "Text", exact: true }).click();
+	// The text draft was dropped the moment a template was picked, not saved
+	// anywhere to come back to.
+	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("");
+});
+
+test("selecting a different screen with an unsaved draft still asks whether to save or discard it", async ({
+	page,
+}) => {
+	await page.goto("/");
+
+	await page.getByRole("button", { name: /Bildschirm 3/ }).click();
+	await page.getByLabel("Text", { exact: true }).fill("HALLO");
+
+	const screen04 = page.getByRole("button", { name: /Bildschirm 4/ });
+	await screen04.click();
 	const dialog = page.getByRole("alertdialog", {
 		name: "Ungespeicherte Änderungen",
 	});
 	await expect(dialog).toBeVisible();
-	// Switching didn't happen yet — still on the Text tab underneath the dialog.
+	// Switching didn't happen yet — 03 is still selected underneath the dialog.
 	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("HALLO");
 
-	// "Abbrechen" just closes the dialog, keeping the draft and the tab.
-	await dialog.getByRole("button", { name: "Abbrechen" }).click();
+	// The × button just closes the dialog, keeping the draft and the selection.
+	await dialog.getByRole("button", { name: "Schließen" }).click();
 	await expect(dialog).not.toBeVisible();
-	await expect(
-		page.getByRole("tab", { name: "Text", exact: true }),
-	).toHaveAttribute("aria-selected", "true");
+	await expect(page.getByText("Bildschirm 3 ausgewählt")).toBeVisible();
+	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("HALLO");
 
 	// "Verwerfen" drops the draft and completes the switch.
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await screen04.click();
 	await dialog.getByRole("button", { name: "Verwerfen" }).click();
 	await expect(dialog).not.toBeVisible();
-	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute(
-		"aria-selected",
-		"true",
-	);
+	await expect(page.getByLabel("Text", { exact: true })).toHaveValue("");
 });
 
-test("switching tabs can save the draft first, then completes the switch", async ({
+test("selecting a different screen can save the draft first, then completes the switch", async ({
 	page,
 }) => {
 	await page.goto("/");
 
-	await page.getByRole("button", { name: /Bildschirm 03/ }).click();
+	await page.getByRole("button", { name: /Bildschirm 3/ }).click();
 	await page.getByLabel("Text", { exact: true }).fill("HALLO");
 
-	await page.getByRole("tab", { name: "Farbe" }).click();
+	await page.getByRole("button", { name: /Bildschirm 4/ }).click();
 	const dialog = page.getByRole("alertdialog", {
 		name: "Ungespeicherte Änderungen",
 	});
@@ -427,8 +472,5 @@ test("switching tabs can save the draft first, then completes the switch", async
 	await applyRequestPromise;
 
 	await expect(dialog).not.toBeVisible();
-	await expect(page.getByRole("tab", { name: "Farbe" })).toHaveAttribute(
-		"aria-selected",
-		"true",
-	);
+	await expect(page.getByText("Bildschirm 4 ausgewählt")).toBeVisible();
 });

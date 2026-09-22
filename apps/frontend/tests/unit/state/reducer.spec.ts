@@ -12,6 +12,16 @@ function selectFour() {
 	});
 }
 
+const TEXT_FIELDS = {
+	mode: "static" as const,
+	fontSizePx: 16,
+	fontFamily: "monospace",
+	fontWeight: "700",
+	color: "#FFFFFF",
+	hAlign: "center" as const,
+	vAlign: "center" as const,
+};
+
 function wireContent(): WireContentDto {
 	const mask = createMask(32, 32);
 	setBit(mask, 1, 1);
@@ -42,7 +52,9 @@ describe("wallReducer: hydrated", () => {
 		});
 
 		const applied = next.applied["03"];
-		expect(applied?.source).toBe("remote");
+		// No layers came back with it, so only the flattened picture is known.
+		expect(applied?.bitmap).not.toBeNull();
+		expect(applied?.layers).toEqual({ background: null, foreground: null });
 		expect(applied).toMatchObject({ offsetXPx: 4, offsetYPx: 2 });
 		expect(next.brightness).toEqual({ small: 40, large: 80 });
 		expect(next.syncStatus).toBe("ready");
@@ -91,14 +103,13 @@ describe("wallReducer: apply-success", () => {
 		const next = wallReducer(afterClear, {
 			type: "apply-success",
 			selection: { kind: "large", screenIds: ["02"] },
-			content: { type: "color", hex: "#FE4441" },
+			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 		});
 
 		expect(next.applied["02"]).toMatchObject({
-			source: "local",
-			content: { type: "color", hex: "#FE4441" },
+			layers: { background: "#FE4441", foreground: null },
 		});
 	});
 });
@@ -177,7 +188,7 @@ describe("wallReducer: toggle-screen", () => {
 			additive: true,
 		});
 		expect(asked.selection).toEqual({ kind: "large", screenIds: ["04"] });
-		expect(asked.draft).not.toBeNull();
+		expect(asked.draftColor).not.toBeNull();
 
 		const discarded = wallReducer(asked, {
 			type: "resolve-intent",
@@ -185,7 +196,7 @@ describe("wallReducer: toggle-screen", () => {
 		});
 		expect(discarded.pendingIntent).toBeNull();
 		expect(discarded.selection?.screenIds.sort()).toEqual(["04", "07"]);
-		expect(discarded.draft).toBeNull();
+		expect(discarded.draftColor).toBeNull();
 	});
 
 	test("cancelling a held-back click leaves the draft and selection alone", () => {
@@ -204,7 +215,7 @@ describe("wallReducer: toggle-screen", () => {
 		});
 		expect(cancelled.pendingIntent).toBeNull();
 		expect(cancelled.selection).toEqual({ kind: "large", screenIds: ["04"] });
-		expect(cancelled.draft).toEqual({ type: "color", hex: "#FE4441" });
+		expect(cancelled.draftColor).toEqual({ type: "color", hex: "#FE4441" });
 	});
 
 	test("a click with nothing to lose selects straight away, no dialog", () => {
@@ -229,7 +240,51 @@ describe("wallReducer: discard-draft", () => {
 		});
 
 		const next = wallReducer(withDraft, { type: "discard-draft" });
-		expect(next.draft).toBeNull();
+		expect(next.draftColor).toBeNull();
 		expect(next.selection).toEqual({ kind: "large", screenIds: ["04"] });
+	});
+});
+
+describe("wallReducer: set-active-tab", () => {
+	test("switches the active tab directly, without going through pendingIntent", () => {
+		const withDraft = wallReducer(selectFour(), {
+			type: "set-draft-content",
+			content: { type: "text", ...TEXT_FIELDS, value: "HALLO" },
+		});
+
+		const next = wallReducer(withDraft, {
+			type: "set-active-tab",
+			tab: "color",
+		});
+		expect(next.activeTab).toBe("color");
+		expect(next.pendingIntent).toBeNull();
+		// Nothing was dropped — Hintergrund is an independent layer from the
+		// Text draft that's still in flight.
+		expect(next.draftText).not.toBeNull();
+	});
+
+	test("drafting text after drafting animation drops the animation draft, and vice versa", () => {
+		const withAnimation = wallReducer(selectFour(), {
+			type: "set-draft-content",
+			content: {
+				type: "animation",
+				templateId: "logo",
+				scalePercent: 100,
+				hAlign: "center",
+				vAlign: "center",
+			},
+		});
+		const withText = wallReducer(withAnimation, {
+			type: "set-active-tab",
+			tab: "text",
+		});
+		expect(withText.draftAnimation).not.toBeNull(); // switching alone keeps it
+
+		const afterTyping = wallReducer(withText, {
+			type: "set-draft-content",
+			content: { type: "text", ...TEXT_FIELDS, value: "HALLO" },
+		});
+		expect(afterTyping.draftText).not.toBeNull();
+		expect(afterTyping.draftAnimation).toBeNull();
 	});
 });

@@ -10,15 +10,17 @@ See `INTEGRATION-PLAN.md` for why these formats exist and
 
 ## Why 1-bit and 4-bit, not RGB
 
-Every v1 content type is monochrome. `src/render/rasterize.ts` draws text and
-template icons in `#ffffff`, and Farbe is a flat fill of one preset colour. So
-the entire content space is a 1-bit coverage mask plus one RGB colour — 512
-bytes for a 64×64 frame instead of 12,288 for RGB888.
+Text and Farbe are genuinely monochrome: `src/render/rasterize.ts` draws text
+in `#ffffff`, and Farbe is a flat fill of one preset colour. Both travel as
+`mask1` — a 1-bit coverage mask plus one RGB colour — 512 bytes for a 64×64
+frame instead of 12,288 for RGB888, and 4× smaller than `pal4` on the one
+size-critical case, a Lauftext filmstrip.
 
-Multi-colour content uses `pal4` instead (below) and must not be faked by
-dithering a `mask1` mask. `mask1` stays the default and carries all text,
-because it is 4× smaller on the one size-critical case — a Lauftext
-filmstrip, which is always single-coloured.
+Animation/Bild always travels as `pal4` instead, whether a given template
+happens to be genuinely multi-coloured brand artwork or one of the older
+hand-drawn single-colour icons — `src/render/wire.ts` does not special-case
+per template, so no template is ever forced into a colour it doesn't have,
+and multi-colour content must not be faked by dithering a `mask1` mask.
 
 ## JSON envelope (HTTP and state file)
 

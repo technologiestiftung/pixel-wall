@@ -193,7 +193,9 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     frames = {}
     for target in payload.screens:
         content, window = compose.slice_for_screen(payload.content, target.window)
-        current.screens[target.screenId] = ScreenStateModel(window=window, content=content)
+        current.screens[target.screenId] = ScreenStateModel(
+            window=window, content=content, source=payload.source
+        )
         frames[target.screenId] = compose.frame_for_screen(
             content, window, kind_brightness
         )

@@ -1,0 +1,58 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes kf_Vector_transform_0 {
+  0% {
+    transform: translateX(275px) translateY(163px) translateX(0px) translateY(0px);
+  }
+  50% {
+    transform: translateX(275px) translateY(163px) translateX(125px) translateY(0px);
+  }
+  100% {
+    transform: translateX(275px) translateY(163px) translateX(0px) translateY(0px);
+  }
+}
+#Vector {
+  transform-origin: 0 0;
+  animation: kf_Vector_transform_0 4s linear infinite;
+}
+@keyframes kf_Vector_2_transform_0 {
+  0% {
+    transform: translateX(145px) translateY(80px) translateX(0px) translateY(0px);
+  }
+  50% {
+    transform: translateX(145px) translateY(80px) translateX(0px) translateY(-78px);
+  }
+  100% {
+    transform: translateX(145px) translateY(80px) translateX(0px) translateY(0px);
+  }
+}
+#Vector_2 {
+  transform-origin: 0 0;
+  animation: kf_Vector_2_transform_0 4s linear infinite;
+}
+@keyframes kf_Vector_3_transform_0 {
+  0% {
+    transform: translateX(135px) translateY(229px) translateX(0px) translateY(0px);
+  }
+  50% {
+    transform: translateX(135px) translateY(229px) translateX(-125px) translateY(71px);
+  }
+  100% {
+    transform: translateX(135px) translateY(229px) translateX(0px) translateY(0px);
+  }
+}
+#Vector_3 {
+  transform-origin: 0 0;
+  animation: kf_Vector_3_transform_0 4s linear infinite;
+}
+</style>
+<g id="CLB-Website-2026-Werte-co-kreativ-20260313_5" clip-path="url(#clip0_36_152)">
+<path id="Vector" transform="translate(275 163)" d="M230 264.667V0L0 132.333V397L230 264.667Z" fill="#1E3791"/>
+<path id="Vector_2" transform="translate(145 80)" d="M0 132L229.328 0L344 66L114.672 198L0 132Z" fill="#FE4441"/>
+<path id="Vector_3" transform="translate(135 229)" d="M0 0L114 66.2V331L0 264.8V0Z" fill="#FFCFD6"/>
+</g>
+<defs>
+<clipPath id="clip0_36_152"><rect width="640" height="640" fill="white"/>
+</clipPath>
+</defs>
+</svg>

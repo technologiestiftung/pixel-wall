@@ -56,6 +56,13 @@ export const DEFAULT_LAYOUT: LayoutPosition[] = [
 	{ screenId: "07", xMm: 255, yMm: 290 },
 ];
 
+/** Screen ids are zero-padded ("01"–"07") for stable sorting/lookup, but
+ * that padding reads as a typo in prose (menu selection text, tile badges) —
+ * this is the plain-number form shown to users. */
+export function displayScreenId(id: string): string {
+	return String(Number(id));
+}
+
 export function specById(specs: ScreenSpec[], id: string): ScreenSpec {
 	const spec = specs.find((s) => s.id === id);
 	if (!spec) {

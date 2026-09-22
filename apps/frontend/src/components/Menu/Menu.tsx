@@ -2,6 +2,7 @@ import { defaultContentFor } from "../../domain/content";
 import type {
 	AnimationContent,
 	ColorContent,
+	Content,
 	ContentType,
 	TextContent,
 } from "../../domain/types";
@@ -12,7 +13,7 @@ import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
 import { BrightnessSlider } from "./BrightnessSlider";
 import { EditActions } from "./EditActions";
-import { FarbePanel } from "./FarbePanel";
+import { HintergrundPanel } from "./HintergrundPanel";
 import { SelectionStatus } from "./SelectionStatus";
 import { TabBar } from "./TabBar";
 import { TextPanel } from "./TextPanel";
@@ -20,28 +21,41 @@ import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 export function Menu() {
 	const state = useWallState();
-	const { selection, activeTab, draft, layoutEditMode, pendingIntent } = state;
+	const {
+		selection,
+		activeTab,
+		draftText,
+		draftAnimation,
+		draftColor,
+		layoutEditMode,
+		pendingIntent,
+	} = state;
 	const dispatch = useWallDispatch();
 	const { handleApply, isPreviewing } = useApplyChanges();
 	usePreviewGuard();
 
-	const current =
-		draft && draft.type === activeTab ? draft : defaultContentFor(activeTab);
-
-	// Anything that would drop the draft — switching tabs, selecting other
-	// screens, clearing the selection, entering layout mode — is held back by
-	// the reducer as a pending intent until the user says what to do with it.
-	// The tab case is the sharpest: the draft is a single value shared across
-	// tabs (see domain/apply.ts), so editing another tab's fields overwrites
-	// whatever was drafted for the current one.
-	function handleTabChange(tab: ContentType) {
-		if (tab === activeTab) {
-			return;
+	function currentContentFor(tab: ContentType): Content {
+		switch (tab) {
+			case "text":
+				return draftText ?? defaultContentFor("text");
+			case "animation":
+				return draftAnimation ?? defaultContentFor("animation");
+			case "color":
+				return draftColor ?? defaultContentFor("color");
+			default:
+				throw new Error(`Unknown content type: ${tab satisfies never}`);
 		}
-		dispatch({
-			type: "request-intent",
-			intent: { kind: "set-active-tab", tab },
-		});
+	}
+	const current = currentContentFor(activeTab);
+
+	// Selecting other screens, clearing the selection, and entering layout
+	// mode all drop the current draft(s), so the reducer holds them back as a
+	// pending intent until the user says what to do with it. Switching tabs is
+	// free — each tab keeps its own draft — except Text and Animation/Bild
+	// share one foreground layer, so editing one silently drops the other (see
+	// state/reducer.ts "set-draft-content").
+	function handleTabChange(tab: ContentType) {
+		dispatch({ type: "set-active-tab", tab });
 	}
 
 	function handleCancelIntent() {
@@ -91,33 +105,40 @@ export function Menu() {
 		// Only the fields scroll: the actions are a footer outside the scroll
 		// area, so a long panel can never push Speichern out of sight.
 		<aside className="flex w-[360px] shrink-0 flex-col border-r-[0.5px] border-[#595959] bg-white">
-			<div className="flex flex-1 flex-col gap-5 overflow-y-auto p-7 pb-5">
+			<div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 pb-5">
 				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
-					Inhalte hinzufügen
+					Screens anpassen
 				</h2>
 				<SelectionStatus />
 				<TabBar active={activeTab} onChange={handleTabChange} />
 
 				{selection ? (
 					<>
-						{activeTab === "text" && (
-							<TextPanel
-								content={current as TextContent}
-								onChange={handleContentChange}
-							/>
-						)}
-						{activeTab === "animation" && (
-							<AnimationPanel
-								content={current as AnimationContent}
-								onChange={handleContentChange}
-							/>
-						)}
-						{activeTab === "color" && (
-							<FarbePanel
-								content={current as ColorContent}
-								onChange={handleContentChange}
-							/>
-						)}
+						{/* No aria-labelledby here: it would give this wrapper the
+						same accessible name as the tab's own form field (e.g.
+						"Text"), which makes them indistinguishable to label-based
+						lookups. aria-controls on the tab button already links the
+						two. */}
+						<div role="tabpanel" id={`panel-${activeTab}`} className="contents">
+							{activeTab === "text" && (
+								<TextPanel
+									content={current as TextContent}
+									onChange={handleContentChange}
+								/>
+							)}
+							{activeTab === "animation" && (
+								<AnimationPanel
+									content={current as AnimationContent}
+									onChange={handleContentChange}
+								/>
+							)}
+							{activeTab === "color" && (
+								<HintergrundPanel
+									content={current as ColorContent}
+									onChange={handleContentChange}
+								/>
+							)}
+						</div>
 
 						<hr className="border-[#e4e4e0]" />
 
@@ -134,9 +155,11 @@ export function Menu() {
 						/>
 					</>
 				) : (
-					<p className="text-[13px] text-[#6b6b66]">
-						Wähle einen oder mehrere Bildschirme in der Vorschau aus.
-					</p>
+					<div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-[13px] text-blue-700">
+						Kein Bildschirm ausgewählt. Wähle einen oder mehrere Screens aus
+						(Shift-Taste bei der Auswahl gedrückt halten), um neue Inhalte auf
+						die Screens zu ziehen.
+					</div>
 				)}
 			</div>
 
