@@ -102,13 +102,14 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 							}
 							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
 						>
+							<option value="Host Grotesk, ui-monospace, monospace">
+								Host Grotesk
+							</option>
 							<option value="Pixelify Sans, ui-monospace, monospace">
 								Pixelify Sans
 							</option>
 							<option value="ui-monospace, monospace">Monospace</option>
-							<option value="Host Grotesk, ui-monospace, monospace">
-								Host Grotesk
-							</option>
+							
 						</select>
 						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
 					</div>

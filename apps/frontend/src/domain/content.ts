@@ -55,7 +55,7 @@ const DEFAULT_TEXT: TextContent = {
 	mode: "static",
 	value: "",
 	fontSizePx: 16,
-	fontFamily: "Pixelify Sans, ui-monospace, monospace",
+	fontFamily: "Host Grotesk, ui-monospace, monospace",
 	fontWeight: "700",
 	color: "#FFFFFF",
 	direction: "left",
