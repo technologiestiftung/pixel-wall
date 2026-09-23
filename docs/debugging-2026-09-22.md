@@ -855,3 +855,27 @@ Full sweep — `pwm_lsb_nanoseconds` × two brightness levels (85%, a known-bad 
 - Oscilloscope check on OE/row-address lines at 85–100% — still the most direct way to settle this.
 - Full 4-panel confirmation once a real fix candidate exists (this and all recent sessions have used 2 panels only).
 - Restore `bluetooth.service`/NTP/`state.json`/`ledwall-display.service` to clean idle state — still outstanding from before, unchanged this session (service left `inactive`, as found).
+
+**Update, same day**: contrary to the "held back pending a full ghosting fix" note above, the flicker fix (`disable_hardware_pulsing=True` / `LEDWALL_NO_HARDWARE_PULSE=1`) and the 75Hz refresh cap were committed and deployed later this same day (see git history) — the user decided not to wait for the ghosting question to close. `ledwall-display.service` on the Pi now has `LEDWALL_NO_HARDWARE_PULSE=1` wired in (previously present in `pi_display.py`'s code but never actually turned on via the deployed unit). The service was reinstalled with `daemon-reload` but **restarting it was blocked by tooling permissions and is still outstanding** — it remains `inactive` on the Pi as of this write-up; someone needs to run `sudo systemctl restart ledwall-display` by hand to actually pick up the new config.
+
+## Follow-up session, 2026-09-23 — `led_row_addr_type` A/B: ruled out, all three non-default values break row geometry
+
+Continuation of the same live session (`welcome-pixel-pi`), same hardware (two 64×64 panels, bonnet output 1, `chain_length=2, parallel=1`). Extended `/tmp/ghost_test.py` with a `row_address_type` CLI arg (confirmed via `dir(RGBMatrixOptions())` on the Pi that the Python binding's attribute is `row_address_type`, not `row_addr_type`). Held `pwm_lsb_nanoseconds=220` fixed (the least-bad value from the sweep above), `disable_hardware_pulsing=True`, `gpio_slowdown=2`, `limit_refresh_rate_hz=75`, brightness 85% (known-bad), one fresh process per value.
+
+| `row_address_type` | Result |
+|---|---|
+| 0 (current default) | Ghosting still present (matches prior sweep's 220ns/85% result — reproducible baseline) |
+| 3 | **Row geometry broken**: the white bars visibly shifted position (moved up/down from their drawn rows 20-22/44-46), on top of still showing ghosting |
+| 4 | Also wrong — same class of geometry break |
+| 5 | Also wrong — same class of geometry break |
+
+**Conclusion: `led_row_addr_type` is ruled out.** Types 3/4/5 aren't a milder/stronger variant of the same addressing — they're a *different* addressing scheme (for ABC/ABC+DE-wired panel variants), and using the wrong one for this panel's actual wiring doesn't just fail to fix ghosting, it breaks basic row placement. This confirms type 0 (the existing, unset-defaults-to-0 behavior) is in fact the electrically correct choice for these panels — the ghosting is not an addressing-type mismatch, it's a timing-margin problem within the correct addressing scheme. No further value in this knob; don't revisit unless the panel hardware itself changes.
+
+### Not yet done (updated)
+
+With both `pwm_lsb_nanoseconds` and `led_row_addr_type` now ruled out as fixes, the remaining leads are:
+- `led_multiplexing` — still lowest priority, only relevant for non-standard internal pixel mappings (typically outdoor-rated panels); check the panel's actual chipset/datasheet before trying, since it's unlikely to apply here and, like `row_address_type`, a wrong value probably breaks image geometry rather than just failing to fix ghosting.
+- **Oscilloscope check on OE and the row-address lines at 85–100% brightness — now the most promising remaining lead**, and arguably should be next rather than `led_multiplexing`: two independent software knobs that directly target this exact symptom have both failed to fix it without introducing a new problem, which points more at a genuine hardware/analog timing margin (matching the bonnet-bypass session's earlier signal-integrity read) than something left to dial in software.
+- Full 4-panel confirmation once a real fix candidate exists — still not reached, all ghosting testing to date has used 2 panels only.
+- Restart `ledwall-display.service` on the Pi to pick up the newly deployed flicker fix (blocked this session by tooling permissions — see the update note above).
+- Restore `bluetooth.service`/NTP/`state.json` to clean idle state — still outstanding, unchanged this session.
