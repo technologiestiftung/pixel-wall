@@ -58,13 +58,18 @@ TARGET_FRAME_INTERVAL = 1 / 60
 # PWM_BITS is the usual first move against flicker: it cuts the refresh work
 # per frame at the cost of colour depth.
 #
-# These defaults are the bench-measured configuration, not guesses. Shifting
-# bits out is ~92% of frame time, so refresh scales almost linearly with
-# PWM_BITS: 8 bits at slowdown 2 measured 78.5 Hz on this wall, which is under
-# the ~100 Hz the eye stops seeing. 6 bits buys the headroom and is ample for
-# text and flat colour. Re-measure with LEDWALL_SHOW_REFRESH=1 after changing
-# either of these, and with the display service stopped so nothing else holds
-# the GPIO.
+# These defaults are bench-measured, not guesses — and the measurements say
+# refresh is NOT linear in PWM_BITS on this wall, despite shifting bits out
+# being ~92% of frame time in theory. 8 bits measured 78.5 Hz; 6 bits measured
+# ~83 Hz (not the ~105 Hz linear scaling predicts); 5 bits measured ~83.5 Hz
+# (should have been closer to 100 Hz). GPIO_SLOWDOWN=1 didn't move it either
+# (~83.6 Hz) and introduced visible corruption, so it's not GPIO-toggle-speed
+# bound. Refresh is pinned around 80-84 Hz regardless of these two knobs,
+# which points at a real hardware ceiling (see docs/debugging-2026-09-22.md)
+# rather than something tunable here. 6 bits is kept for the colour depth
+# since 5 bits bought no measurable speed. Re-measure with LEDWALL_SHOW_REFRESH=1
+# after changing either of these, and with the display service stopped so
+# nothing else holds the GPIO.
 PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "6"))
 PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "130"))
 GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "2"))
@@ -72,8 +77,10 @@ GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "2"))
 # Pads short frames so the refresh period is constant. Left above the rate the
 # hardware actually achieves it does nothing at all, and refresh then drifts
 # with canvas content — which reads as flicker even when the average rate is
-# fine. Keep this just below the measured rate.
-LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "100"))
+# fine. Keep this below the *lowest* measured rate under real content, not the
+# average — 75 Hz here, ~5 Hz under the 79.8 Hz floor measured at these
+# PWM_BITS/GPIO_SLOWDOWN settings (2026-09-22).
+LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "75"))
 
 # "regular" suits a generic multi-port adapter. An Adafruit HAT/bonnet needs
 # "adafruit-hat" (or "adafruit-hat-pwm" with the GPIO4-GPIO18 bridge made) —
