@@ -54,33 +54,21 @@ STATE_POLL_INTERVAL = 0.2    # seconds between state re-reads
 TARGET_FRAME_INTERVAL = 1 / 60
 
 # Panel tuning, overridable without editing code because the right values are
-# specific to the wiring and can only be found by looking at the wall. Lower
-# PWM_BITS is the usual first move against flicker: it cuts the refresh work
-# per frame at the cost of colour depth.
+# specific to the wiring and can only be found by looking at the wall.
 #
-# These defaults are bench-measured, not guesses — and the measurements say
-# refresh is NOT linear in PWM_BITS on this wall, despite shifting bits out
-# being ~92% of frame time in theory. 8 bits measured 78.5 Hz; 6 bits measured
-# ~83 Hz (not the ~105 Hz linear scaling predicts); 5 bits measured ~83.5 Hz
-# (should have been closer to 100 Hz). GPIO_SLOWDOWN=1 didn't move it either
-# (~83.6 Hz) and introduced visible corruption, so it's not GPIO-toggle-speed
-# bound. Refresh is pinned around 80-84 Hz regardless of these two knobs,
-# which points at a real hardware ceiling (see docs/debugging-2026-09-22.md)
-# rather than something tunable here. 6 bits is kept for the colour depth
-# since 5 bits bought no measurable speed. Re-measure with LEDWALL_SHOW_REFRESH=1
-# after changing either of these, and with the display service stopped so
-# nothing else holds the GPIO.
-PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "6"))
-PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "130"))
-GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "2"))
-
-# Pads short frames so the refresh period is constant. Left above the rate the
-# hardware actually achieves it does nothing at all, and refresh then drifts
-# with canvas content — which reads as flicker even when the average rate is
-# fine. Keep this below the *lowest* measured rate under real content, not the
-# average — 75 Hz here, ~5 Hz under the 79.8 Hz floor measured at these
-# PWM_BITS/GPIO_SLOWDOWN settings (2026-09-22).
-LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "75"))
+# These defaults are bench-measured, not guesses (see
+# docs/debugging-2026-09-22.md). Earlier sessions found refresh pinned around
+# 80-84 Hz regardless of PWM_BITS/GPIO_SLOWDOWN and fought flicker/ghosting by
+# disabling hardware pulsing and capping the refresh rate. Adding
+# PWM_DITHER_BITS instead lets full colour depth (11 bits) run without that
+# workaround: PWM_LSB_NANOSECONDS=50 (down from 130) and GPIO_SLOWDOWN=3 (up
+# from 2) is the combination that held up flicker/ghosting-free on this wall
+# on 2026-09-24. Re-measure with LEDWALL_SHOW_REFRESH=1 after changing any of
+# these, and with the display service stopped so nothing else holds the GPIO.
+PWM_BITS = int(os.environ.get("LEDWALL_PWM_BITS", "11"))
+PWM_LSB_NANOSECONDS = int(os.environ.get("LEDWALL_PWM_LSB_NS", "50"))
+GPIO_SLOWDOWN = int(os.environ.get("LEDWALL_GPIO_SLOWDOWN", "3"))
+PWM_DITHER_BITS = int(os.environ.get("LEDWALL_PWM_DITHER_BITS", "1"))
 
 # "regular" suits a generic multi-port adapter. An Adafruit HAT/bonnet needs
 # "adafruit-hat" (or "adafruit-hat-pwm" with the GPIO4-GPIO18 bridge made) —
@@ -88,13 +76,10 @@ LIMIT_REFRESH_HZ = int(os.environ.get("LEDWALL_REFRESH_HZ", "75"))
 # Wrong mapping shows up as missing colour channels, not as a failure to start.
 HARDWARE_MAPPING = os.environ.get("LEDWALL_HARDWARE_MAPPING", "regular")
 
-# Diagnostics. SHOW_REFRESH prints the achieved refresh rate to stderr, which
-# is the number that actually decides whether flicker is visible — below about
-# 100 Hz the eye starts to see it. DISABLE_HARDWARE_PULSING falls back to
-# software timing; on some adapter boards the hardware PWM pin is not the one
-# wired to OE, and the fallback is steadier.
+# Diagnostic: prints the achieved refresh rate to stderr, which is the number
+# that actually decides whether flicker is visible — below about 100 Hz the
+# eye starts to see it.
 SHOW_REFRESH = os.environ.get("LEDWALL_SHOW_REFRESH", "0") == "1"
-DISABLE_HARDWARE_PULSING = os.environ.get("LEDWALL_NO_HARDWARE_PULSE", "0") == "1"
 
 EMPTY_STATE: dict = {"screens": {}, "brightness": {"small": 60, "large": 60}}
 
@@ -143,12 +128,11 @@ def build_matrix(brightness):
     # Quality and stability.
     options.brightness = brightness
     options.pwm_bits = PWM_BITS
+    options.pwm_dither_bits = PWM_DITHER_BITS
     options.pwm_lsb_nanoseconds = PWM_LSB_NANOSECONDS
     options.gpio_slowdown = GPIO_SLOWDOWN
-    options.limit_refresh_rate_hz = LIMIT_REFRESH_HZ
     options.drop_privileges = False
     options.show_refresh_rate = SHOW_REFRESH
-    options.disable_hardware_pulsing = DISABLE_HARDWARE_PULSING
 
     return RGBMatrix(options=options)
 

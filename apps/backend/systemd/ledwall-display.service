@@ -12,14 +12,10 @@ Environment=LEDWALL_STATE_FILE=/var/lib/ledwall/state.json
 # not in a shell: env vars exported by hand do not survive a reboot, and the
 # unit is what actually drives the wall. Keep them in step with the defaults in
 # pi_display.py, and re-measure (LEDWALL_SHOW_REFRESH=1) after any change.
-Environment=LEDWALL_PWM_BITS=6
-Environment=LEDWALL_GPIO_SLOWDOWN=2
-Environment=LEDWALL_REFRESH_HZ=75
-# Disabled: this Pi+bonnet's hardware PWM peripheral (GPIO18) is marginal and
-# causes value-dependent flicker (see docs/debugging-2026-09-22.md). Software
-# pulsing is normally the worse option per the rgbmatrix library's own docs,
-# but it's the confirmed fix here.
-Environment=LEDWALL_NO_HARDWARE_PULSE=1
+# See docs/debugging-2026-09-22.md for how this combination was arrived at.
+Environment=LEDWALL_PWM_BITS=11
+Environment=LEDWALL_GPIO_SLOWDOWN=3
+Environment=LEDWALL_PWM_DITHER_BITS=1
 ExecStart=/usr/bin/python3 /home/pi/ledwall/apps/backend/pi_display.py
 Restart=always
 RestartSec=3

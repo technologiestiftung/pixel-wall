@@ -879,3 +879,18 @@ With both `pwm_lsb_nanoseconds` and `led_row_addr_type` now ruled out as fixes, 
 - Full 4-panel confirmation once a real fix candidate exists — still not reached, all ghosting testing to date has used 2 panels only.
 - Restart `ledwall-display.service` on the Pi to pick up the newly deployed flicker fix (blocked this session by tooling permissions — see the update note above).
 - Restore `bluetooth.service`/NTP/`state.json` to clean idle state — still outstanding, unchanged this session.
+
+## Follow-up session, 2026-09-24 — `pwm_dither_bits` fixes it, hardware pulsing and the refresh cap turned back on
+
+Manual testing via the demo binary (`sudo timeout --signal=KILL 8 ./demo runtext.ppm --led-rows=64 --led-cols=64 --led-chain=2 --led-show-refresh --led-pwm-dither-bits=1 --led-pwm-lsb-nanoseconds=50 --led-row-addr-type=0 --led-pwm-bits=11 --led-slowdown-gpio=3 -D 2`) found a config that runs flicker- and ghosting-free without either of the two workarounds the 2026-09-22/23 sessions had landed as the confirmed (if unsatisfying) fix: `disable_hardware_pulsing` and the 75 Hz `limit_refresh_rate_hz` cap.
+
+The knob that wasn't tried in the prior sessions is `pwm_dither_bits=1`. Combined with retuned timings — `pwm_bits=11` (full colour depth, up from 6), `pwm_lsb_nanoseconds=50` (down from 130), `gpio_slowdown=3` (up from 2) — it held up clean with hardware pulsing left **on** and no refresh-rate cap. `led_row_addr_type=0` matches the existing default, consistent with the 2026-09-23 conclusion that type 0 is correct for this wiring.
+
+This looks like the same "genuine hardware/analog timing margin" this doc's prior "not yet done" section suspected, just tunable via a different knob (dithering) than the two that had already been ruled out (`pwm_lsb_nanoseconds` alone, `led_row_addr_type`). The oscilloscope check on OE/row-address lines is no longer blocking — this is not a confirmed root-cause explanation, just the empirically-best config found by hand.
+
+Landed in `pi_display.py`/`ledwall-display.service`: `PWM_BITS=11`, `PWM_LSB_NANOSECONDS=50`, `GPIO_SLOWDOWN=3`, `PWM_DITHER_BITS=1` (new); `LIMIT_REFRESH_HZ`/`limit_refresh_rate_hz` and `DISABLE_HARDWARE_PULSING`/`disable_hardware_pulsing` removed entirely rather than left as unused off-by-default options, since they were the previous fix and are now superseded.
+
+**Not yet done:**
+- Full 4-panel confirmation — this session, like the ones before it, tested on 2 panels only.
+- Longer soak test (this was an 8-second `timeout` run per the demo binary's own default safety limit) to rule out drift or heat-related regressions the short manual runs wouldn't catch.
+- Restart `ledwall-display.service` on the Pi to actually pick up this config — the unit's `Environment=` lines and `pi_display.py` are only effective after a `daemon-reload` (env vars changed) and a restart.
