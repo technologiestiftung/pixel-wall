@@ -37,7 +37,11 @@ One JSON object per screen.
 	"data": "UAEBAJQAQAA...",
 	"window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
 	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 },
-	"frames": { "frameCount": 12, "frameDurationMs": 83.3, "compositeWidthPx": 64 },
+	"frames": {
+		"frameCount": 12,
+		"frameDurationMs": 83.3,
+		"compositeWidthPx": 64
+	},
 	"background": [30, 55, 145]
 }
 ```
@@ -49,8 +53,8 @@ One JSON object per screen.
 | `color`               | `[r, g, b]`           | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette.                                                                                                                                                                                                                                                                                                                                    |
 | `data`                | string                | base64 of the binary block below.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `window`              | object                | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0.                                                                                                                                                                                                                                                                                                                                                                     |
-| `scroll`              | object or absent      | Present only for Lauftext. Absent means a static frame. Mutually exclusive with `frames` — a renderer never has to handle both on the same content.                                                                                                                                                                                                                                                                                                                               |
-| `frames`              | object or absent      | Present only for an animated Animation/Bild template. See "`frames`" below. Large (Pi) screens only for now — see `docs/adr/0002-phase-animated-templates-by-hardware-kind.md` and `docs/plan-esp32-animation-frames.md`. Absent everywhere else, including today's ESP32-driven small screens, which show `data`'s first frame statically until that phase lands.                                                                                                            |
+| `scroll`              | object or absent      | Present only for Lauftext. Absent means a static frame. Mutually exclusive with `frames` — a renderer never has to handle both on the same content.                                                                                                                                                                                                                                                                                                                                |
+| `frames`              | object or absent      | Present only for an animated Animation/Bild template. See "`frames`" below. Large (Pi) screens only for now — see `docs/adr/0002-phase-animated-templates-by-hardware-kind.md` and `docs/plan-esp32-animation-frames.md`. Absent everywhere else, including today's ESP32-driven small screens, which show `data`'s first frame statically until that phase lands.                                                                                                                 |
 | `background`          | `[r, g, b]` or absent | A static fill a renderer paints _behind_ `data`, wherever `data` has nothing lit (`mask1` clear bit, or `pal4` index 0) — never baked into `data` itself, since for a scrolling frame that would pan along with the text. Present only for Lauftext on large (Pi) screens for now — see `docs/adr/0001-phase-lauftext-background-by-hardware-kind.md`. Absent everywhere else, including today's ESP32-driven small screens, which keep rendering on black until that phase lands. |
 
 `widthPx` and `heightPx` describe the mask, which for Lauftext is the full
@@ -81,10 +85,10 @@ single process and all three small screens from a single board.
 
 ### `frames`
 
-| Field              | Type   | Notes                                                                                          |
-| ------------------ | ------ | ------------------------------------------------------------------------------------------------ |
-| `frameCount`       | number | How many frames `data` contains, 1–255.                                                          |
-| `frameDurationMs`  | number | How long each frame is shown before advancing to the next.                                       |
+| Field              | Type   | Notes                                                                                           |
+| ------------------ | ------ | ----------------------------------------------------------------------------------------------- |
+| `frameCount`       | number | How many frames `data` contains, 1–255.                                                         |
+| `frameDurationMs`  | number | How long each frame is shown before advancing to the next.                                      |
 | `compositeWidthPx` | number | Width of one frame — not `widthPx`, which is the whole strip (`frameCount * compositeWidthPx`). |
 
 A renderer picks `floor(elapsedMs / frameDurationMs) % frameCount`, then

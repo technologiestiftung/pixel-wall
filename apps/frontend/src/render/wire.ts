@@ -99,7 +99,11 @@ async function contentToPal4Wire(
 	if (content.type === "animation") {
 		const template = TEMPLATES.find((t) => t.id === content.templateId);
 		if (template?.animated) {
-			return animationToFramesWire(content, template, { width, height, background });
+			return animationToFramesWire(content, template, {
+				width,
+				height,
+				background,
+			});
 		}
 	}
 
@@ -218,7 +222,10 @@ export function wireToDataUrl(content: WireContentDto): string {
 	// A `frames` payload's `data` is the whole multi-frame strip (see
 	// animationToFramesWire above) — this static preview shows just frame 0,
 	// which is exactly the strip's first `compositeWidthPx`-wide slot.
-	canvas.width = Math.max(1, content.frames?.compositeWidthPx ?? content.widthPx);
+	canvas.width = Math.max(
+		1,
+		content.frames?.compositeWidthPx ?? content.widthPx,
+	);
 	canvas.height = Math.max(1, content.heightPx);
 	const ctx = canvas.getContext("2d");
 	if (!ctx) {

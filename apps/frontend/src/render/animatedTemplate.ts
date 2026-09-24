@@ -79,7 +79,8 @@ export async function renderAnimationFrameStrip(
 			return null;
 		}
 
-		const viewBoxWidth = svgRoot.viewBox.baseVal.width || svgRoot.width.baseVal.value;
+		const viewBoxWidth =
+			svgRoot.viewBox.baseVal.width || svgRoot.width.baseVal.value;
 		if (!(viewBoxWidth > 0)) {
 			return null;
 		}
@@ -105,7 +106,8 @@ export async function renderAnimationFrameStrip(
 		}
 
 		for (let frame = 0; frame < frameCount; frame++) {
-			const frameTimeMs = durationMs > 0 ? (frame / frameCount) * durationMs : 0;
+			const frameTimeMs =
+				durationMs > 0 ? (frame / frameCount) * durationMs : 0;
 			animations.forEach((animation) => {
 				animation.currentTime = frameTimeMs;
 			});

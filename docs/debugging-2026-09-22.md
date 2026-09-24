@@ -33,36 +33,36 @@ Showing an image (denser content) flickered at any brightness.
   specifically. Not yet tried: swapping in a spare panel at that exact spot to
   do a final confirm.
 
-## Finding 2 — Whole-wall flicker is brightness-*value*-dependent, not brightness-*level*-dependent
+## Finding 2 — Whole-wall flicker is brightness-_value_-dependent, not brightness-_level_-dependent
 
 This is the more novel finding this session. Manually stepping brightness one
 deliberate value at a time (single "Speichern" click, holding each) produced
 an irregular, **non-monotonic** map — not "worse at higher brightness":
 
-| Brightness | Result |
-|---|---|
-| 16% | flickers |
-| 21% | clean |
-| 26% | flickers |
-| 30–33% | clean |
-| 34–36% | flickers |
-| 37–39% | clean |
-| 40–41% | flickers |
-| 42–44% | clean |
-| 45% | flickers |
-| 54% | clean |
-| above 54% | mostly flickers, not exhaustively checked |
+| Brightness | Result                                    |
+| ---------- | ----------------------------------------- |
+| 16%        | flickers                                  |
+| 21%        | clean                                     |
+| 26%        | flickers                                  |
+| 30–33%     | clean                                     |
+| 34–36%     | flickers                                  |
+| 37–39%     | clean                                     |
+| 40–41%     | flickers                                  |
+| 42–44%     | clean                                     |
+| 45%        | flickers                                  |
+| 54%        | clean                                     |
+| above 54%  | mostly flickers, not exhaustively checked |
 
 (Panel `06`'s own localized fault, above, shows through at every level and
 should be read separately from this table.)
 
 **Repeated-trial check**: set 30% five independent times (fresh transition via
 10%→30% each time, single deliberate API call, no dragging) — **5/5 clean**.
-So this is a real, *repeatable* per-value effect, not randomness.
+So this is a real, _repeatable_ per-value effect, not randomness.
 
 **Ruled out as the cause of this pattern:**
 
-- *Frontend request racing* — hypothesized that dragging the brightness
+- _Frontend request racing_ — hypothesized that dragging the brightness
   slider fires rapid, unordered `PUT /api/brightness` requests, and a stale
   one could silently overwrite a newer one. Checked the code: dragging only
   updates local draft state (`BrightnessSlider.tsx` → `Menu.tsx`); the network
@@ -71,15 +71,15 @@ So this is a real, *repeatable* per-value effect, not randomness.
   `AbortController`, no request sequencing exists **anywhere** in the
   frontend — worth fixing generically regardless, but it isn't what's
   producing this brightness table.
-- *Refresh rate* — re-measured 78.0 Hz at `pwm_bits=8` (matches the historical
+- _Refresh rate_ — re-measured 78.0 Hz at `pwm_bits=8` (matches the historical
   baseline exactly); current default `pwm_bits=6` extrapolates to ~105 Hz,
   comfortably above the ~100 Hz flicker threshold. Not the bottleneck.
-- *Panel driver chip init* — `options.panel_type` was never set in
+- _Panel driver chip init_ — `options.panel_type` was never set in
   `pi_display.py`. Added env-var support (`LEDWALL_PANEL_TYPE`,
   `LEDWALL_MULTIPLEXING`, `LEDWALL_ROW_ADDR_TYPE` — see below) and tested
   `FM6126A`: **zero visible effect**, not even partial — ruled out.
-- *PWM LSB timing* — tested `pwm_lsb_nanoseconds` at 300 (worse — rolling
-  artifact got *faster*) and 80 (also worse) vs. the default 130. The default
+- _PWM LSB timing_ — tested `pwm_lsb_nanoseconds` at 300 (worse — rolling
+  artifact got _faster_) and 80 (also worse) vs. the default 130. The default
   is already near-optimal; no headroom in either direction.
 
 **Best current explanation**: at `pwm_bits=6` there are only 64 distinct
@@ -108,7 +108,7 @@ section) but isn't explained by it alone.
 ## Not yet tried
 
 - Heavier-gauge / more direct ground bond, re-measure and re-test.
-- Systematic sweep of `pwm_bits` (4/5/6/7) *combined with* the per-value
+- Systematic sweep of `pwm_bits` (4/5/6/7) _combined with_ the per-value
   brightness table above — a different bit depth changes which specific
   percentages are "bad," might land on a cleaner map.
 - Oscilloscope check for transient ground-bounce/switching noise — invisible
@@ -148,7 +148,7 @@ section) but isn't explained by it alone.
   identified — stopped recurring later in the session, unconfirmed why. Worth
   a closer look if it resurfaces.
 - `HARDWARE.md` is stale in two places: it still says `hardware_mapping =
-  adafruit-hat-pwm` / `gpio_slowdown=4` (code uses `regular` / `2`), and its
+adafruit-hat-pwm` / `gpio_slowdown=4` (code uses `regular` / `2`), and its
   "Current implementation status" section says `/api/screens`, `/api/layout`,
   `/api/apply` "don't exist on the backend yet" — they've since been
   implemented (`app/main.py`). Needs updating.
@@ -194,11 +194,11 @@ flicker (see `LIMIT_REFRESH_HZ` at `pi_display.py:76`).
 
 Measurements taken (all with real content on the wall, not blank):
 
-| Config | Avg | Lowest |
-|---|---|---|
-| `PWM_BITS=6`, `GPIO_SLOWDOWN=2` (existing defaults) | 83.1 Hz | 79.8 Hz |
-| `PWM_BITS=5`, `GPIO_SLOWDOWN=2` | 83.5 Hz | 81.8 Hz |
-| `PWM_BITS=5`, `GPIO_SLOWDOWN=1` | 83.6 Hz | 82.2 Hz — **visibly glitchy**, reverted |
+| Config                                              | Avg     | Lowest                                  |
+| --------------------------------------------------- | ------- | --------------------------------------- |
+| `PWM_BITS=6`, `GPIO_SLOWDOWN=2` (existing defaults) | 83.1 Hz | 79.8 Hz                                 |
+| `PWM_BITS=5`, `GPIO_SLOWDOWN=2`                     | 83.5 Hz | 81.8 Hz                                 |
+| `PWM_BITS=5`, `GPIO_SLOWDOWN=1`                     | 83.6 Hz | 82.2 Hz — **visibly glitchy**, reverted |
 
 **This disproves the "refresh scales ~linearly with PWM_BITS" model** that was
 in the `pi_display.py` comments and that the historical 78.5 Hz @ 8-bit
@@ -212,7 +212,7 @@ software.
 
 Decision: keep `PWM_BITS=6` (no measurable speed cost to keeping the better
 colour depth) and `GPIO_SLOWDOWN=2` (safe default), set
-`LEDWALL_REFRESH_HZ=75` (~5 Hz under the worst *lowest* measured, not the
+`LEDWALL_REFRESH_HZ=75` (~5 Hz under the worst _lowest_ measured, not the
 average — the cap only does its job if it's below what the hardware can miss
 under real content).
 
@@ -220,13 +220,14 @@ under real content).
 `/home/mranderson/pixel-wall` checkout without touching the Pi's own
 uncommitted `PANEL_TYPE`/`MULTIPLEXING`/`ROW_ADDR_TYPE` plumbing from the
 morning session):
+
 - `apps/backend/pi_display.py:68-80` — `LIMIT_REFRESH_HZ` default `100→75`;
   comment rewritten to record the disproved linear model and why 75 was
   chosen, so the next person doesn't redo this detour.
 - `apps/backend/systemd/ledwall-display.service:17` —
   `LEDWALL_REFRESH_HZ=75`. Pushed live via the README's
   `sed .../home/pi/ledwall.../ | sudo tee /etc/systemd/system/... &&
-  systemctl daemon-reload` pattern, service (re)started, no errors in
+systemctl daemon-reload` pattern, service (re)started, no errors in
   `journalctl`.
 
 **Not yet done**: actually eyeball the wall at the new 75 Hz cap across
@@ -248,9 +249,10 @@ its own "Vorschau" preview) stopped responding to edits.
 
 **Ruled out**, with evidence, in a fresh browser tab against the real
 backend (`192.168.4.236:5000`):
+
 - Backend health: `/api/health` OK, state file writable, MQTT connected.
 - The frontend's own network-log tool (`read_network_requests`) showed
-  *zero* requests reaching the Pi — looked like a dead client. This was a
+  _zero_ requests reaching the Pi — looked like a dead client. This was a
   **false lead**: cross-checking via `performance.getEntriesByType('resource')`
   in the page itself showed the real requests, including two separate
   `POST /api/preview` calls, both `200 OK` in ~140-170ms. The browser
@@ -266,18 +268,18 @@ backend (`192.168.4.236:5000`):
 - With all that ruled out, a manual repro in a clean tab **worked
   correctly end-to-end**: selected a screen, typed text, clicked "Vorschau",
   got the "Vorschau läuft — noch nicht gespeichert" banner and the correct
-  live thumbnail. So the preview *mechanism* itself — API round-trip, React
+  live thumbnail. So the preview _mechanism_ itself — API round-trip, React
   state, UI — is not broadly broken.
 
 **Leading hypothesis, not yet confirmed**: the screen used in that working
 repro was one of the **small (32×32, ESP32/MQTT) panels** — `app/main.py`'s
 `/api/preview` only ever calls `_publish()`, which goes out over MQTT
-(`ledwall/screen/<id>`, per `pi_display.py:14-16`'s own comment: *"MQTT is
+(`ledwall/screen/<id>`, per `pi_display.py:14-16`'s own comment: _"MQTT is
 not published from here: the backend owns the `ledwall/screen/<id>` topics
-and the ESP32 syncs from their retained messages"*). `pi_display.py` — the
+and the ESP32 syncs from their retained messages"_). `pi_display.py` — the
 process driving the four **large** 64×64 panels — only ever reads
 `state.json` (`read_state()`, polled every `STATE_POLL_INTERVAL`s) and never
-subscribes to MQTT at all. `/api/apply` writes `state.json` *and* publishes,
+subscribes to MQTT at all. `/api/apply` writes `state.json` _and_ publishes,
 so applied changes reach the large panels through the file-poll path. But
 `/api/preview` **deliberately never writes state** (see its own docstring
 and the `_previewed_screens` comment at `main.py:64-67`) — it only
@@ -287,12 +289,13 @@ worth checking whether this is a known/accepted limitation or a real gap.
 
 This was not confirmed before the session ended — investigation was cut off
 partway through reading `main.py`. Concretely still open:
+
 1. Which screen(s) was the user actually testing on — large (`04-07`) or
    small (`01-03`)? This is the single fact that would confirm or kill the
    hypothesis.
 2. If large: does `pi_display.py` need an MQTT subscriber for preview frames
    (mirroring the ESP32 path), or does `/api/preview` need a large-panel-only
-   fallback that writes a *separate* preview-only file `pi_display.py` also
+   fallback that writes a _separate_ preview-only file `pi_display.py` also
    polls (state.json itself must stay untouched, per its docstring, so the
    real save/apply semantics aren't disturbed)?
 3. If small, or if it turns out both kinds are actually affected: the
@@ -308,7 +311,7 @@ partway through reading `main.py`. Concretely still open:
 
 New setup: **one single 64×64 panel** only, wired to bonnet **output 1**,
 powered by a **5V/20W (4A) supply** — the same unit that has run the 32×32
-panels without flicker, i.e. the *small-panel-class* rail, not the documented
+panels without flicker, i.e. the _small-panel-class_ rail, not the documented
 5V/20A large-panel rail (`HARDWARE.md`). A direct Pi-GND↔panel-GND jumper was
 also added, then later removed (see below). Session done live via SSH
 (`welcome-pixel-pi` alias → `mranderson@exhibitpi-twelve.local`).
@@ -332,10 +335,10 @@ levels tested (multimeter across 5V/GND at the panel's HUB75 input, per the
 existing `HARDWARE.md` brownout procedure):
 
 | Brightness | Voltage (panel 5V/GND) | Flicker |
-|---|---|---|
-| 100% | 5.08 V, steady | Yes |
-| 85% | 5.28 V, steady | Yes |
-| 70% | 5.28 V, steady | Yes |
+| ---------- | ---------------------- | ------- |
+| 100%       | 5.08 V, steady         | Yes     |
+| 85%        | 5.28 V, steady         | Yes     |
+| 70%        | 5.28 V, steady         | Yes     |
 
 All three are comfortably above the ~4.7V brownout threshold, and steady (not
 wandering) — yet flicker persisted at every level. **This session's headline
@@ -422,7 +425,7 @@ panel) and `/tmp/real_sweep.sh` (drives the real `pi_display.py` against real
 `state.json` content) — not committed to the repo, Pi-local only.
 
 **Pitfall hit and fixed while building the driver**: `sudo CMD &` in bash
-backgrounds *sudo's own monitor process*, not the `CMD` it forks internally —
+backgrounds _sudo's own monitor process_, not the `CMD` it forks internally —
 killing `$!` only kills the monitor and orphans the real Python process,
 which keeps driving the GPIO. Caused a 28-process pileup mid-session. Fixed
 by using `timeout --signal=KILL <secs> sudo -E python3 ...` instead (`timeout`
@@ -432,7 +435,7 @@ hardware.
 
 **Correction (2026-09-23, bonnet-bypass session below):** this form is
 itself incomplete — `SIGKILL` lands on `sudo`, not on the `python3` child
-`sudo` spawns, so the child is still orphaned. Put `timeout` *inside* the
+`sudo` spawns, so the child is still orphaned. Put `timeout` _inside_ the
 `sudo` call instead: `sudo timeout --signal=KILL <secs> python3 ...`. See
 the "Process-management gotcha" section below for the pileup this caused.
 
@@ -441,7 +444,7 @@ the "Process-management gotcha" section below for the pileup this caused.
 `snd_bcm2835` (the actual PWM-audio kernel module that shares hardware with
 the matrix's hardware-pulse feature on GPIO18) is **already blacklisted**
 via `/etc/modprobe.d/blacklist-rgb-matrix.conf` on the Pi, from some earlier
-undocumented fix. `lsmod` confirms it is not loaded. What *is* still loaded
+undocumented fix. `lsmod` confirms it is not loaded. What _is_ still loaded
 is the separate HDMI-audio ALSA chain (`snd_soc_hdmi_codec`, `snd_soc_core`,
 `snd_pcm`, tied to `vc4`) — architecturally unrelated to the GPIO18 hardware
 PWM peripheral, left alone. **The classic audio/PWM conflict was already
@@ -458,9 +461,9 @@ Single 64×64 panel, bonnet output 1 (today's rebuilt hardware — different
 panel/cable than either prior session). Swept the same value set as the
 original Finding 2 table:
 
-| Brightness | 16 | 21 | 26 | 30 | 34 | 37 | 40 | 42 | 45 | 54 | 70 | 85 | 100 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Result | flicker | flicker | flicker | **clean** | flicker | **clean** | flicker | **clean** | flicker | **clean** | flicker | flicker | flicker |
+| Brightness | 16      | 21      | 26      | 30        | 34      | 37        | 40      | 42        | 45      | 54        | 70      | 85      | 100     |
+| ---------- | ------- | ------- | ------- | --------- | ------- | --------- | ------- | --------- | ------- | --------- | ------- | ------- | ------- |
+| Result     | flicker | flicker | flicker | **clean** | flicker | **clean** | flicker | **clean** | flicker | **clean** | flicker | flicker | flicker |
 
 **The clean set (30, 37, 42, 54) exactly matches the original 2026-09-22
 whole-wall table's clean ranges**, despite a completely different panel,
@@ -473,13 +476,13 @@ hardware.
 
 Same procedure, `PWM_BITS` varied, hardware pulse still on:
 
-| `PWM_BITS` | Flickered | Clean | Flicker count |
-|---|---|---|---|
-| 6 (current default) | 16,21,26,34,40,45,70,85,100 | 30,37,42,54 | 9/13 |
-| 8 (old pre-optimization default) | 16,45,70,85,100 | 21,26,30,34,37,40,42,54 | 5/13 |
-| 11 (library max) | 16,26,37,70,85,100 | 21,30,34,40,42,45,54 | 6/13 |
+| `PWM_BITS`                       | Flickered                   | Clean                   | Flicker count |
+| -------------------------------- | --------------------------- | ----------------------- | ------------- |
+| 6 (current default)              | 16,21,26,34,40,45,70,85,100 | 30,37,42,54             | 9/13          |
+| 8 (old pre-optimization default) | 16,45,70,85,100             | 21,26,30,34,37,40,42,54 | 5/13          |
+| 11 (library max)                 | 16,26,37,70,85,100          | 21,30,34,40,42,45,54    | 6/13          |
 
-The clean *set* genuinely shifts with `PWM_BITS` (confirms bit-depth
+The clean _set_ genuinely shifts with `PWM_BITS` (confirms bit-depth
 involvement), but it is **not monotonic** — 11-bit is slightly worse than
 8-bit. Rules out a simple "more color resolution = less flicker" story.
 16, 70, 85, and 100% flickered at every bit depth tested.
@@ -499,7 +502,7 @@ steady frame rate.
 already plumbed into `pi_display.py` but never tested in either prior
 session. A/B on the single panel, `PWM_BITS=6`:
 
-- **Hardware pulse on** (default): 16% and 45% flickered in *every* test run
+- **Hardware pulse on** (default): 16% and 45% flickered in _every_ test run
   this session, at every `PWM_BITS` value tried.
 - **Hardware pulse off**: 16%, 30%, 45% — all clean. Extended to the full
   13-value sweep: **13/13 clean.**
@@ -507,7 +510,7 @@ session. A/B on the single panel, `PWM_BITS=6`:
 This points at the Pi's dedicated hardware PWM peripheral (GPIO18) itself
 being marginal on this specific Pi+bonnet combination — not power, not the
 panels, not the bonnet's GPIO mapping, not refresh rate. Handing pulse
-generation to the CPU (software-driven bit-banging, normally the *worse*
+generation to the CPU (software-driven bit-banging, normally the _worse_
 option per the library's own docs) fixes it here, which suggests this
 bonnet's OE trace isn't clean enough for the hardware peripheral's faster,
 more precise pulses specifically.
@@ -603,7 +606,7 @@ RICOKEY XL830L on hand does have a working continuity buzzer) ruled out
 simple opens on GND, OE, CLK, LAT, R1, G1, R2, G2 one at a time: every wire
 beeped end-to-end.
 
-The actual fault only became clear from the *pattern* of a solid-color test:
+The actual fault only became clear from the _pattern_ of a solid-color test:
 a pure red fill (`R=255,G=0,B=0` everywhere, no other colour mixed in)
 rendered as scattered blue blocky streaks, never red. Per-wire continuity
 passing while the wrong colour comes out is the signature of a systematic
@@ -626,7 +629,7 @@ stray `bypass_lighttest.py` processes) mid-session, cleaned up the usual way
 (`sudo kill -9 <pid>` on the explicit PIDs from
 `ps -eo pid,cmd | grep pi_display.py`-style filtering, never `pkill -f`).
 
-**Fix: put `timeout` *inside* the `sudo` invocation instead**, so `timeout`
+**Fix: put `timeout` _inside_ the `sudo` invocation instead**, so `timeout`
 is the direct parent of the driven process and its `SIGKILL` lands on the
 right target:
 
@@ -686,17 +689,17 @@ unambiguous, closer to the "bright text on black" case upstream docs call
 out. All runs with `disable_hardware_pulsing=True` (the confirmed flicker
 fix), `chain_length=2, parallel=1`, `"regular"` mapping.
 
-| `pwm_lsb_nanoseconds` | `gpio_slowdown` | Brightness | Result |
-|---|---|---|---|
-| 130 (default) | 2 (default) | 85% | Ghost bars visible above both real bars — reproduces with the bonnet completely out of the signal path, confirming Finding 2/ghosting is **not** bonnet-specific. |
-| 220 | 2 | 85% | No visible change — still 2 real + 2 ghost bars. |
-| 300 | 2 | 85% | Worse — whole-screen flicker returned. Not more ghosting per se: this test script doesn't cap refresh rate the way `pi_display.py` does, and 300ns is heavy enough to drag achievable refresh down into flicker range on its own, layering a second artifact on top. Consistent with upstream's own documented frame-rate-vs-quality tradeoff for this flag. |
-| 130 | 4 | 85% | **Inconsistent between two back-to-back runs at identical settings**: one run showed 2 bars, ~5px thick (read as the ghost merging right up against the real bar rather than sitting as a separate line); the very next run at the same settings showed 4 separate 3px bars again, matching the `gpio_slowdown=2` baseline. |
+| `pwm_lsb_nanoseconds` | `gpio_slowdown` | Brightness | Result                                                                                                                                                                                                                                                                                                                                                       |
+| --------------------- | --------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 130 (default)         | 2 (default)     | 85%        | Ghost bars visible above both real bars — reproduces with the bonnet completely out of the signal path, confirming Finding 2/ghosting is **not** bonnet-specific.                                                                                                                                                                                            |
+| 220                   | 2               | 85%        | No visible change — still 2 real + 2 ghost bars.                                                                                                                                                                                                                                                                                                             |
+| 300                   | 2               | 85%        | Worse — whole-screen flicker returned. Not more ghosting per se: this test script doesn't cap refresh rate the way `pi_display.py` does, and 300ns is heavy enough to drag achievable refresh down into flicker range on its own, layering a second artifact on top. Consistent with upstream's own documented frame-rate-vs-quality tradeoff for this flag. |
+| 130                   | 4               | 85%        | **Inconsistent between two back-to-back runs at identical settings**: one run showed 2 bars, ~5px thick (read as the ghost merging right up against the real bar rather than sitting as a separate line); the very next run at the same settings showed 4 separate 3px bars again, matching the `gpio_slowdown=2` baseline.                                  |
 
 **Reading of this session's sweep**: neither `pwm_lsb_nanoseconds` nor
 `gpio_slowdown`, swept individually within the range that avoids
 reintroducing flicker, produces a clean, repeatable fix. The
-`gpio_slowdown=4` run-to-run inconsistency under *identical* settings is the
+`gpio_slowdown=4` run-to-run inconsistency under _identical_ settings is the
 more important result than either single reading — a parameter that
 genuinely fixed a deterministic timing margin wouldn't flip between two
 different visible patterns on consecutive runs with nothing changed. That
@@ -705,22 +708,22 @@ kind of instability is the signature of a marginal signal-integrity margin
 noise tips it either way), not a value these two knobs alone can dial out —
 which lines up with this session's own opening caveat: bypassing the
 bonnet's buffer/level-shifter chip trades away exactly the drive margin that
-would keep this stable. Not tested this session: whether the *original*
+would keep this stable. Not tested this session: whether the _original_
 bonnet wiring (with its buffer chip) shows the same run-to-run instability
 at `gpio_slowdown=4`, or whether that instability is itself new since going
 unbuffered.
 
 ### Not yet done
 
-- Test whether the ghosting/instability is present on the *original* bonnet
+- Test whether the ghosting/instability is present on the _original_ bonnet
   wiring under the same identical-settings-repeated-run methodology used
   above, to isolate "ghosting exists either way" (already shown true) from
-  "the run-to-run *instability* specifically is new since removing the
+  "the run-to-run _instability_ specifically is new since removing the
   buffer chip" (not yet isolated).
 - If the buffer-chip theory holds: reintroducing some form of line buffering
   (the bonnet itself, or a standalone level-shifter board) may be a more
   productive direction than further software parameter tuning for the
-  ghosting specifically, even though the *flicker* fix
+  ghosting specifically, even though the _flicker_ fix
   (`disable_hardware_pulsing`) itself is confirmed to work fine unbuffered.
 - Oscilloscope check on OE and the row-address lines during 85–100%
   brightness — still the most direct way to distinguish a genuine timing
@@ -749,9 +752,9 @@ sessions above are now history, not the current setup.
 
 ### Finding 1 — the library documents this exact symptom, and the prior 300ns result may be a false negative
 
-The README names this symptom directly: *"some panels have trouble with sharp
-contrasts and short pulses that results in ghosting"*, calling out *"bright
-text on black background"* specifically — matching the real-wall ghosting
+The README names this symptom directly: _"some panels have trouble with sharp
+contrasts and short pulses that results in ghosting"_, calling out _"bright
+text on black background"_ specifically — matching the real-wall ghosting
 artifact from the bonnet session above almost word for word. The documented
 fix is to **increase** `--led-pwm-lsb-nanoseconds` (default 130) into the
 **100–300ns range**, opposite of lowering it.
@@ -770,15 +773,15 @@ back and a refresh cap is in play.
 
 ### Finding 2 — the library maintainer warns against exactly the wiring used in the bonnet-bypass sessions
 
-Upstream's README is explicit: *"you can self wire without level shifters and
-it will work most of the time, but if you're not in a hurry get a board"* —
-and names the failure signature as *"artifacts like randomly showing up
-pixels, color fringes, or parts of the panel showing 'static'"* when a panel's
+Upstream's README is explicit: _"you can self wire without level shifters and
+it will work most of the time, but if you're not in a hurry get a board"_ —
+and names the failure signature as _"artifacts like randomly showing up
+pixels, color fringes, or parts of the panel showing 'static'"_ when a panel's
 input isn't driven through a 74HCT245/74AHCT245-class buffer chip from a
 proper adapter board (bonnet, HAT, or equivalent).
 
 This matches the bonnet-bypass session's own `gpio_slowdown=4` run-to-run
-*instability* finding closely enough to be the likely explanation for it — that
+_instability_ finding closely enough to be the likely explanation for it — that
 session's own reading already suspected "bypassing the bonnet's buffer/
 level-shifter chip trades away exactly the drive margin that would keep this
 stable." Wiring is now back through the bonnet, which puts the buffer chip
@@ -834,17 +837,17 @@ Two Pi-local `/tmp` scripts (`ghost_test.py`, `channel_test.py`) were already pr
 
 Full sweep — `pwm_lsb_nanoseconds` × two brightness levels (85%, a known-bad value from Finding 2's table; 30%, a known-clean one):
 
-| `pwm_lsb_nanoseconds` | 85% (known-bad) | 30% (known-clean) |
-|---|---|---|
-| 130 (default/baseline) | ghost rows | clean |
-| 180 | ghost rows, **worse** than baseline, **flicker also returned** | clean |
-| 220 | ghost rows, better than 180 but still present, no flicker | clean |
-| 260 | **worst**: "running lines" (rolling artifact) + flicker | "running lines" appear, no ghosting (brightness too low) |
-| 300 | "running lines" + flicker | "running lines" + flicker |
+| `pwm_lsb_nanoseconds`  | 85% (known-bad)                                                | 30% (known-clean)                                        |
+| ---------------------- | -------------------------------------------------------------- | -------------------------------------------------------- |
+| 130 (default/baseline) | ghost rows                                                     | clean                                                    |
+| 180                    | ghost rows, **worse** than baseline, **flicker also returned** | clean                                                    |
+| 220                    | ghost rows, better than 180 but still present, no flicker      | clean                                                    |
+| 260                    | **worst**: "running lines" (rolling artifact) + flicker        | "running lines" appear, no ghosting (brightness too low) |
+| 300                    | "running lines" + flicker                                      | "running lines" + flicker                                |
 
 **This disproves the desk-research hypothesis** (README's documented fix of raising `pwm_lsb_nanoseconds` into the 100–300ns range): even with the refresh cap active this time — ruling out the "earlier 300ns test ran uncapped" theory — no value in the swept range gives a clean result at 85%. The response is non-monotonic (180 is worse than baseline before 220 gets partially better), and nothing fully clears the ghosting; 220ns is the least-bad point but still shows ghost rows.
 
-**New, distinct finding**: a "running lines" / rolling artifact — matching the **original 2026-09-22 session's very first LSB test** ("tested `pwm_lsb_nanoseconds` at 300 — worse, rolling artifact got *faster*") — reliably onsets at `pwm_lsb_nanoseconds` ≥ 260, **independent of brightness** (reproduces at both 30% and 85%, unlike the ghosting itself, which only shows at high brightness). This is a second, separate LSB-driven artifact, not the same mechanism as the row-address ghosting, and it rules out the entire 260–300ns range regardless of what it might do for ghosting.
+**New, distinct finding**: a "running lines" / rolling artifact — matching the **original 2026-09-22 session's very first LSB test** ("tested `pwm_lsb_nanoseconds` at 300 — worse, rolling artifact got _faster_") — reliably onsets at `pwm_lsb_nanoseconds` ≥ 260, **independent of brightness** (reproduces at both 30% and 85%, unlike the ghosting itself, which only shows at high brightness). This is a second, separate LSB-driven artifact, not the same mechanism as the row-address ghosting, and it rules out the entire 260–300ns range regardless of what it might do for ghosting.
 
 **Conclusion**: `pwm_lsb_nanoseconds` alone is not a viable fix for the ghosting — the only usable range (130–220, before the rolling-lines artifact appears) never eliminates it, only marginally improves it at 220ns. Per the session's agreed scope, no code/config changes were made or committed (the flicker fix and 75Hz refresh-cap diff remain staged, not landed — still deliberately held pending a full ghosting fix). Next step, per the prior section's own ranked list: `led_row_addr_type` (currently unset, defaults to type 0) A/B across values 3/4/5 — genuinely untried, and unaffected by this session's negative result.
 
@@ -862,18 +865,19 @@ Full sweep — `pwm_lsb_nanoseconds` × two brightness levels (85%, a known-bad 
 
 Continuation of the same live session (`welcome-pixel-pi`), same hardware (two 64×64 panels, bonnet output 1, `chain_length=2, parallel=1`). Extended `/tmp/ghost_test.py` with a `row_address_type` CLI arg (confirmed via `dir(RGBMatrixOptions())` on the Pi that the Python binding's attribute is `row_address_type`, not `row_addr_type`). Held `pwm_lsb_nanoseconds=220` fixed (the least-bad value from the sweep above), `disable_hardware_pulsing=True`, `gpio_slowdown=2`, `limit_refresh_rate_hz=75`, brightness 85% (known-bad), one fresh process per value.
 
-| `row_address_type` | Result |
-|---|---|
-| 0 (current default) | Ghosting still present (matches prior sweep's 220ns/85% result — reproducible baseline) |
-| 3 | **Row geometry broken**: the white bars visibly shifted position (moved up/down from their drawn rows 20-22/44-46), on top of still showing ghosting |
-| 4 | Also wrong — same class of geometry break |
-| 5 | Also wrong — same class of geometry break |
+| `row_address_type`  | Result                                                                                                                                               |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 (current default) | Ghosting still present (matches prior sweep's 220ns/85% result — reproducible baseline)                                                              |
+| 3                   | **Row geometry broken**: the white bars visibly shifted position (moved up/down from their drawn rows 20-22/44-46), on top of still showing ghosting |
+| 4                   | Also wrong — same class of geometry break                                                                                                            |
+| 5                   | Also wrong — same class of geometry break                                                                                                            |
 
-**Conclusion: `led_row_addr_type` is ruled out.** Types 3/4/5 aren't a milder/stronger variant of the same addressing — they're a *different* addressing scheme (for ABC/ABC+DE-wired panel variants), and using the wrong one for this panel's actual wiring doesn't just fail to fix ghosting, it breaks basic row placement. This confirms type 0 (the existing, unset-defaults-to-0 behavior) is in fact the electrically correct choice for these panels — the ghosting is not an addressing-type mismatch, it's a timing-margin problem within the correct addressing scheme. No further value in this knob; don't revisit unless the panel hardware itself changes.
+**Conclusion: `led_row_addr_type` is ruled out.** Types 3/4/5 aren't a milder/stronger variant of the same addressing — they're a _different_ addressing scheme (for ABC/ABC+DE-wired panel variants), and using the wrong one for this panel's actual wiring doesn't just fail to fix ghosting, it breaks basic row placement. This confirms type 0 (the existing, unset-defaults-to-0 behavior) is in fact the electrically correct choice for these panels — the ghosting is not an addressing-type mismatch, it's a timing-margin problem within the correct addressing scheme. No further value in this knob; don't revisit unless the panel hardware itself changes.
 
 ### Not yet done (updated)
 
 With both `pwm_lsb_nanoseconds` and `led_row_addr_type` now ruled out as fixes, the remaining leads are:
+
 - `led_multiplexing` — still lowest priority, only relevant for non-standard internal pixel mappings (typically outdoor-rated panels); check the panel's actual chipset/datasheet before trying, since it's unlikely to apply here and, like `row_address_type`, a wrong value probably breaks image geometry rather than just failing to fix ghosting.
 - **Oscilloscope check on OE and the row-address lines at 85–100% brightness — now the most promising remaining lead**, and arguably should be next rather than `led_multiplexing`: two independent software knobs that directly target this exact symptom have both failed to fix it without introducing a new problem, which points more at a genuine hardware/analog timing margin (matching the bonnet-bypass session's earlier signal-integrity read) than something left to dial in software.
 - Full 4-panel confirmation once a real fix candidate exists — still not reached, all ghosting testing to date has used 2 panels only.
@@ -891,6 +895,7 @@ This looks like the same "genuine hardware/analog timing margin" this doc's prio
 Landed in `pi_display.py`/`ledwall-display.service`: `PWM_BITS=11`, `PWM_LSB_NANOSECONDS=50`, `GPIO_SLOWDOWN=3`, `PWM_DITHER_BITS=1` (new); `LIMIT_REFRESH_HZ`/`limit_refresh_rate_hz` and `DISABLE_HARDWARE_PULSING`/`disable_hardware_pulsing` removed entirely rather than left as unused off-by-default options, since they were the previous fix and are now superseded.
 
 **Not yet done:**
+
 - Full 4-panel confirmation — this session, like the ones before it, tested on 2 panels only.
 - Longer soak test (this was an 8-second `timeout` run per the demo binary's own default safety limit) to rule out drift or heat-related regressions the short manual runs wouldn't catch.
 - Restart `ledwall-display.service` on the Pi to actually pick up this config — the unit's `Environment=` lines and `pi_display.py` are only effective after a `daemon-reload` (env vars changed) and a restart.
