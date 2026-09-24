@@ -9,7 +9,7 @@ import {
 	setBit,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
-import { TEMPLATES } from "../domain/content";
+import { ANIMATION_FPS, TEMPLATES } from "../domain/content";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
 import { frameCountFor, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
@@ -160,7 +160,7 @@ async function animationToFramesWire(
 	size: { width: number; height: number; background: string | null },
 ): Promise<WireContentDto> {
 	const { width, height, background } = size;
-	const frameCount = frameCountFor(template.loopMs ?? 4000, content.fps ?? 12);
+	const frameCount = frameCountFor(template.loopMs ?? 4000, ANIMATION_FPS);
 	const frames: FramesDto = {
 		frameCount,
 		frameDurationMs: (template.loopMs ?? 4000) / frameCount,

@@ -103,9 +103,13 @@ multiple screens of one composite stay in phase for free.
 Because the two are mutually exclusive on one content, `frameCount` and
 `frameDurationMs` are chosen so that `frameCount * frameDurationMs` reproduces
 the animated template's own authored loop length (both templates that exist
-today loop every 4000ms) — sampled at a frame rate the editor's fps control
-picks per edit (see `apps/frontend/src/domain/content.ts`'s
-`Template.animated`/`loopMs` and `apps/frontend/src/render/animatedTemplate.ts`).
+today loop every 4000ms), sampled at a fixed 16fps
+(`apps/frontend/src/domain/content.ts`'s `ANIMATION_FPS`) — not a per-edit
+choice. An editor fps control existed during development specifically to
+compare rates directly on the physical wall; 16 is the rate that testing
+settled on, and the control was removed once it had done its job (see
+`docs/adr/0002-phase-animated-templates-by-hardware-kind.md`). See also
+`Template.animated`/`loopMs` and `apps/frontend/src/render/animatedTemplate.ts`.
 Like `scroll`'s `speedPxPerSec`, `frameDurationMs` may be fractional; the
 difference is well below one frame and not observable.
 

@@ -76,5 +76,5 @@ Two things need to change here, not just firmware — the current backend doesn'
 
 1. Flash the updated firmware with the backend still emitting the current version. Confirm nothing regressed — small screens should behave exactly as before, since the firmware is now frames-capable but nothing sends it a frames-bearing envelope yet.
 2. Flip the backend to emit the new version for small-screen animated-template content specifically (or unconditionally, once confirmed safe — see "4" above on why there's no partial-rollout condition needed here).
-3. Visually confirm on the physical wall: the arrow rotates and the raute wobbles on the small screens the same way they already do on the large ones, at whatever fps was chosen in the editor, with no tearing at the loop point and no regression to existing static-text/Farbe/non-animated-template content on small screens.
+3. Visually confirm on the physical wall: the arrow rotates and the raute wobbles on the small screens the same way they already do on the large ones (both convert at the same fixed `ANIMATION_FPS`, currently 16 — see `domain/content.ts`), with no tearing at the loop point and no regression to existing static-text/Farbe/non-animated-template content on small screens.
 4. Only then remove this plan's "shows frame 0 statically" caveat from `docs/wire-format.md` and `docs/adr/0002-...`.

@@ -1,9 +1,4 @@
-import {
-	ANIMATION_FPS_MAX,
-	ANIMATION_FPS_MIN,
-	DEFAULT_ANIMATION_FPS,
-	TEMPLATES,
-} from "../../domain/content";
+import { TEMPLATES } from "../../domain/content";
 import type { AnimationContent } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
 import { TemplateIcon } from "../../render/TemplateIcon";
@@ -15,7 +10,6 @@ interface AnimationPanelProps {
 }
 
 export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
-	const selectedTemplate = TEMPLATES.find((t) => t.id === content.templateId);
 	return (
 		<div className="flex w-full flex-col gap-5">
 			<div className="flex flex-col gap-2.5">
@@ -81,30 +75,6 @@ export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
 					</span>
 				</div>
 			</div>
-
-			{selectedTemplate?.animated && (
-				<div className="flex flex-col gap-2">
-					<label className="text-[12px] text-[#767671]" htmlFor="fps">
-						Bildrate (zum Testen auf der Wand)
-					</label>
-					<div className="flex items-center gap-3">
-						<input
-							id="fps"
-							type="range"
-							min={ANIMATION_FPS_MIN}
-							max={ANIMATION_FPS_MAX}
-							value={content.fps ?? DEFAULT_ANIMATION_FPS}
-							onChange={(e) =>
-								onChange({ ...content, fps: Number(e.target.value) })
-							}
-							className="flex-1"
-						/>
-						<span className="w-16 shrink-0 text-right text-[13px] text-[#6b6b66]">
-							{content.fps ?? DEFAULT_ANIMATION_FPS} fps
-						</span>
-					</div>
-				</div>
-			)}
 
 			<AlignmentPicker
 				hAlign={content.hAlign}

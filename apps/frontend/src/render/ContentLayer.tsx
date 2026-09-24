@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
+import { ANIMATION_FPS, LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
 import type {
 	AnimationContent,
 	ScreenKind,
@@ -278,7 +278,7 @@ function AnimatedBitmap({
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
-	const frameCount = frameCountFor(loopMs, content.fps ?? 12);
+	const frameCount = frameCountFor(loopMs, ANIMATION_FPS);
 	const frameDurationMs = loopMs / frameCount;
 
 	const [stripUrl, setStripUrl] = useState<string | null>(null);

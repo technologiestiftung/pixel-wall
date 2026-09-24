@@ -13,9 +13,8 @@ export interface Template {
 	file: string;
 	/** True when the SVG carries its own CSS `@keyframes` animation (see
 	 * render/animatedTemplate.ts) rather than being a plain static image. Drives
-	 * both the frame-strip rasterization path (wire.ts) and the fps control in
-	 * AnimationPanel — a template without this is never sampled, just drawn
-	 * once like Farbe/static text. */
+	 * the frame-strip rasterization path (wire.ts) — a template without this is
+	 * never sampled, just drawn once like Farbe/static text. */
 	animated?: boolean;
 	/** The template's own authored loop length, in ms — the CSS animation's
 	 * `animation-duration`. Only meaningful when `animated` is true. Both
@@ -98,15 +97,13 @@ const DEFAULT_TEXT: TextContent = {
 	paddingPx: 0,
 };
 
-/** Default sample rate for an animated template's frame strip — ignored for
- * a non-animated template. Deliberately a user-adjustable field (like
- * TextContent.speedPxPerSec) rather than a fixed constant: payload size
- * scales linearly with fps and stays cheap even well past this (see
- * ANIMATION_FPS_MAX), so the right value is a visual call to make on the
- * actual panels, not something to hardcode — see AnimationPanel.tsx. */
-export const DEFAULT_ANIMATION_FPS = 12;
-export const ANIMATION_FPS_MIN = 2;
-export const ANIMATION_FPS_MAX = 30;
+/** Sample rate every animated template's frame strip is converted at — see
+ * render/animatedTemplate.ts's `frameCountFor` and render/wire.ts's
+ * `animationToFramesWire`. Fixed rather than user-adjustable: an editor
+ * fps control existed during development to compare rates directly on the
+ * physical wall, and 16 is the rate that testing settled on — see
+ * docs/wire-format.md "frames" and docs/adr/0002-phase-animated-templates-by-hardware-kind.md. */
+export const ANIMATION_FPS = 16;
 
 const DEFAULT_ANIMATION: AnimationContent = {
 	type: "animation",
@@ -114,7 +111,6 @@ const DEFAULT_ANIMATION: AnimationContent = {
 	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
-	fps: DEFAULT_ANIMATION_FPS,
 };
 
 const DEFAULT_COLOR: ColorContent = {
