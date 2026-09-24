@@ -10,17 +10,19 @@ See `INTEGRATION-PLAN.md` for why these formats exist and
 
 ## Why 1-bit and 4-bit, not RGB
 
-Text and Farbe are genuinely monochrome: `src/render/rasterize.ts` draws text
-in `#ffffff`, and Farbe is a flat fill of one preset colour. Both travel as
-`mask1` — a 1-bit coverage mask plus one RGB colour — 512 bytes for a 64×64
-frame instead of 12,288 for RGB888, and 4× smaller than `pal4` on the one
-size-critical case, a Lauftext filmstrip.
+Farbe (a flat fill of one preset colour, with no foreground) is genuinely
+monochrome and travels as `mask1` — a 1-bit coverage mask plus one RGB colour
+— 512 bytes for a 64×64 frame instead of 12,288 for RGB888.
 
-Animation/Bild always travels as `pal4` instead, whether a given template
-happens to be genuinely multi-coloured brand artwork or one of the older
-hand-drawn single-colour icons — `src/render/wire.ts` does not special-case
-per template, so no template is ever forced into a colour it doesn't have,
-and multi-colour content must not be faked by dithering a `mask1` mask.
+Text and Animation/Bild both travel as `pal4` instead: text carries a
+user-chosen colour (and, since it sits over a Hintergrund, up to one more for
+the background) rather than always being a single fixed colour, and every
+Animation/Bild template is real, possibly multi-coloured artwork —
+`src/render/wire.ts` does not special-case per template, so no template is
+ever forced into a colour it doesn't have, and multi-colour content must not
+be faked by dithering a `mask1` mask. `pal4` is 4× larger than `mask1` on the
+one size-critical case, a Lauftext filmstrip, which is why Farbe alone stays
+on `mask1`.
 
 ## JSON envelope (HTTP and state file)
 
@@ -34,18 +36,20 @@ One JSON object per screen.
 	"color": [254, 241, 119],
 	"data": "UAEBAJQAQAA...",
 	"window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
-	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 }
+	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 },
+	"background": [30, 55, 145]
 }
 ```
 
-| Field                 | Type             | Notes                                                                                                                                           |
-| --------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `format`              | string           | `"mask1"` or `"pal4"`. A decoder MUST reject an unknown value and keep showing its previous frame rather than attempt to render it.             |
-| `widthPx`, `heightPx` | uint16           | Size of the mask in `data`. Duplicated inside the binary header so a decoder can detect an envelope/payload mismatch.                           |
-| `color`               | `[r, g, b]`      | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette. |
-| `data`                | string           | base64 of the binary block below.                                                                                                               |
-| `window`              | object           | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0.                                  |
-| `scroll`              | object or absent | Present only for Lauftext. Absent means a static frame.                                                                                         |
+| Field                 | Type                  | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`              | string                | `"mask1"` or `"pal4"`. A decoder MUST reject an unknown value and keep showing its previous frame rather than attempt to render it.                                                                                                                                                                                                                                                                                                                                                |
+| `widthPx`, `heightPx` | uint16                | Size of the mask in `data`. Duplicated inside the binary header so a decoder can detect an envelope/payload mismatch.                                                                                                                                                                                                                                                                                                                                                              |
+| `color`               | `[r, g, b]`           | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette.                                                                                                                                                                                                                                                                                                                                    |
+| `data`                | string                | base64 of the binary block below.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `window`              | object                | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0.                                                                                                                                                                                                                                                                                                                                                                     |
+| `scroll`              | object or absent      | Present only for Lauftext. Absent means a static frame.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `background`          | `[r, g, b]` or absent | A static fill a renderer paints _behind_ `data`, wherever `data` has nothing lit (`mask1` clear bit, or `pal4` index 0) — never baked into `data` itself, since for a scrolling frame that would pan along with the text. Present only for Lauftext on large (Pi) screens for now — see `docs/adr/0001-phase-lauftext-background-by-hardware-kind.md`. Absent everywhere else, including today's ESP32-driven small screens, which keep rendering on black until that phase lands. |
 
 `widthPx` and `heightPx` describe the mask, which for Lauftext is the full
 filmstrip and is wider than the screen. `window` is how a screen finds its

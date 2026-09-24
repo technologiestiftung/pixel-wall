@@ -60,7 +60,7 @@ export function TabBar({ active, onChange }: TabBarProps) {
 	return (
 		<div
 			role="tablist"
-			className="flex w-full items-stretch gap-1 rounded-[8px] border border-[#e4e4e0] bg-white p-1"
+			className="flex w-full gap-1 rounded-[8px] border border-[#e4e4e0] bg-white p-1"
 		>
 			{TABS.map((tab) => {
 				const isActive = active === tab.type;
@@ -78,7 +78,7 @@ export function TabBar({ active, onChange }: TabBarProps) {
 						tabIndex={isActive ? 0 : -1}
 						onClick={() => onChange(tab.type)}
 						onKeyDown={handleKeyDown}
-						className={`flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
+						className={`flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
 							isActive
 								? "bg-[#20201b] text-white"
 								: "text-[#4b4b47] hover:bg-[#f4f4f2]"

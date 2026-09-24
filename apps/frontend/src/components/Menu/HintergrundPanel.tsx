@@ -7,15 +7,13 @@ interface HintergrundPanelProps {
 }
 
 /** The Hintergrund tab: fills the selected screens behind everything else.
- * Text applied afterwards is layered on top of it (see render/layers.ts),
- * and "ohne" leaves the screens unlit. */
+ * Text applied afterwards is layered on top of it (see render/layers.ts). */
 export function HintergrundPanel({ content, onChange }: HintergrundPanelProps) {
 	return (
 		<ColorPicker
 			hex={content.hex}
 			onChange={(hex) => onChange({ ...content, hex })}
 			label="Hintergrund wählen"
-			allowNone
 		/>
 	);
 }

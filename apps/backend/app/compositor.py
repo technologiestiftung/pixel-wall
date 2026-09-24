@@ -32,10 +32,13 @@ def _decode_cached(data: str, color: tuple[int, int, int]) -> Image.Image:
 
 
 def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
-    """Decodes a bitmap block into an RGB image.
+    """Decodes a bitmap block into an RGBA image, "nothing here" pixels fully
+    transparent rather than a literal colour — see `screen_tile`, which relies
+    on that transparency to let a screen's own background fill show through
+    instead of being painted over.
 
     `mask1`'s packed rows are already exactly PIL's mode-"1" layout (MSB first,
-    rows padded to a byte), so there is no per-pixel loop here.
+    rows padded to a byte), so there is no per-pixel loop for that format.
     """
     decoded = decode_block(block)
 
@@ -43,8 +46,9 @@ def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
         stencil = Image.frombytes(
             "1", (decoded.width_px, decoded.height_px), bytes(decoded.bits)
         )
-        out = Image.new("RGB", (decoded.width_px, decoded.height_px), BLACK)
-        out.paste(Image.new("RGB", out.size, color), mask=stencil)
+        out = Image.new("RGBA", (decoded.width_px, decoded.height_px), (0, 0, 0, 0))
+        tinted = Image.new("RGBA", out.size, (*color, 255))
+        out.paste(tinted, mask=stencil)
         return out
 
     assert isinstance(decoded, Palette4)
@@ -56,7 +60,17 @@ def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
         flat.extend(entry)
     flat.extend([0] * (768 - len(flat)))
     indexed.putpalette(flat)
-    return indexed.convert("RGB")
+    rgba = indexed.convert("RGBA")
+    # Index 0 is the "nothing here" convention (docs/wire-format.md `pal4`) —
+    # made transparent here instead of a literal colour, from the raw indices
+    # rather than indexed.point() (whose behaviour on "P" images is murky).
+    alpha = Image.frombytes(
+        "L",
+        (decoded.width_px, decoded.height_px),
+        bytes(0 if index == 0 else 255 for index in decoded.indices),
+    )
+    rgba.putalpha(alpha)
+    return rgba
 
 
 def screen_tile(
@@ -72,9 +86,10 @@ def screen_tile(
     into the shared composite, which is what keeps a multi-screen Lauftext from
     tearing at the seams.
     """
-    tile = Image.new("RGB", size, BLACK)
     content = entry["content"]
     window = entry["window"]
+    background = content.get("background")
+    tile = Image.new("RGB", size, tuple(background) if background else BLACK)
 
     try:
         source = _decode_cached(
@@ -97,9 +112,13 @@ def screen_tile(
             ),
         )
 
+    # `source` is RGBA with "nothing here" pixels transparent (see _to_image);
+    # pasting it with itself as the mask lets `tile`'s own fill — the chosen
+    # background, or BLACK — show through instead of being painted over.
     tile.paste(
         source,
         (round(shift_x - window["offsetXPx"]), -window["offsetYPx"]),
+        source,
     )
     return tile
 

@@ -65,7 +65,7 @@ export async function buildApplyRequest(
 		content: await layersToWire(
 			layers,
 			{ widthPx: bitmapWidthPx, heightPx: bitmapHeightPx },
-			scroll,
+			{ scroll, screenKind: selection.kind },
 		),
 		source: layers,
 		...(brightness ? { brightness } : {}),

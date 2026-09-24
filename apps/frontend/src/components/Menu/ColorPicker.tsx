@@ -3,77 +3,46 @@ import { PALETTE } from "../../domain/content";
 import { SelectedBadge } from "../../render/SelectedBadge";
 
 interface ColorPickerProps {
+	/** `null` only ever comes from a screen hydrated before "ohne" was removed
+	 * as a selectable option (see CONTEXT.md "Hintergrund") — the picker no
+	 * longer offers a way to choose it, but still displays it gracefully. */
 	hex: string | null;
-	onChange: (hex: string | null) => void;
+	onChange: (hex: string) => void;
 	/** Names what is being coloured — the whole screen on the Hintergrund
 	 * tab, the glyphs on the Text tab. */
 	label: string;
-	/** Offers an "ohne" swatch that selects no colour at all — an unlit
-	 * screen on the Hintergrund tab. Text glyphs always have a colour. */
-	allowNone?: boolean;
 }
 
 /** The preset swatches plus a free colour picker, shared by the Hintergrund and
  * Text tabs so a colour is chosen the same way wherever it appears. A hex
  * outside the fixed palette (chosen via the colour picker) simply leaves no
  * swatch selected. */
-export function ColorPicker({
-	hex,
-	onChange,
-	label,
-	allowNone = false,
-}: ColorPickerProps) {
+export function ColorPicker({ hex, onChange, label }: ColorPickerProps) {
 	const customId = useId();
 
 	return (
 		<div className="flex w-full flex-col gap-3">
 			<span className="w-full text-[12px] text-[#767671]">{label}</span>
 			<div className="flex w-full flex-wrap gap-3">
-				{allowNone && (
-					<button
-						type="button"
-						onClick={() => onChange(null)}
-						aria-pressed={hex === null}
-						aria-label="ohne"
-						className="flex w-[58px] flex-col items-center gap-2"
-					>
-						<span
-							className={`relative block size-[58px] rounded-[12px] bg-[repeating-conic-gradient(#e4e4e0_0_25%,#ffffff_0_50%)] bg-[length:14px_14px] ${hex === null ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
-						>
-							{hex === null && (
-								<SelectedBadge className="absolute -right-2 -top-2.5 h-[18px] w-[18px]" />
-							)}
-						</span>
-						<span
-							className={`text-[10.5px] ${hex === null ? "text-[#20201b]" : "text-[#767671]"}`}
-						>
-							ohne
-						</span>
-					</button>
-				)}
 				{PALETTE.map((preset) => {
-					const selected = hex === preset;
+					const selected = hex === preset.hex;
 					return (
 						<button
-							key={preset}
+							key={preset.hex}
 							type="button"
-							onClick={() => onChange(preset)}
+							onClick={() => onChange(preset.hex)}
 							aria-pressed={selected}
-							aria-label={preset}
-							className="flex w-[58px] flex-col items-center gap-2"
+							aria-label={preset.name}
+							title={preset.name}
+							className="flex w-[39px] flex-col items-center gap-2"
 						>
 							<span
-								className={`relative block size-[58px] rounded-[12px] ${selected ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
-								style={{ backgroundColor: preset }}
+								className={`relative block size-[34px] rounded-lg ${selected ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
+								style={{ backgroundColor: preset.hex }}
 							>
 								{selected && (
 									<SelectedBadge className="absolute -right-2 -top-2.5 h-[18px] w-[18px]" />
 								)}
-							</span>
-							<span
-								className={`font-mono text-[10.5px] ${selected ? "text-[#20201b]" : "text-[#767671]"}`}
-							>
-								{preset}
 							</span>
 						</button>
 					);
@@ -88,17 +57,12 @@ export function ColorPicker({
 					<input
 						id={customId}
 						type="color"
-						// A native colour input has no "no colour" state, so
-						// "ohne" shows black in the swatch; the text beside it
-						// is what says which is actually selected.
 						value={hex ?? "#000000"}
 						onChange={(e) => onChange(e.target.value.toUpperCase())}
 						className="size-7 shrink-0 cursor-pointer rounded-[6px] border border-[#e5e4df] bg-transparent p-0"
 					/>
-					<span
-						className={`truncate font-mono text-[13px] text-[#20201b] ${hex === null ? "" : "uppercase"}`}
-					>
-						{hex ?? "ohne"}
+					<span className="truncate font-mono text-[13px] uppercase text-[#20201b]">
+						{hex ?? "#000000"}
 					</span>
 				</div>
 			</div>

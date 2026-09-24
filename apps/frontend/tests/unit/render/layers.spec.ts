@@ -48,18 +48,43 @@ describe("withEdit", () => {
 });
 
 describe("backgroundIsLost", () => {
-	it("is true only for a background behind Lauftext", () => {
-		// The frame that scrolls is the bitmap itself, so a background baked
-		// into it would travel with the glyphs and tear open during the pause.
+	it("is true for a background behind Lauftext on a small screen", () => {
+		// Small screens (ESP32) don't support compositing a background behind a
+		// panned filmstrip yet — see
+		// docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
 		expect(
-			backgroundIsLost({ background: "#B4B9FF", foreground: scrolling }),
+			backgroundIsLost(
+				{ background: "#B4B9FF", foreground: scrolling },
+				"small",
+			),
 		).toBe(true);
-		expect(backgroundIsLost({ background: "#B4B9FF", foreground: text })).toBe(
-			false,
-		);
-		expect(backgroundIsLost({ background: null, foreground: scrolling })).toBe(
-			false,
-		);
+		expect(
+			backgroundIsLost({ background: "#B4B9FF", foreground: text }, "small"),
+		).toBe(false);
+		expect(
+			backgroundIsLost({ background: null, foreground: scrolling }, "small"),
+		).toBe(false);
+	});
+
+	it("is false for black — indistinguishable from a small screen's fallback", () => {
+		// Also covers the default background (see domain/content.ts
+		// DEFAULT_BACKGROUND_HEX), which is black — the warning shouldn't fire
+		// just because a fresh edit hasn't touched Hintergrund yet.
+		expect(
+			backgroundIsLost(
+				{ background: "#000000", foreground: scrolling },
+				"small",
+			),
+		).toBe(false);
+	});
+
+	it("is false for a background behind Lauftext on a large screen — it composites instead", () => {
+		expect(
+			backgroundIsLost(
+				{ background: "#B4B9FF", foreground: scrolling },
+				"large",
+			),
+		).toBe(false);
 	});
 });
 
@@ -68,6 +93,7 @@ describe("layersToWire", () => {
 		const wire = await layersToWire(
 			{ background: "#B4B9FF", foreground: text },
 			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
 		);
 		// pal4 carries up to 16 colours, so the background and the text colour
 		// travel in one frame. jsdom has no canvas to rasterize with, so only
@@ -81,14 +107,37 @@ describe("layersToWire", () => {
 		const wire = await layersToWire(
 			{ background: "#B4B9FF", foreground: null },
 			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
 		);
 		expect(wire.format).toBe("mask1");
 		expect(wire.color).toEqual([180, 185, 255]);
 	});
 
 	it("renders an empty screen as an unlit frame", async () => {
-		const wire = await layersToWire(EMPTY_LAYERS, { widthPx: 8, heightPx: 8 });
+		const wire = await layersToWire(
+			EMPTY_LAYERS,
+			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
+		);
 		expect(wire.format).toBe("mask1");
 		expect(maskToRows(decodeMaskBase64(wire.data)).join("")).not.toContain("#");
+	});
+
+	it("attaches a background behind Lauftext on a large screen, separately from the mask", async () => {
+		const wire = await layersToWire(
+			{ background: "#1E3791", foreground: scrolling },
+			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
+		);
+		expect(wire.background).toEqual([30, 55, 145]);
+	});
+
+	it("drops the background behind Lauftext on a small screen, exactly as before", async () => {
+		const wire = await layersToWire(
+			{ background: "#1E3791", foreground: scrolling },
+			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "small" },
+		);
+		expect(wire.background).toBeUndefined();
 	});
 });

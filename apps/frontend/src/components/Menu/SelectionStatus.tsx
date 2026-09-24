@@ -29,7 +29,7 @@ export function SelectionStatus() {
 
 	return (
 		<div className="flex w-full items-center justify-between whitespace-nowrap">
-			<p className="text-[13.5px] text-[#6b6b66]">
+			<p className="text-xs text-[#6b6b66]">
 				{`Bildschirm${count === 1 ? "" : "e"} ${formatGermanList(numbers)} ausgewählt`}
 			</p>
 			<button
@@ -40,7 +40,7 @@ export function SelectionStatus() {
 						intent: { kind: "clear-selection" },
 					})
 				}
-				className="text-[12.5px] text-[#767671] underline decoration-solid [text-underline-position:from-font]"
+				className="text-xs text-[#767671] underline decoration-solid [text-underline-position:from-font]"
 			>
 				Auswahl aufheben
 			</button>

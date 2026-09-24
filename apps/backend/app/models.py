@@ -22,6 +22,14 @@ def _coerce_brightness(value: Any) -> Any:
     return value
 
 
+def _validate_rgb(value: Optional[list[int]], field: str) -> Optional[list[int]]:
+    if value is None:
+        return None
+    if len(value) != 3 or any(not 0 <= c <= 255 for c in value):
+        raise ValueError(f"{field} must be three 0-255 channels")
+    return value
+
+
 Brightness = Annotated[int, BeforeValidator(_coerce_brightness)]
 
 
@@ -85,15 +93,23 @@ class ContentModel(BaseModel):
     color: Optional[list[int]] = None
     data: str
     scroll: Optional[ScrollModel] = None
+    #: A static fill behind a scrolling filmstrip — never baked into `data`,
+    #: since that would pan along with the text (see docs/wire-format.md
+    #: `scroll` and render/layers.ts on the frontend). Large screens (Pi)
+    #: only for now — see
+    #: docs/adr/0001-phase-lauftext-background-by-hardware-kind.md. Ignored
+    #: by compose.py's binary (ESP32) envelope entirely.
+    background: Optional[list[int]] = None
 
     @field_validator("color")
     @classmethod
     def _rgb(cls, value: Optional[list[int]]) -> Optional[list[int]]:
-        if value is None:
-            return None
-        if len(value) != 3 or any(not 0 <= c <= 255 for c in value):
-            raise ValueError("color must be three 0-255 channels")
-        return value
+        return _validate_rgb(value, "color")
+
+    @field_validator("background")
+    @classmethod
+    def _rgb_background(cls, value: Optional[list[int]]) -> Optional[list[int]]:
+        return _validate_rgb(value, "background")
 
     def block(self) -> bytes:
         try:

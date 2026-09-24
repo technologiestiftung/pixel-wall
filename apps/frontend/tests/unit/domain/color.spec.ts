@@ -55,7 +55,7 @@ describe("rgbToHex", () => {
 
 describe("round trip", () => {
 	it("survives every palette preset", () => {
-		for (const hex of PALETTE) {
+		for (const { hex } of PALETTE) {
 			expect(rgbToHex(hexToRgb(hex))).toBe(hex.toUpperCase());
 		}
 	});

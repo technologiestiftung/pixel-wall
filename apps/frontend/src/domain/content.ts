@@ -36,15 +36,35 @@ export const TEMPLATES: Template[] = [
 	{ id: "smiley", label: "Smiley", file: "CLB-smiley.svg" },
 ];
 
-/** Fixed closed palette of 6 presets, plus a free colour picker for anything else. */
-export const PALETTE = [
-	"#FEF177",
-	"#B4B9FF",
-	"#FE4441",
-	"#FFCFD6",
-	"#FFFFFF",
-	"#000000",
+export interface PaletteColor {
+	name: string;
+	hex: string;
+}
+
+/** Fixed closed palette of 14 named presets (brand colours plus Weiß/Schwarz),
+ * plus a free colour picker for anything else — shared by the Hintergrund and
+ * Textfarbe pickers (see components/Menu/ColorPicker.tsx). Names are internal
+ * (shown as a hover tooltip on the swatch), not printed in the UI otherwise. */
+export const PALETTE: PaletteColor[] = [
+	{ name: "Coral Red 500", hex: "#FE4441" },
+	{ name: "Coral Red 100", hex: "#DE8290" },
+	{ name: "TSB Blau", hex: "#1E3791" },
+	{ name: "Citric Citron 200", hex: "#FFF59E" },
+	{ name: "Citric Citron 500", hex: "#FAE737" },
+	{ name: "Citric Citron 800", hex: "#F9A927" },
+	{ name: "Citric Citron 900", hex: "#F58019" },
+	{ name: "Electric Lavender 100", hex: "#D2D4FF" },
+	{ name: "Electric Lavender 500", hex: "#6F6BEA" },
+	{ name: "Electric Lavender 900", hex: "#4D36AC" },
+	{ name: "Subtle Green 200", hex: "#B5EAC2" },
+	{ name: "Subtle Green 300", hex: "#95E3A9" },
+	{ name: "Weiß", hex: "#FFFFFF" },
+	{ name: "Schwarz", hex: "#000000" },
 ];
+
+/** The picker's default when nothing else has been chosen yet — closest to
+ * the old "unlit" baseline (see CONTEXT.md "Hintergrund"). */
+export const DEFAULT_BACKGROUND_HEX = "#000000";
 
 /** Fixed 2-second pause between Lauftext loop repeats, unless overridden per
  * content by TextContent.pauseMs — see CONTEXT.md "Content". */
@@ -76,7 +96,7 @@ const DEFAULT_ANIMATION: AnimationContent = {
 
 const DEFAULT_COLOR: ColorContent = {
 	type: "color",
-	hex: PALETTE[0],
+	hex: DEFAULT_BACKGROUND_HEX,
 };
 
 export function defaultContentFor(type: ContentType): Content {

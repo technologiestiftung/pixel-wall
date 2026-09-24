@@ -1,6 +1,6 @@
 import { useMemo, type CSSProperties } from "react";
 import { LOOP_PAUSE_MS } from "../domain/content";
-import type { ScreenLayers, TextContent } from "../domain/types";
+import type { ScreenKind, ScreenLayers, TextContent } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
 import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
@@ -10,6 +10,7 @@ import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
 	render: AppliedRender;
+	screenKind: ScreenKind;
 }
 
 // Tailwind's preflight reset applies `img { max-width: 100%; height: auto }`
@@ -40,7 +41,7 @@ const BITMAP_STYLE: CSSProperties = {
  * reconstruct a live animation — that's not a limitation, it's exactly
  * what the real hardware contract expects.
  */
-export function ContentLayer({ render }: ContentLayerProps) {
+export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 	const { layers, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
 		render;
 
@@ -57,6 +58,12 @@ export function ContentLayer({ render }: ContentLayerProps) {
 		return (
 			<ScrollingBitmap
 				content={foreground}
+				// Large screens composite a static background behind the panned
+				// text (see render/layers.ts scrollBackgroundSupported); small
+				// screens don't support that yet, so they keep showing on black
+				// exactly as before — see
+				// docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
+				backgroundHex={screenKind === "large" ? layers.background : null}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}
@@ -144,12 +151,14 @@ function StaticBitmap({
 
 function ScrollingBitmap({
 	content,
+	backgroundHex,
 	compositeWidthPx,
 	compositeHeightPx,
 	offsetXPx,
 	offsetYPx,
 }: {
 	content: TextContent;
+	backgroundHex: string | null;
 	compositeWidthPx: number;
 	compositeHeightPx: number;
 	offsetXPx: number;
@@ -196,6 +205,10 @@ function ScrollingBitmap({
 					top: -offsetYPx,
 					width: compositeWidthPx,
 					height: compositeHeightPx,
+					// Static and non-scrolling, unlike the filmstrip below: this div
+					// itself never animates, only the <img> inside it does, so a
+					// background painted here never travels with the panning text.
+					backgroundColor: backgroundHex ?? undefined,
 				}}
 			>
 				<img

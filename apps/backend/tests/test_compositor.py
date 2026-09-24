@@ -12,7 +12,7 @@ from app.mask import Mask, Palette4, encode, encode_pal4
 RED = [254, 68, 65]
 
 
-def mask_entry(rows, window=None, color=RED, scroll=None):
+def mask_entry(rows, window=None, color=RED, scroll=None, background=None):
     mask = Mask.from_rows(rows)
     content = {
         "format": "mask1",
@@ -23,6 +23,8 @@ def mask_entry(rows, window=None, color=RED, scroll=None):
     }
     if scroll:
         content["scroll"] = scroll
+    if background:
+        content["background"] = background
     return {
         "window": window
         or {
@@ -106,6 +108,65 @@ def test_scrolling_moves_the_content_over_time():
     midway = screen_tile(entry, (4, 1), 300)
     assert midway.getpixel((1, 0)) == tuple(RED)
     assert midway.getpixel((0, 0)) == (0, 0, 0)
+
+
+BLUE = [30, 55, 145]
+
+
+def test_background_fills_behind_unlit_pixels():
+    """A background behind Lauftext (see docs/adr/0001-…) — the fill shows
+    through wherever the mask has nothing lit, without disturbing lit pixels."""
+    tile = screen_tile(mask_entry(["#."], background=BLUE), (2, 1), 0)
+    assert tile.getpixel((0, 0)) == tuple(RED)
+    assert tile.getpixel((1, 0)) == tuple(BLUE)
+
+
+def test_no_background_still_falls_back_to_black():
+    tile = screen_tile(mask_entry(["#."]), (2, 1), 0)
+    assert tile.getpixel((1, 0)) == (0, 0, 0)
+
+
+def test_pal4_background_shows_through_index_zero():
+    image = Palette4.from_rows(["01"], [(0, 0, 0), (10, 20, 30)])
+    entry = {
+        "window": {"offsetXPx": 0, "offsetYPx": 0, "widthPx": 2, "heightPx": 1},
+        "content": {
+            "format": "pal4",
+            "widthPx": 2,
+            "heightPx": 1,
+            "data": base64.b64encode(encode_pal4(image)).decode(),
+            "background": BLUE,
+        },
+    }
+    tile = screen_tile(entry, (2, 1), 0)
+    assert tile.getpixel((0, 0)) == tuple(BLUE)
+    assert tile.getpixel((1, 0)) == (10, 20, 30)
+
+
+def test_background_stays_static_while_the_filmstrip_pans():
+    """The whole point: the background must not travel with the scroll — only
+    the glyphs pan over it (see docs/wire-format.md `background`)."""
+    scroll = {
+        "direction": "left",
+        "speedPxPerSec": 10,
+        "pauseMs": 0,
+        "compositeWidthPx": 4,
+    }
+    entry = mask_entry(
+        ["##"],
+        window={"offsetXPx": 0, "offsetYPx": 0, "widthPx": 4, "heightPx": 1},
+        scroll=scroll,
+        background=BLUE,
+    )
+
+    start = screen_tile(entry, (4, 1), 0)
+    midway = screen_tile(entry, (4, 1), 300)
+
+    # At every tick, every pixel is either the glyph colour or the (unmoving)
+    # background — never black, since a background was given.
+    for tile in (start, midway):
+        for x in range(4):
+            assert tile.getpixel((x, 0)) in (tuple(RED), tuple(BLUE))
 
 
 def test_two_screens_of_one_composite_stay_in_step():

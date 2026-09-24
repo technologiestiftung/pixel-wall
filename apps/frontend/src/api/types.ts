@@ -43,6 +43,11 @@ export interface WireContentDto {
 	color?: [number, number, number];
 	data: string;
 	scroll?: ScrollDto | null;
+	/** A static fill behind a scrolling filmstrip — never baked into `data`,
+	 * since that would pan along with the text (see render/layers.ts). Large
+	 * screens (Pi) only for now — see
+	 * docs/adr/0001-phase-lauftext-background-by-hardware-kind.md. */
+	background?: [number, number, number] | null;
 }
 
 export interface BrightnessDto {

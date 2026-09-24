@@ -1,4 +1,5 @@
 import { defaultContentFor } from "../../domain/content";
+import { EMPTY_LAYERS } from "../../domain/types";
 import type {
 	AnimationContent,
 	ColorContent,
@@ -6,7 +7,11 @@ import type {
 	ContentType,
 	TextContent,
 } from "../../domain/types";
-import { effectiveBrightness } from "../../state/selectors";
+import { backgroundIsLost } from "../../render/layers";
+import {
+	effectiveBrightness,
+	resolveScreenRender,
+} from "../../state/selectors";
 import { useApplyChanges } from "../../state/useApplyChanges";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
@@ -46,6 +51,22 @@ export function Menu() {
 	}
 	const current = currentContentFor(activeTab);
 
+	// What the selection is actually about to show — drafts folded over
+	// whatever's already applied (see resolveScreenRender) — so these warnings
+	// track the live preview rather than just this tab's own draft.
+	const previewLayers = selection
+		? (resolveScreenRender(state, selection.screenIds[0])?.layers ??
+			EMPTY_LAYERS)
+		: EMPTY_LAYERS;
+	const previewForeground = previewLayers.foreground;
+	const backgroundHidesOnSmallScreen = selection
+		? backgroundIsLost(previewLayers, selection.kind)
+		: false;
+	const textInvisibleOnBackground =
+		previewForeground?.type === "text" &&
+		previewLayers.background !== null &&
+		previewLayers.background === previewForeground.color;
+
 	// Selecting other screens, clearing the selection, and entering layout
 	// mode all drop the current draft(s), so the reducer holds them back as a
 	// pending intent until the user says what to do with it. Switching tabs is
@@ -79,7 +100,7 @@ export function Menu() {
 
 	if (layoutEditMode) {
 		return (
-			<aside className="flex w-[360px] shrink-0 flex-col gap-5 border-r-[0.5px] border-[#595959] bg-white p-7">
+			<aside className="flex w-[363px] shrink-0 flex-col gap-5 border-r-[0.5px] border-[#595959] bg-white p-7">
 				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
 					Layout bearbeiten
 				</h2>
@@ -101,7 +122,7 @@ export function Menu() {
 	return (
 		// Only the fields scroll: the actions are a footer outside the scroll
 		// area, so a long panel can never push Speichern out of sight.
-		<aside className="flex w-[360px] shrink-0 flex-col border-r-[0.5px] border-[#595959] bg-white">
+		<aside className="flex w-[363px] shrink-0 flex-col border-r-[0.5px] border-[#595959] bg-white">
 			<div className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5 pb-5">
 				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
 					Screens anpassen
@@ -111,6 +132,18 @@ export function Menu() {
 
 				{selection ? (
 					<>
+						{backgroundHidesOnSmallScreen && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
+								Hintergrundfarbe wird bei Lauftext auf kleinen Bildschirmen noch
+								nicht unterstützt — der Bildschirm bleibt schwarz.
+							</div>
+						)}
+						{textInvisibleOnBackground && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
+								Textfarbe und Hintergrundfarbe sind identisch — der Text wird
+								nicht sichtbar sein.
+							</div>
+						)}
 						{/* No aria-labelledby here: it would give this wrapper the
 						same accessible name as the tab's own form field (e.g.
 						"Text"), which makes them indistinguishable to label-based
@@ -152,10 +185,14 @@ export function Menu() {
 						/>
 					</>
 				) : (
-					<div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-[13px] text-blue-700">
-						Kein Bildschirm ausgewählt. Wähle einen oder mehrere Screens aus
-						(Shift-Taste bei der Auswahl gedrückt halten), um neue Inhalte auf
-						die Screens zu ziehen.
+					<div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-blue-700 flex flex-col gap-1">
+						<h3 className="font-semibold text-sm">
+							Kein Bildschirm ausgewählt
+						</h3>
+						<p className="text-xs">
+							Wähle einen oder mehrere Screens aus (⇧ Shift-Taste bei Auswahl
+							gedrückt halten), um neue Inhalte auf die Screens zu ziehen.
+						</p>
 					</div>
 				)}
 			</div>
