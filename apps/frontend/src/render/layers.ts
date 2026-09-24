@@ -34,14 +34,22 @@ export async function layersToWire(
 		return contentToWire({ type: "color", hex: background }, size);
 	}
 
-	if (!scrollBackgroundSupported(layers, screenKind)) {
-		return contentToWire(foreground, size, { scroll, background: null });
+	// Only Lauftext has to keep the background out of the rasterised canvas —
+	// static text and Animation/Bild bake it in exactly as before, since that
+	// picture never moves.
+	const isScrollingText =
+		foreground.type === "text" && foreground.mode === "scrolling";
+	if (!isScrollingText) {
+		return contentToWire(foreground, size, { scroll, background });
 	}
 
 	const wire = await contentToWire(foreground, size, {
 		scroll,
 		background: null,
 	});
+	if (!scrollBackgroundSupported(layers, screenKind)) {
+		return wire;
+	}
 	return {
 		...wire,
 		background: background === null ? null : hexToRgb(background),

@@ -34,10 +34,10 @@ export function ColorPicker({ hex, onChange, label }: ColorPickerProps) {
 							aria-pressed={selected}
 							aria-label={preset.name}
 							title={preset.name}
-							className="flex w-[39px] flex-col items-center gap-2"
+							className="flex w-[36px] flex-col items-center gap-2"
 						>
 							<span
-								className={`relative block size-[34px] rounded-lg ${selected ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
+								className={`relative block size-[36px] rounded-lg ${selected ? "border-2 border-[#20201b]" : "border border-[#e5e4df]"}`}
 								style={{ backgroundColor: preset.hex }}
 							>
 								{selected && (

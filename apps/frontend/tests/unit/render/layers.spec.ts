@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { decodeMaskBase64, maskToRows } from "../../../src/domain/mask";
 import { EMPTY_LAYERS, withEdit } from "../../../src/domain/types";
 import type { ScreenLayers, TextContent } from "../../../src/domain/types";
 import { backgroundIsLost, layersToWire } from "../../../src/render/layers";
+import * as wire from "../../../src/render/wire";
 
 const text: TextContent = {
 	type: "text",
@@ -133,11 +134,48 @@ describe("layersToWire", () => {
 	});
 
 	it("drops the background behind Lauftext on a small screen, exactly as before", async () => {
-		const wire = await layersToWire(
+		const result = await layersToWire(
 			{ background: "#1E3791", foreground: scrolling },
 			{ widthPx: 8, heightPx: 8 },
 			{ screenKind: "small" },
 		);
-		expect(wire.background).toBeUndefined();
+		expect(result.background).toBeUndefined();
+	});
+
+	// Regression coverage: `wire.format`/`wire.color` alone (above) can't tell
+	// jsdom-without-canvas apart from a real bug here, since contentToWire's
+	// no-context fallback looks the same either way — a prior version of
+	// layersToWire passed `background: null` into contentToWire for *every*
+	// non-scrolling case (it meant to gate only the scrolling one), silently
+	// breaking Hintergrund for static text and Animation/Bild. Spying on the
+	// actual call is the only way to catch that here.
+	it("bakes the background into the canvas for static text, not just Lauftext", async () => {
+		const spy = vi.spyOn(wire, "contentToWire");
+		await layersToWire(
+			{ background: "#B4B9FF", foreground: text },
+			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
+		);
+		expect(spy).toHaveBeenCalledWith(
+			text,
+			{ widthPx: 8, heightPx: 8 },
+			{ scroll: undefined, background: "#B4B9FF" },
+		);
+		spy.mockRestore();
+	});
+
+	it("keeps the background out of the canvas for Lauftext specifically", async () => {
+		const spy = vi.spyOn(wire, "contentToWire");
+		await layersToWire(
+			{ background: "#B4B9FF", foreground: scrolling },
+			{ widthPx: 8, heightPx: 8 },
+			{ screenKind: "large" },
+		);
+		expect(spy).toHaveBeenCalledWith(
+			scrolling,
+			{ widthPx: 8, heightPx: 8 },
+			{ scroll: undefined, background: null },
+		);
+		spy.mockRestore();
 	});
 });
