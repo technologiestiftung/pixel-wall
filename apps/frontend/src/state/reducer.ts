@@ -19,7 +19,7 @@ import type {
 	TextContent,
 } from "../domain/types";
 import { EMPTY_LAYERS } from "../domain/types";
-import { wireToDataUrl } from "../render/wire";
+import { compositeWidthOf, wireToDataUrl } from "../render/wire";
 import { draftHasChanges } from "./selectors";
 
 /**
@@ -238,7 +238,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
 	return {
 		layers: entry.source ?? EMPTY_LAYERS,
-		compositeWidthPx: entry.content.widthPx,
+		compositeWidthPx: compositeWidthOf(entry.content),
 		compositeHeightPx: entry.content.heightPx,
 		offsetXPx: entry.window.offsetXPx,
 		offsetYPx: entry.window.offsetYPx,

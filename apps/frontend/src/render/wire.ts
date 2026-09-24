@@ -212,6 +212,27 @@ function emptyMask(content: Content, widthPx: number, heightPx: number) {
 }
 
 /**
+ * The width of the *selection* a wire content belongs to — not necessarily
+ * `content.widthPx`, which for Lauftext or an animated template is the
+ * filmstrip/frame-strip's own width (`textWidthPx`, or
+ * `frameCount * compositeWidthPx`), wider than the composite it actually
+ * plays across. Used wherever a screen is rebuilt from a hydrated wire
+ * payload rather than from live selection/layout geometry — getting this
+ * wrong for `frames` isn't just cosmetic: `animatedTemplate.ts` rebuilds its
+ * strip at this width *per frame*, so feeding back the whole strip's width
+ * multiplies it by `frameCount` again, a canvas far beyond what any browser
+ * will actually allocate — which silently degrades to an unusable image
+ * rather than throwing.
+ */
+export function compositeWidthOf(content: WireContentDto): number {
+	return (
+		content.frames?.compositeWidthPx ??
+		content.scroll?.compositeWidthPx ??
+		content.widthPx
+	);
+}
+
+/**
  * Paints a wire payload back to a data URL for the preview, so a screen
  * hydrated from the backend looks the same as one edited locally.
  * Clear pixels stay transparent: the tile behind is already black, which is
@@ -222,10 +243,7 @@ export function wireToDataUrl(content: WireContentDto): string {
 	// A `frames` payload's `data` is the whole multi-frame strip (see
 	// animationToFramesWire above) — this static preview shows just frame 0,
 	// which is exactly the strip's first `compositeWidthPx`-wide slot.
-	canvas.width = Math.max(
-		1,
-		content.frames?.compositeWidthPx ?? content.widthPx,
-	);
+	canvas.width = Math.max(1, compositeWidthOf(content));
 	canvas.height = Math.max(1, content.heightPx);
 	const ctx = canvas.getContext("2d");
 	if (!ctx) {

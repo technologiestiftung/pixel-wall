@@ -55,6 +55,14 @@ export interface AnimationContent {
 	vAlign: VerticalAlign;
 }
 
+/** Reserved `AnimationContent.templateId` meaning "nothing" — lets the
+ * Animation/Bild tab be explicitly deselected, mirroring `ColorContent`'s
+ * `hex: null` for the Hintergrund tab's "ohne". Never reaches a renderer or
+ * `TEMPLATES`: `withEdit` below converts it straight to `foreground: null`
+ * the moment it's folded, so nothing downstream (rasterize.ts, wire.ts,
+ * animatedTemplate.ts) ever needs to know this id exists. */
+export const NO_ANIMATION_TEMPLATE_ID = "ohne";
+
 /** The Hintergrund tab: what fills a screen behind everything else.
  * `hex` of `null` is "ohne" — the screen is left unlit. */
 export interface ColorContent {
@@ -85,6 +93,9 @@ export const EMPTY_LAYERS: ScreenLayers = {
 export function withEdit(layers: ScreenLayers, edit: Content): ScreenLayers {
 	if (edit.type === "color") {
 		return { ...layers, background: edit.hex };
+	}
+	if (edit.type === "animation" && edit.templateId === NO_ANIMATION_TEMPLATE_ID) {
+		return { ...layers, foreground: null };
 	}
 	return { ...layers, foreground: edit };
 }

@@ -60,6 +60,73 @@ describe("wallReducer: hydrated", () => {
 		expect(next.syncStatus).toBe("ready");
 	});
 
+	test("uses frames.compositeWidthPx, not the whole strip's widthPx, for an animated template", () => {
+		// A regression case: content.widthPx here is the 4-frame strip's total
+		// width (128), not the 32px composite each frame actually plays across.
+		// Using the strip width as compositeWidthPx would feed it straight back
+		// into the per-frame canvas size when the strip is rebuilt for preview,
+		// multiplying it by frameCount again — see render/wire.ts compositeWidthOf.
+		const remote: StateResponse["screens"] = {
+			"04": {
+				window: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
+				content: {
+					...wireContent(),
+					widthPx: 128,
+					frames: { frameCount: 4, frameDurationMs: 250, compositeWidthPx: 32 },
+				},
+				source: {
+					background: null,
+					foreground: {
+						type: "animation",
+						templateId: "pfeil-rund-animiert",
+						scalePercent: 100,
+						hAlign: "center",
+						vAlign: "center",
+					},
+				},
+			},
+		};
+
+		const next = wallReducer(initialWallState, {
+			type: "hydrated",
+			specs: SCREEN_SPECS,
+			layout: DEFAULT_LAYOUT,
+			remote,
+			brightness: { small: 60, large: 60 },
+		});
+
+		expect(next.applied["04"]?.compositeWidthPx).toBe(32);
+	});
+
+	test("uses scroll.compositeWidthPx, not the filmstrip's widthPx, for Lauftext", () => {
+		const remote: StateResponse["screens"] = {
+			"04": {
+				window: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
+				content: {
+					...wireContent(),
+					widthPx: 500,
+					scroll: {
+						direction: "left",
+						speedPxPerSec: 60,
+						pauseMs: 2000,
+						compositeWidthPx: 32,
+					},
+				},
+				source: { background: null, foreground: { ...TEXT_FIELDS, type: "text", mode: "scrolling", value: "hi" } },
+			},
+		};
+
+		const next = wallReducer(initialWallState, {
+			type: "hydrated",
+			specs: SCREEN_SPECS,
+			layout: DEFAULT_LAYOUT,
+			remote,
+			brightness: { small: 60, large: 60 },
+		});
+
+		expect(next.applied["04"]?.compositeWidthPx).toBe(32);
+	});
+
 	test("an empty server state clears previously-applied screens", () => {
 		const seeded = wallReducer(initialWallState, {
 			type: "hydrated",

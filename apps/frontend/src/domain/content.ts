@@ -8,7 +8,6 @@ import type {
 
 export interface Template {
 	id: string;
-	label: string;
 	/** SVG file name under `public/visuals/`. */
 	file: string;
 	/** True when the SVG carries its own CSS `@keyframes` animation (see
@@ -29,22 +28,26 @@ export interface Template {
  * SVGs under `public/visuals/` — see CONTEXT.md "Content". This is the
  * closed set approved for Bild/Animation; nothing else ships. */
 export const TEMPLATES: Template[] = [
-	{ id: "logo", label: "Logo", file: "CLB-Logo.svg" },
+	{ id: "logo", file: "CLB-Logo.svg" },
 	{
 		id: "raute-animiert",
-		label: "▶ Raute",
 		file: "CLB-Raute-animiert-1.svg",
 		animated: true,
 		loopMs: 4000,
 	},
 	{
+		id: "raute-animiert-2",
+		file: "CLB-Raute-animiert-2.svg",
+		animated: true,
+		loopMs: 8000,
+	},
+	{
 		id: "pfeil-rund-animiert",
-		label: "▶ Pfeil",
 		file: "CLB-arrow-round-animated.svg",
 		animated: true,
 		loopMs: 4000,
 	},
-	{ id: "smiley", label: "Smiley", file: "CLB-smiley.svg" },
+	{ id: "smiley", file: "CLB-smiley.svg" },
 ];
 
 export interface PaletteColor {

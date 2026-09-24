@@ -1,0 +1,80 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes kf_Vector_transform_0 {
+  0% {
+    transform: translateX(275px) translateY(163px) translateX(0px) translateY(0px);
+  }
+  11.1% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(275px) translateY(163px) translateX(0px) translateY(0px);
+  }
+  41.53% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(275px) translateY(163px) translateX(-6.798px) translateY(-4.413px);
+  }
+  72.52% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(275px) translateY(163px) translateX(2.125px) translateY(1.406px);
+  }
+  100% {
+    transform: translateX(275px) translateY(163px) translateX(0px) translateY(0px);
+  }
+}
+#Vector {
+  transform-origin: 0 0;
+  animation: kf_Vector_transform_0 8s linear infinite;
+}
+@keyframes kf_Vector_2_transform_0 {
+  0% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(145px) translateY(80px) translateX(0px) translateY(0px);
+  }
+  31.85% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(145px) translateY(80px) translateX(-11.994px) translateY(-9.144px);
+  }
+  54.62% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(145px) translateY(80px) translateX(-3.822px) translateY(-2.91px);
+  }
+  79.77% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(145px) translateY(80px) translateX(-6.413px) translateY(-4.88px);
+  }
+  100% {
+    transform: translateX(145px) translateY(80px) translateX(1px) translateY(0px);
+  }
+}
+#Vector_2 {
+  transform-origin: 0 0;
+  animation: kf_Vector_2_transform_0 8s linear infinite;
+}
+@keyframes kf_Vector_3_transform_0 {
+  0% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(135px) translateY(229px) translateX(0px) translateY(0px);
+  }
+  54.15% {
+    animation-timing-function: ease-in-out;
+    transform: translateX(135px) translateY(229px) translateX(-39.423px) translateY(32.428px);
+  }
+  100% {
+    transform: translateX(135px) translateY(229px) translateX(0px) translateY(0px);
+  }
+}
+#Vector_3 {
+  transform-origin: 0 0;
+  animation: kf_Vector_3_transform_0 8s linear infinite;
+}
+</style>
+<g id="CLB-Raute-animiert" clip-path="url(#clip0_91_104)">
+<path id="Vector" transform="translate(275 163)" d="M230 264.667V0L0 132.333V397L230 264.667Z" fill="#1E3791"/>
+<path id="Vector_2" transform="translate(145 80)" d="M0 132L229.328 0L344 66L114.672 198L0 132Z" fill="#FE4441"/>
+<path id="Vector_3" transform="translate(135 229)" d="M0 0L114 66.2V331L0 264.8V0Z" fill="#FCB0BB"/>
+</g>
+<defs>
+<clipPath id="clip0_91_104">
+<rect width="640" height="640" fill="white"/>
+</clipPath>
+</defs>
+</svg>
