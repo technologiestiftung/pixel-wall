@@ -11,27 +11,39 @@ export interface Template {
 	label: string;
 	/** SVG file name under `public/visuals/`. */
 	file: string;
+	/** True when the SVG carries its own CSS `@keyframes` animation (see
+	 * render/animatedTemplate.ts) rather than being a plain static image. Drives
+	 * both the frame-strip rasterization path (wire.ts) and the fps control in
+	 * AnimationPanel — a template without this is never sampled, just drawn
+	 * once like Farbe/static text. */
+	animated?: boolean;
+	/** The template's own authored loop length, in ms — the CSS animation's
+	 * `animation-duration`. Only meaningful when `animated` is true. Both
+	 * current animated templates are hand-authored at a 4s loop (Figma Smart
+	 * Animate's export default); a future template with a different duration
+	 * would need its own value here, since this can't be derived generically
+	 * without re-parsing the SVG's `<style>` block ahead of time. */
+	loopMs?: number;
 }
 
 /** Fixed built-in template library (no user upload in v1), sourced from the
- * SVGs under `public/visuals/` — see CONTEXT.md "Content". */
+ * SVGs under `public/visuals/` — see CONTEXT.md "Content". This is the
+ * closed set approved for Bild/Animation; nothing else ships. */
 export const TEMPLATES: Template[] = [
 	{ id: "logo", label: "Logo", file: "CLB-Logo.svg" },
-	{ id: "raute", label: "Raute", file: "CLB-Raute.svg" },
 	{
 		id: "raute-animiert",
-		label: "Raute animiert",
-		file: "CLB_rauten_animation.svg",
-	},
-	{
-		id: "pfeil-rund",
-		label: "Pfeil rund",
-		file: "CLB-arrow-round.svg",
+		label: "▶ Raute",
+		file: "CLB-Raute-animiert-1.svg",
+		animated: true,
+		loopMs: 4000,
 	},
 	{
 		id: "pfeil-rund-animiert",
-		label: "Pfeil rund animiert",
+		label: "▶ Pfeil",
 		file: "CLB-arrow-round-animated.svg",
+		animated: true,
+		loopMs: 4000,
 	},
 	{ id: "smiley", label: "Smiley", file: "CLB-smiley.svg" },
 ];
@@ -86,12 +98,23 @@ const DEFAULT_TEXT: TextContent = {
 	paddingPx: 0,
 };
 
+/** Default sample rate for an animated template's frame strip — ignored for
+ * a non-animated template. Deliberately a user-adjustable field (like
+ * TextContent.speedPxPerSec) rather than a fixed constant: payload size
+ * scales linearly with fps and stays cheap even well past this (see
+ * ANIMATION_FPS_MAX), so the right value is a visual call to make on the
+ * actual panels, not something to hardcode — see AnimationPanel.tsx. */
+export const DEFAULT_ANIMATION_FPS = 12;
+export const ANIMATION_FPS_MIN = 2;
+export const ANIMATION_FPS_MAX = 30;
+
 const DEFAULT_ANIMATION: AnimationContent = {
 	type: "animation",
 	templateId: TEMPLATES[0].id,
 	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
+	fps: DEFAULT_ANIMATION_FPS,
 };
 
 const DEFAULT_COLOR: ColorContent = {

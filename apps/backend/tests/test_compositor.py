@@ -5,14 +5,16 @@ import base64
 
 import pytest
 
-from app.compositor import brightness_for_large, render_frame, screen_tile
+from app.compositor import brightness_for_large, has_motion, render_frame, screen_tile
 from app.hardware import LARGE_SCREEN_MATRIX_RECT
 from app.mask import Mask, Palette4, encode, encode_pal4
 
 RED = [254, 68, 65]
 
 
-def mask_entry(rows, window=None, color=RED, scroll=None, background=None):
+def mask_entry(
+    rows, window=None, color=RED, scroll=None, background=None, frames=None
+):
     mask = Mask.from_rows(rows)
     content = {
         "format": "mask1",
@@ -25,6 +27,8 @@ def mask_entry(rows, window=None, color=RED, scroll=None, background=None):
         content["scroll"] = scroll
     if background:
         content["background"] = background
+    if frames:
+        content["frames"] = frames
     return {
         "window": window
         or {
@@ -108,6 +112,74 @@ def test_scrolling_moves_the_content_over_time():
     midway = screen_tile(entry, (4, 1), 300)
     assert midway.getpixel((1, 0)) == tuple(RED)
     assert midway.getpixel((0, 0)) == (0, 0, 0)
+
+
+def test_frames_show_the_slot_the_elapsed_time_selects():
+    """A `frames` strip is `frameCount` copies of one `compositeWidthPx`-wide
+    frame side by side — picking a frame is cropping that slot, exactly like
+    scroll crops a moving window (see compositor.py's `screen_tile`)."""
+    frames = {"frameCount": 2, "frameDurationMs": 100, "compositeWidthPx": 2}
+    # Frame 0 is "##..", frame 1 is "..##", side by side in one 4px-wide mask.
+    entry = mask_entry(["##.."], frames=frames)
+
+    at_frame_0 = screen_tile(entry, (2, 1), 0)
+    assert at_frame_0.getpixel((0, 0)) == tuple(RED)
+    assert at_frame_0.getpixel((1, 0)) == tuple(RED)
+
+    at_frame_1 = screen_tile(entry, (2, 1), 150)
+    assert at_frame_1.getpixel((0, 0)) == (0, 0, 0)
+    assert at_frame_1.getpixel((1, 0)) == (0, 0, 0)
+
+
+def test_frames_loop_back_to_the_first_slot():
+    frames = {"frameCount": 2, "frameDurationMs": 100, "compositeWidthPx": 2}
+    entry = mask_entry(["##.."], frames=frames)
+    # 250ms is 2.5 cycles of 100ms into frame 1 territory (floor(250/100)=2,
+    # 2 % 2 == 0) — back to frame 0.
+    looped = screen_tile(entry, (2, 1), 250)
+    assert looped.getpixel((0, 0)) == tuple(RED)
+
+
+@pytest.mark.parametrize(
+    "state, expected",
+    [
+        ({"screens": {"04": mask_entry(["#"])}}, False),
+        (
+            {
+                "screens": {
+                    "04": mask_entry(
+                        ["#"],
+                        scroll={
+                            "direction": "left",
+                            "speedPxPerSec": 1,
+                            "pauseMs": 0,
+                            "compositeWidthPx": 1,
+                        },
+                    )
+                }
+            },
+            True,
+        ),
+        (
+            {
+                "screens": {
+                    "04": mask_entry(
+                        ["#"],
+                        frames={
+                            "frameCount": 1,
+                            "frameDurationMs": 100,
+                            "compositeWidthPx": 1,
+                        },
+                    )
+                }
+            },
+            True,
+        ),
+        ({"screens": {}}, False),
+    ],
+)
+def test_has_motion(state, expected):
+    assert has_motion(state) is expected
 
 
 BLUE = [30, 55, 145]

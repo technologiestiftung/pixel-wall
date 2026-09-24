@@ -1,4 +1,4 @@
-import type { ScrollDto, WireContentDto } from "../api/types";
+import type { FramesDto, ScrollDto, WireContentDto } from "../api/types";
 import {
 	createMask,
 	decodeBlock,
@@ -9,7 +9,9 @@ import {
 	setBit,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
+import { TEMPLATES } from "../domain/content";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
+import { frameCountFor, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
 import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
 import { waitForTemplateImage } from "./templateImages";
@@ -93,6 +95,14 @@ async function contentToPal4Wire(
 	},
 ): Promise<WireContentDto> {
 	const { width, height, scroll, background = null } = size;
+
+	if (content.type === "animation") {
+		const template = TEMPLATES.find((t) => t.id === content.templateId);
+		if (template?.animated) {
+			return animationToFramesWire(content, template, { width, height, background });
+		}
+	}
+
 	if (content.type === "animation" && hasCanvasSupport()) {
 		await waitForTemplateImage(content.templateId);
 	}
@@ -128,6 +138,60 @@ async function contentToPal4Wire(
 	};
 }
 
+/**
+ * Builds the `pal4` envelope for an animated Animation/Bild template: a wide
+ * strip of `frameCount` samples of its own CSS animation (see
+ * render/animatedTemplate.ts), quantized once as a single palette/frame so
+ * a device can crop whichever `compositeWidthPx`-wide slot the elapsed time
+ * says to show — the frame-strip counterpart of Lauftext's filmstrip (see
+ * docs/wire-format.md `frames`).
+ *
+ * `width`/`height` here are one frame's size (the composite each screen's
+ * window is measured against), not the strip's — the returned `widthPx` is
+ * `width * frameCount`, matching what `data` actually contains.
+ */
+async function animationToFramesWire(
+	content: AnimationContent,
+	template: { loopMs?: number },
+	size: { width: number; height: number; background: string | null },
+): Promise<WireContentDto> {
+	const { width, height, background } = size;
+	const frameCount = frameCountFor(template.loopMs ?? 4000, content.fps ?? 12);
+	const frames: FramesDto = {
+		frameCount,
+		frameDurationMs: (template.loopMs ?? 4000) / frameCount,
+		compositeWidthPx: width,
+	};
+
+	const strip = await renderAnimationFrameStrip(
+		content,
+		{ widthPx: width, heightPx: height },
+		{ frameCount, background },
+	);
+	const context = strip?.getContext("2d") ?? null;
+	const stripWidth = width * frameCount;
+
+	const image = context
+		? pal4FromImageData(context.getImageData(0, 0, stripWidth, height).data, {
+				widthPx: stripWidth,
+				heightPx: height,
+			})
+		: {
+				widthPx: stripWidth,
+				heightPx: height,
+				palette: [[0, 0, 0]],
+				indices: new Uint8Array(stripWidth * height),
+			};
+
+	return {
+		format: "pal4",
+		widthPx: stripWidth,
+		heightPx: height,
+		data: encodePal4Base64(image),
+		frames,
+	};
+}
+
 /** Without a 2D context (jsdom without the optional `canvas` package) a flat
  * colour fill is still exactly representable; anything else degrades to blank
  * rather than throwing. */
@@ -151,7 +215,10 @@ function emptyMask(content: Content, widthPx: number, heightPx: number) {
  */
 export function wireToDataUrl(content: WireContentDto): string {
 	const canvas = document.createElement("canvas");
-	canvas.width = Math.max(1, content.widthPx);
+	// A `frames` payload's `data` is the whole multi-frame strip (see
+	// animationToFramesWire above) — this static preview shows just frame 0,
+	// which is exactly the strip's first `compositeWidthPx`-wide slot.
+	canvas.width = Math.max(1, content.frames?.compositeWidthPx ?? content.widthPx);
 	canvas.height = Math.max(1, content.heightPx);
 	const ctx = canvas.getContext("2d");
 	if (!ctx) {

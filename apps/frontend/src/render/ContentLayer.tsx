@@ -1,11 +1,18 @@
-import { useMemo, type CSSProperties } from "react";
-import { LOOP_PAUSE_MS } from "../domain/content";
-import type { ScreenKind, ScreenLayers, TextContent } from "../domain/types";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
+import type {
+	AnimationContent,
+	ScreenKind,
+	ScreenLayers,
+	TextContent,
+} from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
+import { frameCountFor, renderAnimationFrameStrip } from "./animatedTemplate";
 import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
 import { measureTextWidthPx } from "./text";
 import { useTemplateImagesVersion } from "./templateImages";
+import { useAnimationFrameIndex } from "./useAnimationFrameIndex";
 import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
@@ -64,6 +71,24 @@ export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 				// exactly as before — see
 				// docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
 				backgroundHex={screenKind === "large" ? layers.background : null}
+				compositeWidthPx={compositeWidthPx}
+				compositeHeightPx={compositeHeightPx}
+				offsetXPx={offsetXPx}
+				offsetYPx={offsetYPx}
+			/>
+		);
+	}
+
+	const animatedTemplate =
+		foreground?.type === "animation"
+			? TEMPLATES.find((t) => t.id === foreground.templateId)
+			: undefined;
+	if (foreground?.type === "animation" && animatedTemplate?.animated) {
+		return (
+			<AnimatedBitmap
+				content={foreground}
+				loopMs={animatedTemplate.loopMs ?? 4000}
+				backgroundHex={layers.background}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}
@@ -222,6 +247,81 @@ function ScrollingBitmap({
 					}}
 				/>
 			</div>
+		</div>
+	);
+}
+
+/**
+ * Live preview of an animated Animation/Bild template: builds the same
+ * frame-strip render/wire.ts sends to the wall (via
+ * render/animatedTemplate.ts) and steps through it with `left` offsets —
+ * the same sprite-sheet technique as `ScrollingBitmap` above, just stepped
+ * per frame instead of panned continuously. Strip generation is async (DOM
+ * injection + CSS animation scrubbing), so this renders nothing until the
+ * first strip resolves, then keeps it until a real dependency changes rather
+ * than flashing blank on every edit.
+ */
+function AnimatedBitmap({
+	content,
+	loopMs,
+	backgroundHex,
+	compositeWidthPx,
+	compositeHeightPx,
+	offsetXPx,
+	offsetYPx,
+}: {
+	content: AnimationContent;
+	loopMs: number;
+	backgroundHex: string | null;
+	compositeWidthPx: number;
+	compositeHeightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	const frameCount = frameCountFor(loopMs, content.fps ?? 12);
+	const frameDurationMs = loopMs / frameCount;
+
+	const [stripUrl, setStripUrl] = useState<string | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		renderAnimationFrameStrip(
+			content,
+			{ widthPx: compositeWidthPx, heightPx: compositeHeightPx },
+			{ frameCount, background: backgroundHex },
+		).then((canvas) => {
+			if (!cancelled) {
+				setStripUrl(canvas ? canvas.toDataURL("image/png") : null);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [
+		JSON.stringify(content),
+		backgroundHex,
+		compositeWidthPx,
+		compositeHeightPx,
+		frameCount,
+	]);
+
+	const frameIndex = useAnimationFrameIndex(frameCount, frameDurationMs);
+
+	if (stripUrl === null) {
+		return null;
+	}
+
+	return (
+		<div className="absolute inset-0 overflow-hidden">
+			<img
+				src={stripUrl}
+				alt=""
+				style={{
+					...BITMAP_STYLE,
+					position: "absolute",
+					left: -(frameIndex * compositeWidthPx) - offsetXPx,
+					top: -offsetYPx,
+				}}
+			/>
 		</div>
 	);
 }

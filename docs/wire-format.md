@@ -37,6 +37,7 @@ One JSON object per screen.
 	"data": "UAEBAJQAQAA...",
 	"window": { "offsetXPx": 84, "offsetYPx": 0, "widthPx": 64, "heightPx": 64 },
 	"scroll": { "direction": "left", "speedPxPerSec": 60, "pauseMs": 2000 },
+	"frames": { "frameCount": 12, "frameDurationMs": 83.3, "compositeWidthPx": 64 },
 	"background": [30, 55, 145]
 }
 ```
@@ -48,12 +49,14 @@ One JSON object per screen.
 | `color`               | `[r, g, b]`           | `mask1` only: 0–255 each, every set bit renders as this colour and every clear bit as black. Ignored for `pal4`, which carries its own palette.                                                                                                                                                                                                                                                                                                                                    |
 | `data`                | string                | base64 of the binary block below.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `window`              | object                | The region of the mask this screen displays. For a single-screen selection this is the whole mask at offset 0.                                                                                                                                                                                                                                                                                                                                                                     |
-| `scroll`              | object or absent      | Present only for Lauftext. Absent means a static frame.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `scroll`              | object or absent      | Present only for Lauftext. Absent means a static frame. Mutually exclusive with `frames` — a renderer never has to handle both on the same content.                                                                                                                                                                                                                                                                                                                               |
+| `frames`              | object or absent      | Present only for an animated Animation/Bild template. See "`frames`" below. Large (Pi) screens only for now — see `docs/adr/0002-phase-animated-templates-by-hardware-kind.md` and `docs/plan-esp32-animation-frames.md`. Absent everywhere else, including today's ESP32-driven small screens, which show `data`'s first frame statically until that phase lands.                                                                                                            |
 | `background`          | `[r, g, b]` or absent | A static fill a renderer paints _behind_ `data`, wherever `data` has nothing lit (`mask1` clear bit, or `pal4` index 0) — never baked into `data` itself, since for a scrolling frame that would pan along with the text. Present only for Lauftext on large (Pi) screens for now — see `docs/adr/0001-phase-lauftext-background-by-hardware-kind.md`. Absent everywhere else, including today's ESP32-driven small screens, which keep rendering on black until that phase lands. |
 
 `widthPx` and `heightPx` describe the mask, which for Lauftext is the full
-filmstrip and is wider than the screen. `window` is how a screen finds its
-slice of a shared composite.
+filmstrip and for an animated template is `frameCount` frames laid out side
+by side — in both cases wider than the screen. `window` is how a screen finds
+its slice of a shared composite.
 
 ### `scroll`
 
@@ -75,6 +78,32 @@ Panning is over the **mask**, and `window.offsetXPx` is added on top. Every
 screen in one composite must therefore pan from a shared phase, or the content
 tears at the seams. This is why all four large screens must be driven from a
 single process and all three small screens from a single board.
+
+### `frames`
+
+| Field              | Type   | Notes                                                                                          |
+| ------------------ | ------ | ------------------------------------------------------------------------------------------------ |
+| `frameCount`       | number | How many frames `data` contains, 1–255.                                                          |
+| `frameDurationMs`  | number | How long each frame is shown before advancing to the next.                                       |
+| `compositeWidthPx` | number | Width of one frame — not `widthPx`, which is the whole strip (`frameCount * compositeWidthPx`). |
+
+A renderer picks `floor(elapsedMs / frameDurationMs) % frameCount`, then
+crops the `compositeWidthPx`-wide slot at that index out of the mask —
+`window.offsetXPx` is added on top exactly as for a static frame, since each
+slot is itself a full composite. This is the same
+crop-a-window-out-of-a-wide-bitmap mechanism as `scroll` above, just stepped
+instead of continuous, and for the same reason: the frontend rasterises once
+and every renderer plays it back as a pure function of elapsed time, so
+multiple screens of one composite stay in phase for free.
+
+Because the two are mutually exclusive on one content, `frameCount` and
+`frameDurationMs` are chosen so that `frameCount * frameDurationMs` reproduces
+the animated template's own authored loop length (both templates that exist
+today loop every 4000ms) — sampled at a frame rate the editor's fps control
+picks per edit (see `apps/frontend/src/domain/content.ts`'s
+`Template.animated`/`loopMs` and `apps/frontend/src/render/animatedTemplate.ts`).
+Like `scroll`'s `speedPxPerSec`, `frameDurationMs` may be fractional; the
+difference is well below one frame and not observable.
 
 ## MQTT envelope (binary)
 
@@ -117,6 +146,19 @@ carries its own palette and the decoder ignores them.
 
 The scroll fields are always present so the header is a fixed 22 bytes; when
 flags bit 0 is clear they are zero and must be ignored.
+
+**`frames` has no binary encoding yet.** It exists only in the JSON envelope
+above, which today only reaches large (Pi) screens — the Pi reads the state
+file directly rather than going over MQTT, so this is not a gap in what's
+shipped, only in what the ESP32 side can do. Adding it to this binary
+envelope is planned, not implemented — see
+`docs/plan-esp32-animation-frames.md` for the exact header/flag layout that
+plan proposes, mirroring how `docs/plan-esp32-lauftext-background.md`
+similarly extends this same header for `background`. An ESP32 that receives
+an animated template's multi-frame `data` today (nothing currently sends it
+one, but nothing stops the backend from trying) decodes it as an ordinary
+static block and shows frame 0 — the first `compositeWidthPx`-wide slot of
+the strip — rather than animating or corrupting.
 
 `brightness` is carried here because a device driven only by MQTT has no other
 way to learn it — the Pi reads it straight out of the state file, but the ESP32

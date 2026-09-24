@@ -100,6 +100,7 @@ def screen_tile(
 
     shift_x = 0.0
     scroll = content.get("scroll")
+    frames = content.get("frames")
     if scroll:
         shift_x = marquee_offset_px(
             elapsed_ms,
@@ -111,6 +112,13 @@ def screen_tile(
                 direction=scroll.get("direction", "left"),
             ),
         )
+    elif frames:
+        # The mask itself is a strip of `frameCount` copies of one
+        # `compositeWidthPx`-wide frame (see docs/wire-format.md `frames`) —
+        # picking a frame is the same crop-a-window-out-of-a-wide-bitmap
+        # mechanism as scroll above, just stepped instead of continuous.
+        frame_index = int(elapsed_ms // frames["frameDurationMs"]) % frames["frameCount"]
+        shift_x = -(frame_index * frames["compositeWidthPx"])
 
     # `source` is RGBA with "nothing here" pixels transparent (see _to_image);
     # pasting it with itself as the mask lets `tile`'s own fill — the chosen
@@ -150,13 +158,15 @@ def brightness_for_large(state: dict[str, Any]) -> Optional[int]:
     return None
 
 
-def has_scrolling(state: dict[str, Any]) -> bool:
-    """Whether anything on the wall is animating.
+def has_motion(state: dict[str, Any]) -> bool:
+    """Whether anything on the wall needs a redraw every tick — Lauftext
+    (`scroll`) or an animated Animation/Bild template (`frames`).
 
     Static content needs redrawing only when the state file changes; redrawing
     it every tick is pure contention with the panel refresh thread.
     """
     for entry in (state.get("screens") or {}).values():
-        if entry.get("content", {}).get("scroll"):
+        content = entry.get("content", {})
+        if content.get("scroll") or content.get("frames"):
             return True
     return False

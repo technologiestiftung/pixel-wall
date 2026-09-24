@@ -28,9 +28,9 @@ const text: TextContent = {
 	vAlign: "center",
 };
 
-const raute: AnimationContent = {
+const logoTemplate: AnimationContent = {
 	type: "animation",
-	templateId: "raute",
+	templateId: "logo",
 	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
@@ -96,8 +96,8 @@ describe("contentToWire", () => {
 	});
 
 	it("routes every Animation/Bild template to pal4 instead of forcing it to a flat colour", async () => {
-		expect(TEMPLATES.find((t) => t.id === "raute")).toBeDefined();
-		const wire = await contentToWire(raute, { widthPx: 32, heightPx: 32 });
+		expect(TEMPLATES.find((t) => t.id === "logo")).toBeDefined();
+		const wire = await contentToWire(logoTemplate, { widthPx: 32, heightPx: 32 });
 		expect(wire.format).toBe("pal4");
 		expect(wire.color).toBeUndefined();
 		// `Image` never actually decodes anything under jsdom (see

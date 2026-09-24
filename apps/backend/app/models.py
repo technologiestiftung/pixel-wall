@@ -82,6 +82,20 @@ class ScrollModel(BaseModel):
     compositeWidthPx: int = Field(gt=0, le=65535)
 
 
+class FramesModel(BaseModel):
+    """Present only for an animated Animation/Bild template — the frame-strip
+    counterpart of ScrollModel. `data` is `frameCount` copies of one
+    `compositeWidthPx`-wide frame laid out side by side; see
+    docs/wire-format.md `frames` and app/compositor.py's `screen_tile`, which
+    picks a frame by elapsed time exactly as it already picks a scroll offset."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    frameCount: int = Field(gt=0, le=255)
+    frameDurationMs: float = Field(gt=0, le=65535)
+    compositeWidthPx: int = Field(gt=0, le=65535)
+
+
 class ContentModel(BaseModel):
     """The JSON envelope from docs/wire-format.md."""
 
@@ -93,6 +107,13 @@ class ContentModel(BaseModel):
     color: Optional[list[int]] = None
     data: str
     scroll: Optional[ScrollModel] = None
+    #: Present only for an animated Animation/Bild template — see FramesModel.
+    #: Large screens (Pi) only for now — see
+    #: docs/adr/0002-phase-animated-templates-by-hardware-kind.md and
+    #: docs/plan-esp32-animation-frames.md. An ESP32 that receives one today
+    #: (nothing currently sends one) shows the strip's first frame statically
+    #: rather than animating — see compose.py's `_is_sliceable`.
+    frames: Optional[FramesModel] = None
     #: A static fill behind a scrolling filmstrip — never baked into `data`,
     #: since that would pan along with the text (see docs/wire-format.md
     #: `scroll` and render/layers.ts on the frontend). Large screens (Pi)

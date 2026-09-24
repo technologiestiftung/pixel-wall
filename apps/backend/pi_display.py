@@ -40,7 +40,7 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions  # noqa: E402
 
 from app.compositor import (  # noqa: E402
     brightness_for_large,
-    has_scrolling,
+    has_motion,
     render_frame,
 )
 
@@ -177,7 +177,7 @@ def main():
         # refreshes the panels from its own thread, and redrawing static
         # content at 60 fps starves that thread — which looks like flicker,
         # not like slowness.
-        animating = has_scrolling(state)
+        animating = has_motion(state)
         signature = (state.get("updated_at"), matrix.brightness)
 
         if animating or signature != last_signature:

@@ -1,4 +1,9 @@
-import type { Content, HorizontalAlign, VerticalAlign } from "../domain/types";
+import type {
+	AnimationContent,
+	Content,
+	HorizontalAlign,
+	VerticalAlign,
+} from "../domain/types";
 import { getTemplateImage } from "./templateImages";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
@@ -6,7 +11,7 @@ import { getTemplateImage } from "./templateImages";
  * `paddingPx` insets the span from whichever edge it's pushed toward; a
  * "center" alignment ignores it, since there's no edge to inset from. */
 // eslint-disable-next-line max-params -- all four are needed; splitting into an options object adds indirection for no benefit here.
-function alignOffset(
+export function alignOffset(
 	align: "left" | "center" | "right" | "top" | "bottom",
 	containerSize: number,
 	size: number,
@@ -19,6 +24,29 @@ function alignOffset(
 		return containerSize - size - paddingPx;
 	}
 	return (containerSize - size) / 2;
+}
+
+/**
+ * Where a template icon (or an animated template's frame strip — see
+ * render/animatedTemplate.ts) sits within a canvas: "cover" sizing, scaled
+ * uniformly by the *larger* composite dimension so a multi-screen composite
+ * gets filled/spanned rather than fitting a single-screen-sized icon into
+ * whichever axis is narrower (see CONTEXT.md "Content"). Shared by both the
+ * static and animated draw paths so they place/scale identically at the same
+ * scalePercent/align.
+ */
+export function templateBox(
+	content: AnimationContent,
+	canvasSize: { widthPx: number; heightPx: number },
+): { x: number; y: number; size: number } {
+	const size =
+		Math.max(canvasSize.widthPx, canvasSize.heightPx) *
+		(content.scalePercent / 100);
+	return {
+		x: alignOffset(content.hAlign, canvasSize.widthPx, size),
+		y: alignOffset(content.vAlign, canvasSize.heightPx, size),
+		size,
+	};
 }
 
 /**
@@ -120,19 +148,11 @@ export function drawContentToCanvas(
 	}
 
 	if (content.type === "animation") {
-		// "Cover" sizing: scale uniformly by the *larger* composite dimension
-		// so a multi-screen composite gets filled/spanned rather than fitting
-		// a single-screen-sized icon into whichever axis is narrower (which
-		// left it stranded at the seam between screens — see CONTEXT.md
-		// "Content"). Matches the already-established "scaling beyond the
-		// canvas crops" behavior for the smaller axis.
-		const size =
-			Math.max(canvas.width, canvas.height) * (content.scalePercent / 100);
-		drawTemplateIcon(ctx, content.templateId, {
-			x: alignOffset(content.hAlign, canvas.width, size),
-			y: alignOffset(content.vAlign, canvas.height, size),
-			size,
-		});
+		drawTemplateIcon(
+			ctx,
+			content.templateId,
+			templateBox(content, { widthPx: canvas.width, heightPx: canvas.height }),
+		);
 		return canvas;
 	}
 

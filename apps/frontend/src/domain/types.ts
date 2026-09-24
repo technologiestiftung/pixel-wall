@@ -53,6 +53,11 @@ export interface AnimationContent {
 	scalePercent: number;
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
+	/** Sample rate for an animated template's frame strip, in frames per
+	 * second — see domain/content.ts's `Template.animated`/`loopMs` and
+	 * render/animatedTemplate.ts. Ignored for a template that isn't animated,
+	 * same as TextContent's scroll fields are ignored for static text. */
+	fps?: number;
 }
 
 /** The Hintergrund tab: what fills a screen behind everything else.
