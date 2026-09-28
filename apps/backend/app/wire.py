@@ -21,6 +21,13 @@ HEADER_BYTES_V2 = 30
 FLAG_SCROLL = 0x01
 FLAG_BACKGROUND = 0x02
 FLAG_FRAMES = 0x04
+#: Native on-device Game of Life — no block follows the header at all. Added
+#: as a v2 flag rather than a new envelope version: a v2 decoder that doesn't
+#: know this flag yet calls its block decoder on zero trailing bytes, which is
+#: already `< MASK1_HEADER` and so already safely rejected, keeping the last
+#: good frame — see docs/wire-format.md "Game of Life" and
+#: docs/adr/0003-game-of-life-native-esp32-content-type.md.
+FLAG_GAMEOFLIFE = 0x08
 
 DIRECTION_LEFT = 0
 DIRECTION_RIGHT = 1
@@ -66,8 +73,9 @@ class ScreenFrame:
     color: tuple[int, int, int]
     window: Window
     #: A `mask1` mask (tinted with `color`) or a `pal4` image (which carries
-    #: its own palette, making `color` meaningless).
-    mask: Union[Mask, Palette4]
+    #: its own palette, making `color` meaningless). `None` only for
+    #: `game_of_life=True`, which carries no bitmap at all.
+    mask: Optional[Union[Mask, Palette4]] = None
     scroll: Optional[Scroll] = None
     frames: Optional[Frames] = None
     #: A static fill behind the mask, wherever it has nothing lit — see
@@ -77,6 +85,10 @@ class ScreenFrame:
     #: Brightness for this screen's hardware kind, 5-100. Carried on the wire
     #: because an MQTT-only device cannot read the state file.
     brightness: int = 60
+    #: Native on-device Game of Life — see docs/wire-format.md "Game of
+    #: Life". Mutually exclusive with everything else on this dataclass
+    #: except `brightness`: no mask, no scroll, no frames, no background.
+    game_of_life: bool = False
 
 
 def _u16(value: int, field: str) -> bytes:
@@ -90,6 +102,30 @@ def _read_u16(buffer: bytes, offset: int) -> int:
 
 
 def encode_frame(frame: ScreenFrame) -> bytes:
+    if frame.game_of_life:
+        # No block follows: the encoder must not spend bytes on window/scroll/
+        # background/frames fields a native on-device simulation never reads,
+        # so every one of them is left zero — only `brightness` (offset 21,
+        # already present at v1) is meaningful. See docs/wire-format.md "Game
+        # of Life".
+        header = bytearray()
+        header.append(MAGIC)
+        header.append(VERSION_2)
+        header.append(FLAG_GAMEOFLIFE)
+        header.extend((0, 0, 0))
+        header.extend(_u16(0, "window.offsetXPx"))
+        header.extend(_u16(0, "window.offsetYPx"))
+        header.extend(_u16(0, "window.widthPx"))
+        header.extend(_u16(0, "window.heightPx"))
+        header.extend(bytes(7))  # scroll fields, unused
+        header.append(max(5, min(100, frame.brightness)))
+        header.extend(bytes(3))  # background, unused
+        header.extend(bytes(5))  # frames, unused
+        assert len(header) == HEADER_BYTES_V2
+        return bytes(header)
+
+    if frame.mask is None:
+        raise MaskFormatError("mask is required unless game_of_life is set")
     if len(frame.color) != 3 or not all(0 <= c <= 255 for c in frame.color):
         raise MaskFormatError(f"colour {frame.color!r} is not three 0-255 channels")
     background = frame.background
@@ -169,6 +205,23 @@ def decode_frame(payload: bytes) -> ScreenFrame:
         )
 
     flags = payload[2]
+
+    if version == VERSION_2 and (flags & FLAG_GAMEOFLIFE):
+        if len(payload) != header_bytes:
+            raise MaskFormatError("gameOfLife frame must not carry a trailing block")
+        return ScreenFrame(
+            color=(payload[3], payload[4], payload[5]),
+            window=Window(
+                _read_u16(payload, 6),
+                _read_u16(payload, 8),
+                _read_u16(payload, 10),
+                _read_u16(payload, 12),
+            ),
+            mask=None,
+            brightness=payload[21],
+            game_of_life=True,
+        )
+
     scroll = None
     if flags & FLAG_SCROLL:
         direction = _DIRECTIONS.get(payload[14])

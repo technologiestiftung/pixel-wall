@@ -116,6 +116,20 @@ export const ANIMATION_FPS = 16;
 
 const DEFAULT_ANIMATION: AnimationContent = {
 	type: "animation",
+	mode: "template",
+	templateId: TEMPLATES[0].id,
+	scalePercent: 100,
+	hAlign: "center",
+	vAlign: "center",
+};
+
+/** `templateId`/`scalePercent`/`hAlign`/`vAlign` are meaningless in this mode
+ * (see AnimationContent) — kept as harmless defaults purely so the object
+ * still satisfies the interface, never read by anything downstream once
+ * `mode` is "gameOfLife". */
+export const DEFAULT_GAME_OF_LIFE: AnimationContent = {
+	type: "animation",
+	mode: "gameOfLife",
 	templateId: TEMPLATES[0].id,
 	scalePercent: 100,
 	hAlign: "center",

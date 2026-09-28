@@ -6,11 +6,14 @@
  * (ledwall/screen/01..03), so applying content to a subset leaves the others
  * showing what they had.
  *
- * This is a compositor, not a renderer: the frontend rasterises content and
- * the backend publishes a bitmap. Nothing here knows what text or a template
- * is. The payload is binary — see docs/wire-format.md — which is why there is
- * no JSON parser and no base64 step; a worst-case Lauftext filmstrip is ~9 KB
- * and would cost roughly twice that in heap as JSON.
+ * For everything except Game of Life, this is a compositor, not a renderer:
+ * the frontend rasterises content and the backend publishes a bitmap. Nothing
+ * here knows what text or a template is. The payload is binary — see
+ * docs/wire-format.md — which is why there is no JSON parser and no base64
+ * step; a worst-case Lauftext filmstrip is ~9 KB and would cost roughly twice
+ * that in heap as JSON. Game of Life (game_of_life.h) is the one exception:
+ * the wire only ever carries a flag for it, and the simulation itself runs
+ * here — see docs/adr/0003-game-of-life-native-esp32-content-type.md.
  *
  * Library: ESP32-HUB75-MatrixPanel-I2S-DMA (mrcodetastic) + PubSubClient.
  *
@@ -21,7 +24,9 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ESP32-HUB75-MatrixPanel-I2S-DMA.h>
+#include <esp_system.h>
 
+#include "game_of_life.h"
 #include "secrets.h"
 #include "wire_decode.h"
 
@@ -79,6 +84,18 @@ bool dirty = true;
 // spins starves both.
 #define FRAME_INTERVAL_MS 20
 
+// One Game of Life generation every 150ms (~6.7/s) is watchable; the redraw
+// loop still runs at FRAME_INTERVAL_MS as usual (see anyMotion/drawFrame) —
+// this only paces how often the board itself actually advances.
+#define GOL_STEP_INTERVAL_MS 150
+
+GameOfLifeBoard golBoards[SCREEN_COUNT];
+unsigned long golLastStepMs[SCREEN_COUNT] = {0};
+
+static uint32_t golRandomSource() {
+	return esp_random();
+}
+
 static int clampInt(int value, int low, int high) {
 	if (value < low) return low;
 	if (value > high) return high;
@@ -123,6 +140,16 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 	pixelWallScreenFree(&screens[index]);
 	screens[index] = next;
 
+	// Every (re)selection of Game of Life gets a fresh random board — see
+	// CONTEXT.md "Content" (Game of Life): each screen seeds independently,
+	// including on a retained-message replay after a reconnect/reboot, which
+	// is an accepted, unsurprising source of a fresh board given auto-reseed
+	// on stagnation already makes the board restarting an expected event.
+	if (next.nativeGameOfLife) {
+		golSeed(&golBoards[index], golRandomSource);
+		golLastStepMs[index] = 0;
+	}
+
 	// All three panels share one board, so one setBrightness8 covers them;
 	// every screen of a kind carries the same value.
 	if (next.brightness != brightnessPercent) {
@@ -132,11 +159,15 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 
 	dirty = true;
 
-	Serial.printf("screen %d: %ux%u %s%s%s, %u bytes, brightness %u%%\n", index + 1,
-	              next.widthPx, next.heightPx,
-	              next.format == PAL4_MAGIC ? "pal4" : "mask1",
-	              next.scrolling ? " scrolling" : (next.animating ? " animating" : ""),
-	              next.hasBackground ? " +background" : "", length, next.brightness);
+	if (next.nativeGameOfLife) {
+		Serial.printf("screen %d: gameOfLife, brightness %u%%\n", index + 1, next.brightness);
+	} else {
+		Serial.printf("screen %d: %ux%u %s%s%s, %u bytes, brightness %u%%\n", index + 1,
+		              next.widthPx, next.heightPx,
+		              next.format == PAL4_MAGIC ? "pal4" : "mask1",
+		              next.scrolling ? " scrolling" : (next.animating ? " animating" : ""),
+		              next.hasBackground ? " +background" : "", length, next.brightness);
+	}
 }
 
 /* ------------------------------------------------------------ rendering */
@@ -172,22 +203,55 @@ static float frameShiftX(const PixelWallScreen &screen, unsigned long elapsedMs)
 	return -(float)(frameIndex * screen.frameWidthPx);
 }
 
-/* Whether anything on the board needs redrawing every tick — scrolling text or
- * a stepping frame strip. Static content only needs redrawing when a message
- * changes it. */
+/* Whether anything on the board needs redrawing every tick — scrolling text,
+ * a stepping frame strip, or a native Game of Life simulation. Static content
+ * only needs redrawing when a message changes it. */
 static bool anyMotion() {
 	for (int index = 0; index < SCREEN_COUNT; index++) {
-		if (screens[index].valid && (screens[index].scrolling || screens[index].animating)) {
+		if (screens[index].valid &&
+		    (screens[index].scrolling || screens[index].animating ||
+		     screens[index].nativeGameOfLife)) {
 			return true;
 		}
 	}
 	return false;
 }
 
+/* Steps this screen's Game of Life board at GOL_STEP_INTERVAL_MS, reseeding
+ * whenever golStep reports stagnation (see game_of_life.h) — a pure function
+ * of elapsedMs, same pattern as marqueeOffset/frameShiftX above, just
+ * discretized into generations instead of continuous. */
+static void advanceGameOfLife(int index, unsigned long elapsedMs) {
+	if (elapsedMs - golLastStepMs[index] < GOL_STEP_INTERVAL_MS) return;
+	golLastStepMs[index] = elapsedMs;
+
+	GolStepResult result = golStep(&golBoards[index]);
+	if (result.stagnated) {
+		golSeed(&golBoards[index], golRandomSource);
+	}
+}
+
 static void drawFrame(unsigned long elapsedMs) {
 	for (int index = 0; index < SCREEN_COUNT; index++) {
 		const PixelWallScreen &screen = screens[index];
 		int slotX = index * PANEL_RES_X;
+
+		// Native Game of Life bypasses the whole bitmap/background/window
+		// path below entirely — it never had a background to begin with
+		// (see CONTEXT.md "Content" — Game of Life suspends, never
+		// composites, a screen's Hintergrund), so there is nothing here to
+		// fill before blitting the board itself.
+		if (screen.valid && screen.nativeGameOfLife) {
+			advanceGameOfLife(index, elapsedMs);
+			const GameOfLifeBoard &board = golBoards[index];
+			for (int y = 0; y < PANEL_RES_Y; y++) {
+				for (int x = 0; x < PANEL_RES_X; x++) {
+					uint8_t v = golGet(&board, x, y) ? 255 : 0;
+					display->drawPixelRGB888(slotX + x, y, v, v, v);
+				}
+			}
+			continue;
+		}
 
 		// Per-screen base fill: this screen's background if it has one, else
 		// black — replaces a single canvas-wide clearScreen(), since the 3

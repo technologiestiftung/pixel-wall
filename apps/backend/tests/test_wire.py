@@ -166,6 +166,30 @@ def test_rejects_out_of_range_frame_count():
         wire.encode_frame(frame(frames=wire.Frames(0, 83, 64)))
 
 
+def test_game_of_life_has_no_block_and_uses_the_gameoflife_flag():
+    payload = wire.encode_frame(wire.ScreenFrame(
+        color=(0, 0, 0), window=wire.Window(0, 0, 0, 0), brightness=42, game_of_life=True,
+    ))
+    assert payload[1] == wire.VERSION_2
+    assert payload[2] == wire.FLAG_GAMEOFLIFE
+    assert len(payload) == wire.HEADER_BYTES_V2
+    assert payload[21] == 42
+
+
+def test_game_of_life_round_trips():
+    decoded = wire.decode_frame(wire.encode_frame(wire.ScreenFrame(
+        color=(0, 0, 0), window=wire.Window(0, 0, 0, 0), brightness=42, game_of_life=True,
+    )))
+    assert decoded.game_of_life
+    assert decoded.mask is None
+    assert decoded.brightness == 42
+
+
+def test_game_of_life_rejects_a_missing_mask_when_not_flagged():
+    with pytest.raises(MaskFormatError, match="mask is required"):
+        wire.encode_frame(wire.ScreenFrame(color=(0, 0, 0), window=wire.Window(0, 0, 0, 0)))
+
+
 def test_a_v1_frame_still_decodes_with_no_background_or_frames():
     """A v2-capable decoder must read an unmodified v1 frame identically to
     before — see docs/wire-format.md "Version 2"."""

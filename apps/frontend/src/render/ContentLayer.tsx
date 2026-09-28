@@ -75,8 +75,20 @@ export function ContentLayer({ render }: ContentLayerProps) {
 		);
 	}
 
+	// No bitmap ever crosses the wire for Game of Life (see CONTEXT.md
+	// "Rendering split"), so unlike every other content type here the
+	// preview cannot mirror the real device — it shows a static placeholder
+	// instead of a rendered frame. Checked before the animated-template
+	// branch below since a gameOfLife AnimationContent's `templateId` is a
+	// meaningless placeholder value, not a real template to look up.
+	if (foreground?.type === "animation" && foreground.mode === "gameOfLife") {
+		return (
+			<GameOfLifePlaceholder offsetXPx={offsetXPx} offsetYPx={offsetYPx} />
+		);
+	}
+
 	const animatedTemplate =
-		foreground?.type === "animation"
+		foreground?.type === "animation" && foreground.mode === "template"
 			? TEMPLATES.find((t) => t.id === foreground.templateId)
 			: undefined;
 	if (foreground?.type === "animation" && animatedTemplate?.animated) {
@@ -98,6 +110,26 @@ export function ContentLayer({ render }: ContentLayerProps) {
 			layers={layers}
 			widthPx={compositeWidthPx}
 			heightPx={compositeHeightPx}
+			offsetXPx={offsetXPx}
+			offsetYPx={offsetYPx}
+		/>
+	);
+}
+
+/** Static stand-in for a screen currently running Game of Life — see the
+ * comment above where this is used. Always the whole tile at offset zero:
+ * small screens never combine into a shared composite (CONTEXT.md
+ * "Selection"), so there is never a crop to apply here. */
+function GameOfLifePlaceholder({
+	offsetXPx,
+	offsetYPx,
+}: {
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	return (
+		<Bitmap
+			src="/visuals/game-of-life-placeholder.svg"
 			offsetXPx={offsetXPx}
 			offsetYPx={offsetYPx}
 		/>

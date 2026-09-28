@@ -71,6 +71,18 @@ def _envelope_sample_frames() -> bytes:
     return wire.encode_frame(frame)
 
 
+def _envelope_sample_gameoflife() -> bytes:
+    """v2: native Game of Life — no mask/window/scroll/background/frames at
+    all, just the flag and brightness."""
+    frame = wire.ScreenFrame(
+        color=(0, 0, 0),
+        window=wire.Window(0, 0, 0, 0),
+        brightness=75,
+        game_of_life=True,
+    )
+    return wire.encode_frame(frame)
+
+
 def _generate_header(target: Path) -> int:
     fixtures = json.loads(FIXTURES_JSON.read_text())
     cases = [(case, False) for case in fixtures["cases"]]
@@ -152,6 +164,15 @@ def _generate_header(target: Path) -> int:
     )
     lines.append(
         "static const size_t ENVELOPE_SAMPLE_FRAMES_LEN = sizeof(ENVELOPE_SAMPLE_FRAMES);"
+    )
+    lines.append("")
+
+    envelope_gameoflife = _envelope_sample_gameoflife()
+    lines.append(
+        f"static const uint8_t ENVELOPE_SAMPLE_GAMEOFLIFE[] = {_c_bytes(envelope_gameoflife)};"
+    )
+    lines.append(
+        "static const size_t ENVELOPE_SAMPLE_GAMEOFLIFE_LEN = sizeof(ENVELOPE_SAMPLE_GAMEOFLIFE);"
     )
     lines.append("")
 

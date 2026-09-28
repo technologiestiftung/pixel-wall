@@ -30,6 +30,16 @@ const text: TextContent = {
 
 const logoTemplate: AnimationContent = {
 	type: "animation",
+	mode: "template",
+	templateId: "logo",
+	scalePercent: 100,
+	hAlign: "center",
+	vAlign: "center",
+};
+
+const gameOfLife: AnimationContent = {
+	type: "animation",
+	mode: "gameOfLife",
 	templateId: "logo",
 	scalePercent: 100,
 	hAlign: "center",
@@ -110,5 +120,14 @@ describe("contentToWire", () => {
 		// mask.spec.ts covers.
 		const decoded = decodePal4Base64(wire.data);
 		expect(decoded.palette).toEqual([[0, 0, 0]]);
+	});
+
+	it("sends gameOfLife as just the flag, no bitmap, even with a background option", async () => {
+		const wire = await contentToWire(
+			gameOfLife,
+			{ widthPx: 32, heightPx: 32 },
+			{ background: "#FE4441" },
+		);
+		expect(wire).toEqual({ format: "gameOfLife" });
 	});
 });

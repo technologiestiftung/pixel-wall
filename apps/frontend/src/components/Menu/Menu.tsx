@@ -150,6 +150,7 @@ export function Menu() {
 								<AnimationPanel
 									content={current as AnimationContent}
 									onChange={handleContentChange}
+									screenKind={selection.kind}
 								/>
 							)}
 							{activeTab === "color" && (

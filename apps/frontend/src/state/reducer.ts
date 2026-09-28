@@ -236,10 +236,15 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
  * and animate it, which a flat frame could never do; without them (a state
  * file written before layers) the flattened frame is all there is. */
 function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
+	// gameOfLife has no real height to report — like compositeWidthOf, this
+	// is never actually consulted for it (ContentLayer.tsx renders its own
+	// placeholder before sizing off this).
+	const compositeHeightPx =
+		entry.content.format === "gameOfLife" ? 32 : entry.content.heightPx;
 	return {
 		layers: entry.source ?? EMPTY_LAYERS,
 		compositeWidthPx: compositeWidthOf(entry.content),
-		compositeHeightPx: entry.content.heightPx,
+		compositeHeightPx,
 		offsetXPx: entry.window.offsetXPx,
 		offsetYPx: entry.window.offsetYPx,
 		bitmap: entry.source ? null : wireToDataUrl(entry.content),

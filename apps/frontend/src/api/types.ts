@@ -53,7 +53,7 @@ export interface FramesDto {
  * `mask1` is 1 bit per pixel tinted with `color`, `pal4` is 4 bits per pixel
  * with its palette inside the block.
  */
-export interface WireContentDto {
+export interface BitmapContentDto {
 	format: "mask1" | "pal4";
 	widthPx: number;
 	heightPx: number;
@@ -62,8 +62,7 @@ export interface WireContentDto {
 	scroll?: ScrollDto | null;
 	/** Present only for an animated Animation/Bild template — see FramesDto.
 	 * Both hardware kinds animate it — see
-	 * docs/adr/0002-phase-animated-templates-by-hardware-kind.md and
-	 * docs/plan-esp32-animation-frames.md. */
+	 * docs/adr/0002-phase-animated-templates-by-hardware-kind.md. */
 	frames?: FramesDto | null;
 	/** A static fill behind a scrolling filmstrip — never baked into `data`,
 	 * since that would pan along with the text (see render/layers.ts). Both
@@ -71,6 +70,18 @@ export interface WireContentDto {
 	 * docs/adr/0001-phase-lauftext-background-by-hardware-kind.md. */
 	background?: [number, number, number] | null;
 }
+
+/**
+ * Native on-device Game of Life — see docs/wire-format.md "Game of Life" and
+ * `docs/adr/0003-game-of-life-native-esp32-content-type.md`. No bitmap, no
+ * window-worthy size, no scroll/frames/background: just the flag. Small
+ * (ESP32) screens only.
+ */
+export interface GameOfLifeContentDto {
+	format: "gameOfLife";
+}
+
+export type WireContentDto = BitmapContentDto | GameOfLifeContentDto;
 
 export interface BrightnessDto {
 	small: number;

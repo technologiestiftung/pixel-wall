@@ -47,7 +47,10 @@ export async function layersToWire(
 		scroll,
 		background: null,
 	});
-	if (background === null) {
+	// Scrolling text always produces a bitmap (mask1/pal4), never gameOfLife
+	// — this narrows purely for the type checker, which can't otherwise know
+	// that from contentToWire's general WireContentDto return type.
+	if (background === null || wire.format === "gameOfLife") {
 		return wire;
 	}
 	return {

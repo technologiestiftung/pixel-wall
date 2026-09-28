@@ -23,6 +23,12 @@
 #define FLAG_SCROLL 0x01
 #define FLAG_BACKGROUND 0x02
 #define FLAG_FRAMES 0x04
+/* Native on-device Game of Life — no block follows the header at all. Added
+ * as a v2 flag rather than a new envelope version: a v2 decoder built before
+ * this flag existed calls pixelWallDecodeBlock on zero trailing bytes, which
+ * is already shorter than MASK1_HEADER and so already safely rejected,
+ * keeping its last good frame. See docs/wire-format.md "Game of Life". */
+#define FLAG_GAMEOFLIFE 0x08
 
 #define MASK1_MAGIC 0x50
 #define PAL4_MAGIC 0x51
@@ -78,6 +84,12 @@ typedef struct {
 	/* Brightness for this screen's hardware kind, 5-100. Carried on the wire
 	 * because this board never sees the backend's state file. */
 	uint8_t brightness;
+
+	/* v2 only: native on-device Game of Life (docs/wire-format.md "Game of
+	 * Life"). When true, `pixels`/`format`/window/scroll/frames are all
+	 * meaningless — there is no bitmap, and the render loop takes a wholly
+	 * different path (see game_of_life.h and pixel_wall_esp32.ino). */
+	bool nativeGameOfLife;
 } PixelWallScreen;
 
 static inline void pixelWallScreenInit(PixelWallScreen *screen) {
@@ -253,9 +265,24 @@ static inline bool pixelWallDecodeFrame(PixelWallScreen *screen, const uint8_t *
 	}
 	if (length < header) return false;
 
+	uint8_t flags = payload[2];
+	if (version == ENVELOPE_VERSION_2 && (flags & FLAG_GAMEOFLIFE) != 0) {
+		/* No block follows: an encoder bug producing trailing bytes should be
+		 * visible (rejected) rather than silently ignored. */
+		if (length != header) return false;
+
+		pixelWallScreenFree(screen); /* drop any previous bitmap; nothing to sample while native */
+		pixelWallScreenInit(screen);
+		screen->nativeGameOfLife = true;
+		screen->brightness = payload[21];
+		screen->valid = true;
+		return true;
+	}
+
 	if (!pixelWallDecodeBlock(screen, payload + header, length - header)) {
 		return false;
 	}
+	screen->nativeGameOfLife = false;
 
 	screen->r = payload[3];
 	screen->g = payload[4];

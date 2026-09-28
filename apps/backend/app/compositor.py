@@ -91,6 +91,14 @@ def screen_tile(
     background = content.get("background")
     tile = Image.new("RGB", size, tuple(background) if background else BLACK)
 
+    # gameOfLife carries no `data` at all and is never valid for a large (Pi)
+    # screen in the first place (see main.py's
+    # `_require_game_of_life_only_on_small`) — guarded here too so a
+    # hand-edited state file degrades to a blank tile instead of crashing the
+    # render loop.
+    if content.get("format") == "gameOfLife" or content.get("data") is None:
+        return tile
+
     try:
         source = _decode_cached(
             content["data"], tuple(content.get("color") or (255, 255, 255))

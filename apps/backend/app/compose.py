@@ -16,9 +16,15 @@ from .wire import Frames, Scroll, ScreenFrame, Window
 #: Scrolling content and an animated Animation/Bild template's frame strip are
 #: the cases that cannot be sliced: every screen needs the whole thing (the
 #: filmstrip, or every frame) plus its own offset, not just its own crop of
-#: one frame.
+#: one frame. `gameOfLife` is the same story for a different reason — there is
+#: no bitmap to crop at all, only a flag every selected screen receives
+#: identically (see CONTEXT.md "Content").
 def _is_sliceable(content: ContentModel) -> bool:
-    return content.scroll is None and content.frames is None
+    return (
+        content.format != "gameOfLife"
+        and content.scroll is None
+        and content.frames is None
+    )
 
 
 def _encode(image) -> bytes:
@@ -57,6 +63,17 @@ def frame_for_screen(
     content: ContentModel, window: ScreenWindow, brightness: int = 60
 ) -> ScreenFrame:
     """The binary MQTT payload for one screen."""
+    if content.format == "gameOfLife":
+        return ScreenFrame(
+            color=(255, 255, 255),
+            window=Window(
+                window.offsetXPx, window.offsetYPx, window.widthPx, window.heightPx
+            ),
+            mask=None,
+            brightness=brightness,
+            game_of_life=True,
+        )
+
     scroll = None
     if content.scroll is not None:
         scroll = Scroll(

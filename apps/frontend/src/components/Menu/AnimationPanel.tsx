@@ -1,6 +1,6 @@
 import { TEMPLATES } from "../../domain/content";
 import { NO_ANIMATION_TEMPLATE_ID } from "../../domain/types";
-import type { AnimationContent } from "../../domain/types";
+import type { AnimationContent, ScreenKind } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
 import { TemplateIcon } from "../../render/TemplateIcon";
 import { AlignmentPicker } from "./AlignmentPicker";
@@ -8,11 +8,98 @@ import { AlignmentPicker } from "./AlignmentPicker";
 interface AnimationPanelProps {
 	content: AnimationContent;
 	onChange: (content: AnimationContent) => void;
+	/** Game of Life is offered only for small (ESP32) selections — it runs
+	 * natively there and has no equivalent on the Pi-driven large screens
+	 * (see CONTEXT.md "Content" — Game of Life). */
+	screenKind: ScreenKind;
 }
 
-export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
+export function AnimationPanel({
+	content,
+	onChange,
+	screenKind,
+}: AnimationPanelProps) {
+	const isGameOfLife = content.mode === "gameOfLife";
+
 	return (
 		<div className="flex w-full flex-col gap-5">
+			{screenKind === "small" && (
+				<div
+					role="tablist"
+					aria-label="Vorlage oder Game of Life"
+					className="flex w-full gap-1 rounded-[8px] border border-[#e4e4e0] bg-white p-1"
+				>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={!isGameOfLife}
+						onClick={() => onChange({ ...content, mode: "template" })}
+						className={`flex-1 rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
+							!isGameOfLife
+								? "bg-[#20201b] text-white"
+								: "text-[#4b4b47] hover:bg-[#f4f4f2]"
+						}`}
+					>
+						Vorlage
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={isGameOfLife}
+						onClick={() => onChange({ ...content, mode: "gameOfLife" })}
+						className={`flex-1 rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
+							isGameOfLife
+								? "bg-[#20201b] text-white"
+								: "text-[#4b4b47] hover:bg-[#f4f4f2]"
+						}`}
+					>
+						Game of Life
+					</button>
+				</div>
+			)}
+
+			{isGameOfLife ? (
+				<GameOfLifeExplainer />
+			) : (
+				<AnimationTemplatePicker content={content} onChange={onChange} />
+			)}
+		</div>
+	);
+}
+
+/** Game of Life has no template, scale, or alignment to configure — it runs
+ * full-canvas, natively, with a fixed look (see CONTEXT.md "Content"). This
+ * replaces those controls entirely rather than showing them disabled. */
+function GameOfLifeExplainer() {
+	return (
+		<div className="flex flex-col items-center gap-3 rounded-md border border-[#e4e4e0] bg-[#faf9f7] px-4 py-6 text-center">
+			<img
+				src="/visuals/game-of-life-placeholder.svg"
+				alt=""
+				aria-hidden="true"
+				className="h-[70px] w-[70px] rounded-[6px] object-contain"
+				style={{ imageRendering: "pixelated" }}
+			/>
+			<p className="text-[13px] text-[#6b6b66]">
+				Der Algorithmus läuft direkt auf den kleinen Screens. Jeder ausgewählte
+				Screen startet mit einem eigenen zufälligen Muster und resetet sich
+				automatisch neu.
+			</p>
+		</div>
+	);
+}
+
+interface AnimationTemplatePickerProps {
+	content: AnimationContent;
+	onChange: (content: AnimationContent) => void;
+}
+
+function AnimationTemplatePicker({
+	content,
+	onChange,
+}: AnimationTemplatePickerProps) {
+	return (
+		<>
 			<div className="flex flex-col gap-2.5">
 				<span className="w-full text-[12px] text-[#767671]">
 					Bild oder Animation wählen
@@ -121,6 +208,6 @@ export function AnimationPanel({ content, onChange }: AnimationPanelProps) {
 				onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
 				onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
 			/>
-		</div>
+		</>
 	);
 }
