@@ -132,10 +132,11 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 
 	dirty = true;
 
-	Serial.printf("screen %d: %ux%u %s%s, %u bytes, brightness %u%%\n", index + 1,
+	Serial.printf("screen %d: %ux%u %s%s%s, %u bytes, brightness %u%%\n", index + 1,
 	              next.widthPx, next.heightPx,
 	              next.format == PAL4_MAGIC ? "pal4" : "mask1",
-	              next.scrolling ? " scrolling" : "", length, next.brightness);
+	              next.scrolling ? " scrolling" : (next.animating ? " animating" : ""),
+	              next.hasBackground ? " +background" : "", length, next.brightness);
 }
 
 /* ------------------------------------------------------------ rendering */
@@ -161,24 +162,51 @@ static float marqueeOffset(const PixelWallScreen &screen, unsigned long elapsedM
 	return start + (end - start) * (t / durationMs);
 }
 
-/* Whether anything on the board is animating. Static content only needs
- * redrawing when a message changes it. */
-static bool anyScrolling() {
+/* Mirrors app/compositor.py's screen_tile `frames` branch and
+ * animatedTemplate.ts's frame-strip layout: picking a frame is the same
+ * crop-a-window-out-of-a-wide-bitmap mechanism as marqueeOffset above, just
+ * stepped instead of continuous. */
+static float frameShiftX(const PixelWallScreen &screen, unsigned long elapsedMs) {
+	if (screen.frameDurationMs == 0 || screen.frameCount == 0) return 0.0f;
+	unsigned long frameIndex = (elapsedMs / screen.frameDurationMs) % screen.frameCount;
+	return -(float)(frameIndex * screen.frameWidthPx);
+}
+
+/* Whether anything on the board needs redrawing every tick — scrolling text or
+ * a stepping frame strip. Static content only needs redrawing when a message
+ * changes it. */
+static bool anyMotion() {
 	for (int index = 0; index < SCREEN_COUNT; index++) {
-		if (screens[index].valid && screens[index].scrolling) return true;
+		if (screens[index].valid && (screens[index].scrolling || screens[index].animating)) {
+			return true;
+		}
 	}
 	return false;
 }
 
 static void drawFrame(unsigned long elapsedMs) {
-	display->clearScreen();
-
 	for (int index = 0; index < SCREEN_COUNT; index++) {
 		const PixelWallScreen &screen = screens[index];
+		int slotX = index * PANEL_RES_X;
+
+		// Per-screen base fill: this screen's background if it has one, else
+		// black — replaces a single canvas-wide clearScreen(), since the 3
+		// screens are independently addressed and could each have a
+		// different background.
+		uint8_t fillR = 0, fillG = 0, fillB = 0;
+		if (screen.valid && screen.hasBackground) {
+			fillR = screen.bgR; fillG = screen.bgG; fillB = screen.bgB;
+		}
+		for (int y = 0; y < PANEL_RES_Y; y++) {
+			for (int x = 0; x < PANEL_RES_X; x++) {
+				display->drawPixelRGB888(slotX + x, y, fillR, fillG, fillB);
+			}
+		}
+
 		if (!screen.valid || screen.pixels == nullptr) continue;
 
-		int slotX = index * PANEL_RES_X;
-		float shiftX = screen.scrolling ? marqueeOffset(screen, elapsedMs) : 0.0f;
+		float shiftX = screen.scrolling ? marqueeOffset(screen, elapsedMs)
+		                                 : (screen.animating ? frameShiftX(screen, elapsedMs) : 0.0f);
 		int originX = (int)lroundf(shiftX) - (int)screen.winX;
 		int originY = -(int)screen.winY;
 
@@ -272,11 +300,11 @@ void loop() {
 		mqtt.loop();
 	}
 
-	bool animating = anyScrolling();
+	bool motion = anyMotion();
 
 	// Redraw only when the frame can actually differ: on a new message, or
-	// while something is scrolling.
-	if (dirty || (animating && now - lastFrame >= FRAME_INTERVAL_MS)) {
+	// while something is scrolling or animating.
+	if (dirty || (motion && now - lastFrame >= FRAME_INTERVAL_MS)) {
 		lastFrame = now;
 		dirty = false;
 		drawFrame(now - startedAt);

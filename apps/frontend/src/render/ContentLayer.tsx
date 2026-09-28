@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ANIMATION_FPS, LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
 import type {
 	AnimationContent,
-	ScreenKind,
 	ScreenLayers,
 	TextContent,
 } from "../domain/types";
@@ -17,7 +16,6 @@ import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
 	render: AppliedRender;
-	screenKind: ScreenKind;
 }
 
 // Tailwind's preflight reset applies `img { max-width: 100%; height: auto }`
@@ -48,7 +46,7 @@ const BITMAP_STYLE: CSSProperties = {
  * reconstruct a live animation — that's not a limitation, it's exactly
  * what the real hardware contract expects.
  */
-export function ContentLayer({ render, screenKind }: ContentLayerProps) {
+export function ContentLayer({ render }: ContentLayerProps) {
 	const { layers, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
 		render;
 
@@ -65,12 +63,10 @@ export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 		return (
 			<ScrollingBitmap
 				content={foreground}
-				// Large screens composite a static background behind the panned
-				// text (see render/layers.ts scrollBackgroundSupported); small
-				// screens don't support that yet, so they keep showing on black
-				// exactly as before — see
+				// Both hardware kinds composite a static background behind the
+				// panned text now — see render/layers.ts layersToWire and
 				// docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
-				backgroundHex={screenKind === "large" ? layers.background : null}
+				backgroundHex={layers.background}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}

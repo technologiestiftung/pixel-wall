@@ -11,16 +11,12 @@ import base64
 
 from .mask import Mask, Palette4, decode_block, encode, encode_pal4
 from .models import ContentModel, ScreenWindow
-from .wire import Scroll, ScreenFrame, Window
+from .wire import Frames, Scroll, ScreenFrame, Window
 
 #: Scrolling content and an animated Animation/Bild template's frame strip are
 #: the cases that cannot be sliced: every screen needs the whole thing (the
 #: filmstrip, or every frame) plus its own offset, not just its own crop of
-#: one frame. `frames` has no ESP32-side decoder yet — see
-#: docs/adr/0002-phase-animated-templates-by-hardware-kind.md and
-#: docs/plan-esp32-animation-frames.md — an ESP32 receiving one today shows
-#: frame 0 statically rather than animating, the same degrade as any other
-#: unsliced content it doesn't understand.
+#: one frame.
 def _is_sliceable(content: ContentModel) -> bool:
     return content.scroll is None and content.frames is None
 
@@ -70,6 +66,14 @@ def frame_for_screen(
             content.scroll.compositeWidthPx,
         )
 
+    frames = None
+    if content.frames is not None:
+        frames = Frames(
+            content.frames.frameCount,
+            round(content.frames.frameDurationMs),
+            content.frames.compositeWidthPx,
+        )
+
     return ScreenFrame(
         color=tuple(content.color or (255, 255, 255)),
         window=Window(
@@ -77,5 +81,7 @@ def frame_for_screen(
         ),
         mask=decode_block(content.block()),
         scroll=scroll,
+        frames=frames,
+        background=tuple(content.background) if content.background is not None else None,
         brightness=brightness,
     )

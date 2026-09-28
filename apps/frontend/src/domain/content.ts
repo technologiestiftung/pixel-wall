@@ -48,6 +48,12 @@ export const TEMPLATES: Template[] = [
 		loopMs: 4000,
 	},
 	{ id: "smiley", file: "CLB-smiley.svg" },
+	{
+		id: "smiley-animiert",
+		file: "CLB-smiley-animiert.svg",
+		animated: true,
+		loopMs: 6000,
+	},
 ];
 
 export interface PaletteColor {

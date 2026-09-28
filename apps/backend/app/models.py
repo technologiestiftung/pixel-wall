@@ -108,18 +108,20 @@ class ContentModel(BaseModel):
     data: str
     scroll: Optional[ScrollModel] = None
     #: Present only for an animated Animation/Bild template — see FramesModel.
-    #: Large screens (Pi) only for now — see
-    #: docs/adr/0002-phase-animated-templates-by-hardware-kind.md and
-    #: docs/plan-esp32-animation-frames.md. An ESP32 that receives one today
-    #: (nothing currently sends one) shows the strip's first frame statically
-    #: rather than animating — see compose.py's `_is_sliceable`.
+    #: `compose.py`'s binary (ESP32) envelope encodes this too (see
+    #: docs/plan-esp32-animation-frames.md and docs/wire-format.md `frames`),
+    #: but the frontend still only offers animated templates for large-screen
+    #: selections until the firmware above is flashed and confirmed on the
+    #: physical wall — see docs/adr/0002-phase-animated-templates-by-hardware-kind.md.
     frames: Optional[FramesModel] = None
     #: A static fill behind a scrolling filmstrip — never baked into `data`,
     #: since that would pan along with the text (see docs/wire-format.md
-    #: `scroll` and render/layers.ts on the frontend). Large screens (Pi)
-    #: only for now — see
-    #: docs/adr/0001-phase-lauftext-background-by-hardware-kind.md. Ignored
-    #: by compose.py's binary (ESP32) envelope entirely.
+    #: `scroll` and render/layers.ts on the frontend). `compose.py`'s binary
+    #: (ESP32) envelope encodes this too (see
+    #: docs/plan-esp32-lauftext-background.md), but the frontend still warns
+    #: that it does nothing for a small-screen Lauftext selection until the
+    #: firmware above is flashed and confirmed on the physical wall — see
+    #: docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
     background: Optional[list[int]] = None
 
     @field_validator("color")
