@@ -187,6 +187,7 @@ async function animationToFramesWire(
 		? pal4FromImageData(context.getImageData(0, 0, stripWidth, height).data, {
 				widthPx: stripWidth,
 				heightPx: height,
+				crisp: true,
 			})
 		: {
 				widthPx: stripWidth,
