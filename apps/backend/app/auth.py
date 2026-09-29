@@ -10,6 +10,8 @@ from . import config
 
 logger = logging.getLogger(__name__)
 
+PUBLIC_PATHS = {"/snake"}
+
 
 def _challenge() -> JSONResponse:
     return JSONResponse(
@@ -33,10 +35,18 @@ class BasicAuthMiddleware(BaseHTTPMiddleware):
 
     Applied as middleware rather than a per-route dependency so that /docs,
     /openapi.json and / are covered too, not just the API itself.
+
+    The snake player page is public: it is what the QR code on the wall links
+    to. Its websocket is too, implicitly — Starlette's HTTP middleware never
+    sees websocket connections.
     """
 
     async def dispatch(self, request, call_next):
-        if not config.AUTH_ENABLED or request.method == "OPTIONS":
+        if (
+            not config.AUTH_ENABLED
+            or request.method == "OPTIONS"
+            or request.url.path in PUBLIC_PATHS
+        ):
             return await call_next(request)
 
         header = request.headers.get("Authorization", "")

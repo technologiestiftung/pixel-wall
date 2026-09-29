@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="utf-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+		/>
+		<meta name="theme-color" content="#0b0b0b" />
+		<title>Pixel Snake</title>
+		<style>
+			:root {
+				--bg: #0b0b0b;
+				--panel: #1a1a18;
+				--line: #3a3a36;
+				--text: #f4f4f0;
+				--muted: #a3a39c;
+				--accent: #fae737;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+				background: var(--bg);
+				color: var(--text);
+				font-family:
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					sans-serif;
+				-webkit-tap-highlight-color: transparent;
+				touch-action: manipulation;
+				overscroll-behavior: none;
+				user-select: none;
+				-webkit-user-select: none;
+			}
+			main {
+				display: flex;
+				flex-direction: column;
+				gap: 16px;
+				max-width: 480px;
+				min-height: 100%;
+				margin: 0 auto;
+				padding: max(16px, env(safe-area-inset-top)) 16px
+					max(16px, env(safe-area-inset-bottom));
+			}
+			header {
+				display: flex;
+				align-items: baseline;
+				justify-content: space-between;
+			}
+			h1 {
+				margin: 0;
+				font-size: 22px;
+				letter-spacing: 0.02em;
+			}
+			.scores {
+				display: flex;
+				gap: 14px;
+				font-variant-numeric: tabular-nums;
+				color: var(--muted);
+				font-size: 15px;
+			}
+			.scores strong {
+				color: var(--text);
+				font-size: 20px;
+			}
+			#status {
+				min-height: 44px;
+				margin: 0;
+				font-size: 16px;
+				line-height: 1.35;
+				text-align: center;
+				color: var(--muted);
+			}
+			#status.strong {
+				color: var(--text);
+				font-weight: 600;
+			}
+			button {
+				font: inherit;
+				color: inherit;
+				border: 0;
+				cursor: pointer;
+			}
+			#start {
+				width: 100%;
+				padding: 18px;
+				border-radius: 12px;
+				background: var(--accent);
+				color: #20201b;
+				font-size: 19px;
+				font-weight: 700;
+			}
+			#start:active {
+				transform: scale(0.98);
+			}
+			.pad {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				grid-template-areas:
+					". up ."
+					"left . right"
+					". down .";
+				gap: 10px;
+				width: min(100%, 320px);
+				margin: auto;
+			}
+			.pad button {
+				aspect-ratio: 1;
+				border-radius: 16px;
+				background: var(--panel);
+				border: 1px solid var(--line);
+				font-size: 40px;
+			}
+			.pad button:active,
+			.pad button.pressed {
+				background: var(--line);
+			}
+			[hidden] {
+				display: none !important;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<header>
+				<h1>Pixel Snake</h1>
+				<div class="scores" aria-live="polite">
+					<span>Punkte <strong id="score">0</strong></span>
+					<span>Rekord <strong id="best">0</strong></span>
+				</div>
+			</header>
+
+			<p id="status" role="status">Verbinde mit der Wand …</p>
+
+			<button id="start" type="button" hidden>Spiel starten</button>
+
+			<div class="pad" id="pad" hidden>
+				<button
+					type="button"
+					data-direction="up"
+					style="grid-area: up"
+					aria-label="Hoch"
+				>
+					▲
+				</button>
+				<button
+					type="button"
+					data-direction="left"
+					style="grid-area: left"
+					aria-label="Links"
+				>
+					◀
+				</button>
+				<button
+					type="button"
+					data-direction="right"
+					style="grid-area: right"
+					aria-label="Rechts"
+				>
+					▶
+				</button>
+				<button
+					type="button"
+					data-direction="down"
+					style="grid-area: down"
+					aria-label="Runter"
+				>
+					▼
+				</button>
+			</div>
+		</main>
+
+		<script>
+			const TOKEN_KEY = "pixel-wall-snake-token";
+
+			function makeToken() {
+				const bytes = new Uint8Array(16);
+				crypto.getRandomValues(bytes);
+				return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+					"",
+				);
+			}
+
+			// sessionStorage so a reload or a brief disconnect resumes the same game.
+			const token = (() => {
+				try {
+					const stored = sessionStorage.getItem(TOKEN_KEY);
+					if (stored) return stored;
+					const fresh = makeToken();
+					sessionStorage.setItem(TOKEN_KEY, fresh);
+					return fresh;
+				} catch {
+					return makeToken();
+				}
+			})();
+
+			const el = {
+				status: document.getElementById("status"),
+				start: document.getElementById("start"),
+				pad: document.getElementById("pad"),
+				score: document.getElementById("score"),
+				best: document.getElementById("best"),
+			};
+
+			let socket = null;
+			let retryMs = 500;
+			let latest = null;
+			let lastScore = 0;
+
+			function send(message) {
+				if (socket && socket.readyState === WebSocket.OPEN) {
+					socket.send(JSON.stringify(message));
+				}
+			}
+
+			function connect() {
+				const scheme = location.protocol === "https:" ? "wss" : "ws";
+				socket = new WebSocket(`${scheme}://${location.host}/api/snake/ws`);
+				socket.addEventListener("open", () => {
+					retryMs = 500;
+					send({ type: "hello", token });
+				});
+				socket.addEventListener("message", (event) => {
+					try {
+						update(JSON.parse(event.data));
+					} catch {
+						// A malformed message is dropped; the next tick replaces it.
+					}
+				});
+				socket.addEventListener("close", () => {
+					setStatus("Verbindung zur Wand verloren – verbinde neu …");
+					el.start.hidden = true;
+					el.pad.hidden = true;
+					setTimeout(connect, retryMs);
+					retryMs = Math.min(retryMs * 2, 5000);
+				});
+			}
+
+			function setStatus(text, strong = false) {
+				el.status.textContent = text;
+				el.status.classList.toggle("strong", strong);
+			}
+
+			function update(state) {
+				latest = state;
+				el.score.textContent = state.score ?? 0;
+				el.best.textContent = state.best ?? 0;
+
+				const mine = state.you && state.phase === "playing";
+				if (mine && state.score > lastScore && navigator.vibrate) {
+					navigator.vibrate(40);
+				}
+				lastScore = state.score ?? 0;
+
+				el.pad.hidden = !mine;
+				el.start.hidden = true;
+
+				if (!state.enabled) {
+					setStatus("Snake ist auf der Wand gerade nicht aktiv.");
+				} else if (state.phase === "lobby") {
+					setStatus("Tippe auf Start – die Schlange erscheint auf der Wand.");
+					showStart("Spiel starten");
+				} else if (state.phase === "playing") {
+					if (mine) {
+						setStatus(
+							"Steuere mit den Pfeilen oder wische. Friss die roten Punkte!",
+						);
+					} else {
+						setStatus("Gerade spielt jemand anderes. Schau auf der Wand zu!");
+					}
+				} else if (state.phase === "over") {
+					if (state.you) {
+						setStatus(
+							`Game over! ${state.score} ${state.score === 1 ? "Punkt" : "Punkte"}.`,
+							true,
+						);
+						showStart("Nochmal spielen");
+					} else {
+						setStatus("Die Runde ist vorbei.");
+						showStart("Jetzt spielen");
+					}
+				}
+			}
+
+			function showStart(label) {
+				el.start.textContent = label;
+				el.start.hidden = false;
+			}
+
+			function turn(direction) {
+				if (latest && latest.you && latest.phase === "playing") {
+					send({ type: "turn", direction });
+				}
+			}
+
+			el.start.addEventListener("click", () => send({ type: "start" }));
+
+			for (const button of el.pad.querySelectorAll("button")) {
+				button.addEventListener("pointerdown", (event) => {
+					event.preventDefault();
+					turn(button.dataset.direction);
+				});
+			}
+
+			const KEYS = {
+				ArrowUp: "up",
+				ArrowDown: "down",
+				ArrowLeft: "left",
+				ArrowRight: "right",
+				w: "up",
+				s: "down",
+				a: "left",
+				d: "right",
+			};
+			document.addEventListener("keydown", (event) => {
+				const direction = KEYS[event.key];
+				if (direction) {
+					event.preventDefault();
+					turn(direction);
+				}
+			});
+
+			let touchStart = null;
+			document.addEventListener(
+				"touchstart",
+				(event) => {
+					const touch = event.touches[0];
+					touchStart = { x: touch.clientX, y: touch.clientY };
+				},
+				{ passive: true },
+			);
+			document.addEventListener(
+				"touchmove",
+				(event) => {
+					if (!touchStart || event.target.closest("button")) return;
+					const touch = event.touches[0];
+					const dx = touch.clientX - touchStart.x;
+					const dy = touch.clientY - touchStart.y;
+					if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+					if (Math.abs(dx) > Math.abs(dy)) {
+						turn(dx > 0 ? "right" : "left");
+					} else {
+						turn(dy > 0 ? "down" : "up");
+					}
+					touchStart = { x: touch.clientX, y: touch.clientY };
+				},
+				{ passive: true },
+			);
+
+			connect();
+		</script>
+	</body>
+</html>

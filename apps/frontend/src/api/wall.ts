@@ -7,6 +7,7 @@ import type {
 	LayoutPositionDto,
 	LayoutResponse,
 	ScreensResponse,
+	SnakeStatusDto,
 	StateResponse,
 } from "./types";
 
@@ -61,5 +62,19 @@ export function putBrightness(
 	return request<BrightnessDto>("/api/brightness", {
 		method: "PUT",
 		body: JSON.stringify(brightness),
+	});
+}
+
+export function getSnake(request: Requester): Promise<SnakeStatusDto> {
+	return request<SnakeStatusDto>("/api/snake");
+}
+
+export function putSnake(
+	request: Requester,
+	enabled: boolean,
+): Promise<SnakeStatusDto> {
+	return request<SnakeStatusDto>("/api/snake", {
+		method: "PUT",
+		body: JSON.stringify({ enabled }),
 	});
 }

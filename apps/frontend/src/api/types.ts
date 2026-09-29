@@ -120,3 +120,13 @@ export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };
 }
+
+export interface SnakeStatusDto {
+	enabled: boolean;
+	/** What the QR code on the wall links to; null while the mode is off. */
+	joinUrl: string | null;
+	phase: "off" | "lobby" | "playing" | "over";
+	playing: boolean;
+	score: number;
+	best: number;
+}

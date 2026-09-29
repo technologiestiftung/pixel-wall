@@ -1,3 +1,5 @@
+import { SnakeToggle } from "./SnakeToggle";
+
 function Logo() {
 	return (
 		<div className="relative h-[34px] w-[38px] shrink-0" aria-hidden="true">
@@ -19,6 +21,7 @@ export function Header() {
 			<h1 className="whitespace-nowrap text-[19px] font-semibold text-[#20201b]">
 				CityLAB Pixel Screens
 			</h1>
+			<SnakeToggle />
 		</header>
 	);
 }

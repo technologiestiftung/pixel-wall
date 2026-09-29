@@ -200,6 +200,9 @@ class WallState(BaseModel):
         default_factory=lambda: [LayoutPositionModel(**p) for p in DEFAULT_LAYOUT]
     )
     screens: dict[str, ScreenStateModel] = Field(default_factory=dict)
+    #: Whether the wall is showing the snake game instead of `screens` — see
+    #: app/snake_mode.py. Persisted so the mode survives a backend restart.
+    snakeMode: bool = False
 
     @field_validator("screens")
     @classmethod
@@ -255,6 +258,19 @@ class ApplyRequest(BaseModel):
 
 class ApplyResponse(BaseModel):
     appliedAt: str
+
+
+class SnakeRequest(BaseModel):
+    enabled: bool
+
+
+class SnakeStatus(BaseModel):
+    enabled: bool
+    joinUrl: Optional[str] = None
+    phase: Literal["off", "lobby", "playing", "over"]
+    playing: bool
+    score: int
+    best: int
 
 
 class MqttStatus(BaseModel):

@@ -62,17 +62,20 @@ class MqttPublisher:
         finally:
             self._connected = False
 
-    def publish_screen(self, screen_id: str, payload: bytes) -> bool:
+    def publish_screen(self, screen_id: str, payload: bytes, retain: bool = True) -> bool:
         """One retained message per screen, so a device that reboots recovers its
         own content without the backend being up. Binary, not JSON — see
-        docs/wire-format.md "MQTT envelope"."""
+        docs/wire-format.md "MQTT envelope".
+
+        `retain=False` is for transient frames (snake mode): they reach the
+        device now but leave the retained content in place for after."""
         if self._client is None:
             return False
 
         try:
             with self._lock:
                 result = self._client.publish(
-                    topic_for(screen_id), payload, qos=1, retain=True
+                    topic_for(screen_id), payload, qos=1 if retain else 0, retain=retain
                 )
         except Exception as error:
             self._record_error(str(error))
