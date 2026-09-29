@@ -20,7 +20,7 @@ const WallDispatchContext = createContext<Dispatch<WallAction> | null>(null);
 export function WallProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(wallReducer, initialWallState);
 	const { request } = useAuth();
-	useWallSync(dispatch, request);
+	useWallSync(dispatch, request, state.generation);
 
 	return (
 		<WallStateContext.Provider value={state}>
