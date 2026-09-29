@@ -91,3 +91,4 @@ subscribe, and every state change it parses.
 | Long messages truncate         | `setBufferSize` was removed or lowered                            |
 | Image shifted one pixel across | flip `mxconfig.clkphase`                                          |
 | Nothing lights up              | try `mxconfig.driver = HUB75_I2S_CFG::FM6126A`                    |
+| Flicker / ghosting             | sweep `PIXEL_COLOR_DEPTH_BITS` / `I2S_CLOCK_SPEED` / `LATCH_BLANKING` / `MIN_REFRESH_RATE_HZ` near the top of the sketch, then reflash |

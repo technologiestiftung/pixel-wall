@@ -89,6 +89,20 @@ bool dirty = true;
 // this only paces how often the board itself actually advances.
 #define GOL_STEP_INTERVAL_MS 150
 
+// Panel refresh/quality tuning, passed into mxconfig in setup() below. These
+// are the ESP32-HUB75-MatrixPanel-I2S-DMA analogs of the Pi's PWM_BITS /
+// PWM_LSB_NANOSECONDS / GPIO_SLOWDOWN knobs in pi_display.py — not identical
+// (I2S DMA hardware vs. bit-banged GPIO, so e.g. GPIO_SLOWDOWN and
+// PWM_DITHER_BITS have no equivalent here), but the same idea: trade off
+// refresh rate against color depth and signal timing to chase out
+// flicker/ghosting. Values below are the library defaults — a starting point
+// to sweep from. Unlike the Pi's env-var overrides, there's no runtime
+// switch: reflash after each change.
+#define PIXEL_COLOR_DEPTH_BITS 8  // library default 8, max 12 — higher = smoother gradients, but lowers refresh rate
+#define I2S_CLOCK_SPEED HUB75_I2S_CFG::HZ_8M  // HZ_8M/HZ_16M/HZ_20M — lower tolerates the long daisy-chain cable run better (see HARDWARE.md); higher raises refresh rate
+#define LATCH_BLANKING 2  // library default 2 — OE blanking cycles around each LAT pulse; affects row-to-row ghosting
+#define MIN_REFRESH_RATE_HZ 60  // library default 60 — below ~100Hz flicker becomes visible to the eye
+
 GameOfLifeBoard golBoards[SCREEN_COUNT];
 unsigned long golLastStepMs[SCREEN_COUNT] = {0};
 
@@ -324,6 +338,10 @@ void setup() {
 	HUB75_I2S_CFG mxconfig(PANEL_RES_X, PANEL_RES_Y, PANEL_CHAIN, pins);
 	mxconfig.clkphase = false;
 	mxconfig.double_buff = true;
+	mxconfig.i2sspeed = I2S_CLOCK_SPEED;
+	mxconfig.latch_blanking = LATCH_BLANKING;
+	mxconfig.min_refresh_rate = MIN_REFRESH_RATE_HZ;
+	mxconfig.setPixelColorDepthBits(PIXEL_COLOR_DEPTH_BITS);
 
 	display = new MatrixPanel_I2S_DMA(mxconfig);
 	if (!display->begin()) {
