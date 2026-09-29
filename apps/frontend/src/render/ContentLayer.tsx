@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ANIMATION_FPS, LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
 import type {
 	AnimationContent,
-	ScreenKind,
 	ScreenLayers,
 	TextContent,
 } from "../domain/types";
@@ -17,7 +16,6 @@ import { useMarqueeOffset } from "./useMarqueeOffset";
 
 interface ContentLayerProps {
 	render: AppliedRender;
-	screenKind: ScreenKind;
 }
 
 // Tailwind's preflight reset applies `img { max-width: 100%; height: auto }`
@@ -48,7 +46,7 @@ const BITMAP_STYLE: CSSProperties = {
  * reconstruct a live animation — that's not a limitation, it's exactly
  * what the real hardware contract expects.
  */
-export function ContentLayer({ render, screenKind }: ContentLayerProps) {
+export function ContentLayer({ render }: ContentLayerProps) {
 	const { layers, compositeWidthPx, compositeHeightPx, offsetXPx, offsetYPx } =
 		render;
 
@@ -65,12 +63,10 @@ export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 		return (
 			<ScrollingBitmap
 				content={foreground}
-				// Large screens composite a static background behind the panned
-				// text (see render/layers.ts scrollBackgroundSupported); small
-				// screens don't support that yet, so they keep showing on black
-				// exactly as before — see
+				// Both hardware kinds composite a static background behind the
+				// panned text now — see render/layers.ts layersToWire and
 				// docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
-				backgroundHex={screenKind === "large" ? layers.background : null}
+				backgroundHex={layers.background}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
 				offsetXPx={offsetXPx}
@@ -79,8 +75,20 @@ export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 		);
 	}
 
+	// No bitmap ever crosses the wire for Game of Life (see CONTEXT.md
+	// "Rendering split"), so unlike every other content type here the
+	// preview cannot mirror the real device — it shows a static placeholder
+	// instead of a rendered frame. Checked before the animated-template
+	// branch below since a gameOfLife AnimationContent's `templateId` is a
+	// meaningless placeholder value, not a real template to look up.
+	if (foreground?.type === "animation" && foreground.mode === "gameOfLife") {
+		return (
+			<GameOfLifePlaceholder offsetXPx={offsetXPx} offsetYPx={offsetYPx} />
+		);
+	}
+
 	const animatedTemplate =
-		foreground?.type === "animation"
+		foreground?.type === "animation" && foreground.mode === "template"
 			? TEMPLATES.find((t) => t.id === foreground.templateId)
 			: undefined;
 	if (foreground?.type === "animation" && animatedTemplate?.animated) {
@@ -102,6 +110,26 @@ export function ContentLayer({ render, screenKind }: ContentLayerProps) {
 			layers={layers}
 			widthPx={compositeWidthPx}
 			heightPx={compositeHeightPx}
+			offsetXPx={offsetXPx}
+			offsetYPx={offsetYPx}
+		/>
+	);
+}
+
+/** Static stand-in for a screen currently running Game of Life — see the
+ * comment above where this is used. Always the whole tile at offset zero:
+ * small screens never combine into a shared composite (CONTEXT.md
+ * "Selection"), so there is never a crop to apply here. */
+function GameOfLifePlaceholder({
+	offsetXPx,
+	offsetYPx,
+}: {
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	return (
+		<Bitmap
+			src="/visuals/game-of-life-placeholder.svg"
 			offsetXPx={offsetXPx}
 			offsetYPx={offsetYPx}
 		/>

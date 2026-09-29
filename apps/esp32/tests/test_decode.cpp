@@ -101,10 +101,91 @@ int main(void) {
 		check(screen.pauseMs == 2000, "pause", "envelope");
 		check(screen.compositeWidthPx == 148, "compositeWidthPx", "envelope");
 		check(screen.brightness == 85, "brightness", "envelope");
+		/* A plain v1 envelope must leave the v2-only fields at their
+		 * zero/false defaults, exactly as before this phase existed. */
+		check(!screen.hasBackground, "no background on v1", "envelope");
+		check(!screen.animating, "no animating on v1", "envelope");
 	} else {
 		printf("FAIL envelope: decode returned false\n");
 		failures++;
 	}
+	pixelWallScreenFree(&screen);
+
+	/* v2: a static background behind scrolling text. */
+	pixelWallScreenInit(&screen);
+	if (pixelWallDecodeFrame(&screen, ENVELOPE_SAMPLE_BACKGROUND, ENVELOPE_SAMPLE_BACKGROUND_LEN)) {
+		check(screen.scrolling, "scroll flag", "envelope-background");
+		check(screen.hasBackground, "background flag", "envelope-background");
+		check(screen.bgR == 30 && screen.bgG == 55 && screen.bgB == 145,
+		      "background colour", "envelope-background");
+		check(!screen.animating, "no animating alongside background", "envelope-background");
+	} else {
+		printf("FAIL envelope-background: decode returned false\n");
+		failures++;
+	}
+	pixelWallScreenFree(&screen);
+
+	/* v2: an animated template's stepped frame strip. */
+	pixelWallScreenInit(&screen);
+	if (pixelWallDecodeFrame(&screen, ENVELOPE_SAMPLE_FRAMES, ENVELOPE_SAMPLE_FRAMES_LEN)) {
+		check(screen.animating, "animating flag", "envelope-frames");
+		check(screen.frameCount == 12, "frameCount", "envelope-frames");
+		check(screen.frameDurationMs == 83, "frameDurationMs", "envelope-frames");
+		check(screen.frameWidthPx == 8, "frameWidthPx", "envelope-frames");
+		check(!screen.scrolling, "no scroll alongside frames", "envelope-frames");
+		check(!screen.hasBackground, "no background on this sample", "envelope-frames");
+	} else {
+		printf("FAIL envelope-frames: decode returned false\n");
+		failures++;
+	}
+	pixelWallScreenFree(&screen);
+
+	/* v2: native Game of Life — no block, no window/scroll/background/frames,
+	 * just the flag and brightness. */
+	pixelWallScreenInit(&screen);
+	if (pixelWallDecodeFrame(&screen, ENVELOPE_SAMPLE_GAMEOFLIFE, ENVELOPE_SAMPLE_GAMEOFLIFE_LEN)) {
+		check(screen.nativeGameOfLife, "gameOfLife flag", "envelope-gameoflife");
+		check(screen.brightness == 75, "brightness", "envelope-gameoflife");
+		check(!screen.scrolling, "no scroll alongside gameOfLife", "envelope-gameoflife");
+		check(!screen.hasBackground, "no background alongside gameOfLife", "envelope-gameoflife");
+		check(!screen.animating, "no animating alongside gameOfLife", "envelope-gameoflife");
+	} else {
+		printf("FAIL envelope-gameoflife: decode returned false\n");
+		failures++;
+	}
+	pixelWallScreenFree(&screen);
+
+	/* A v2 decoder that has never heard of FLAG_GAMEOFLIFE must still reject
+	 * a headerless gameOfLife payload safely (as an undersized block) rather
+	 * than misinterpret it — this is what makes it safe to add the flag
+	 * without a version bump (docs/wire-format.md "Game of Life"). Simulated
+	 * here by decoding straight into pixelWallDecodeBlock, since an "old"
+	 * decoder is exactly today's pixelWallDecodeFrame minus the flag check. */
+	pixelWallScreenInit(&screen);
+	check(!pixelWallDecodeBlock(&screen, ENVELOPE_SAMPLE_GAMEOFLIFE + ENVELOPE_HEADER_V2,
+	                            ENVELOPE_SAMPLE_GAMEOFLIFE_LEN - ENVELOPE_HEADER_V2),
+	      "a headerless gameOfLife payload is rejected as an undersized block",
+	      "envelope-gameoflife-old-decoder");
+	pixelWallScreenFree(&screen);
+
+	/* A trailing block on a gameOfLife-flagged message is malformed — the
+	 * encoder must never emit one, so a decoder should say so rather than
+	 * silently ignore it. */
+	pixelWallScreenInit(&screen);
+	uint8_t gameOfLifeWithTrailingByte[ENVELOPE_HEADER_V2 + 1];
+	memcpy(gameOfLifeWithTrailingByte, ENVELOPE_SAMPLE_GAMEOFLIFE, ENVELOPE_HEADER_V2);
+	gameOfLifeWithTrailingByte[ENVELOPE_HEADER_V2] = 0x00;
+	check(!pixelWallDecodeFrame(&screen, gameOfLifeWithTrailingByte, sizeof(gameOfLifeWithTrailingByte)),
+	      "a gameOfLife frame with a trailing byte must be rejected", "malformed");
+	pixelWallScreenFree(&screen);
+
+	/* An unknown version must be rejected, same as an unknown magic. */
+	pixelWallScreenInit(&screen);
+	const uint8_t badEnvelopeVersion[] = {0x57, 0x03, 0x00, 0, 0, 0, 0, 0, 0, 0,
+	                                      0,    0,    0,    0, 0, 0, 0, 0, 0, 0,
+	                                      0,    0};
+	check(!pixelWallDecodeFrame(&screen, badEnvelopeVersion, sizeof(badEnvelopeVersion)),
+	      "unknown envelope version must be rejected", "malformed");
 	pixelWallScreenFree(&screen);
 
 	if (failures == 0) {

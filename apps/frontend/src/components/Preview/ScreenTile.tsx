@@ -125,7 +125,7 @@ export function ScreenTile({
 						transformOrigin: "top left",
 					}}
 				>
-					<ContentLayer render={render} screenKind={spec.kind} />
+					<ContentLayer render={render} />
 				</div>
 			)}
 			{render && (

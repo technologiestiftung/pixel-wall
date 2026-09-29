@@ -103,3 +103,96 @@ def test_composite_width_round_trips():
     """The Pi needs it to pan a filmstrip across a multi-screen selection."""
     original = frame(scroll=wire.Scroll("left", 60, 2000, 148))
     assert wire.decode_frame(wire.encode_frame(original)).scroll.composite_width_px == 148
+
+
+def test_plain_frame_still_uses_the_v1_header():
+    """No new field in use, no reason to pay for the bigger v2 header."""
+    payload = wire.encode_frame(frame())
+    assert payload[1] == wire.VERSION_1
+    assert payload[22] == 0x50  # mask1 block magic, right after the 22-byte v1 header
+
+
+def test_round_trips_a_background():
+    original = frame(background=(30, 55, 145))
+    decoded = wire.decode_frame(wire.encode_frame(original))
+    assert decoded.background == (30, 55, 145)
+    assert decoded.mask.to_rows() == original.mask.to_rows()
+
+
+def test_background_bumps_the_envelope_to_v2():
+    payload = wire.encode_frame(frame(background=(30, 55, 145)))
+    assert payload[1] == wire.VERSION_2
+    assert payload[2] == wire.FLAG_BACKGROUND
+    assert payload[22:25] == bytes([30, 55, 145])
+
+
+def test_background_and_scroll_coexist():
+    original = frame(scroll=wire.Scroll("left", 60, 2000, 148), background=(1, 2, 3))
+    payload = wire.encode_frame(original)
+    assert payload[2] == wire.FLAG_SCROLL | wire.FLAG_BACKGROUND
+    decoded = wire.decode_frame(payload)
+    assert decoded.scroll == original.scroll
+    assert decoded.background == original.background
+
+
+def test_rejects_out_of_range_background():
+    with pytest.raises(MaskFormatError, match="channels"):
+        wire.encode_frame(frame(background=(0, 0, 300)))
+
+
+def test_round_trips_frames():
+    original = frame(frames=wire.Frames(12, 83, 64))
+    decoded = wire.decode_frame(wire.encode_frame(original))
+    assert decoded.frames == original.frames
+    assert decoded.mask.to_rows() == original.mask.to_rows()
+
+
+def test_frames_bumps_the_envelope_to_v2():
+    payload = wire.encode_frame(frame(frames=wire.Frames(12, 83, 64)))
+    assert payload[1] == wire.VERSION_2
+    assert payload[2] == wire.FLAG_FRAMES
+    assert payload[25] == 12
+    assert payload[26:28] == bytes([0, 83])
+    assert payload[28:30] == bytes([0, 64])
+
+
+def test_fractional_frame_duration_is_rounded():
+    decoded = wire.decode_frame(wire.encode_frame(frame(frames=wire.Frames(12, 83.3, 64))))
+    assert decoded.frames.frame_duration_ms == 83
+
+
+def test_rejects_out_of_range_frame_count():
+    with pytest.raises(MaskFormatError, match="frameCount"):
+        wire.encode_frame(frame(frames=wire.Frames(0, 83, 64)))
+
+
+def test_game_of_life_has_no_block_and_uses_the_gameoflife_flag():
+    payload = wire.encode_frame(wire.ScreenFrame(
+        color=(0, 0, 0), window=wire.Window(0, 0, 0, 0), brightness=42, game_of_life=True,
+    ))
+    assert payload[1] == wire.VERSION_2
+    assert payload[2] == wire.FLAG_GAMEOFLIFE
+    assert len(payload) == wire.HEADER_BYTES_V2
+    assert payload[21] == 42
+
+
+def test_game_of_life_round_trips():
+    decoded = wire.decode_frame(wire.encode_frame(wire.ScreenFrame(
+        color=(0, 0, 0), window=wire.Window(0, 0, 0, 0), brightness=42, game_of_life=True,
+    )))
+    assert decoded.game_of_life
+    assert decoded.mask is None
+    assert decoded.brightness == 42
+
+
+def test_game_of_life_rejects_a_missing_mask_when_not_flagged():
+    with pytest.raises(MaskFormatError, match="mask is required"):
+        wire.encode_frame(wire.ScreenFrame(color=(0, 0, 0), window=wire.Window(0, 0, 0, 0)))
+
+
+def test_a_v1_frame_still_decodes_with_no_background_or_frames():
+    """A v2-capable decoder must read an unmodified v1 frame identically to
+    before — see docs/wire-format.md "Version 2"."""
+    decoded = wire.decode_frame(wire.encode_frame(frame(scroll=wire.Scroll("left", 40, 2000, 96))))
+    assert decoded.background is None
+    assert decoded.frames is None

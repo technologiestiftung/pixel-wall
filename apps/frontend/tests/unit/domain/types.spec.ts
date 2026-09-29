@@ -8,7 +8,17 @@ import type { AnimationContent, ScreenLayers } from "../../../src/domain/types";
 
 const raute: AnimationContent = {
 	type: "animation",
+	mode: "template",
 	templateId: "raute-animiert",
+	scalePercent: 100,
+	hAlign: "center",
+	vAlign: "center",
+};
+
+const gameOfLife: AnimationContent = {
+	type: "animation",
+	mode: "gameOfLife",
+	templateId: "ohne",
 	scalePercent: 100,
 	hAlign: "center",
 	vAlign: "center",
@@ -40,5 +50,25 @@ describe("withEdit", () => {
 			templateId: NO_ANIMATION_TEMPLATE_ID,
 		});
 		expect(next).toEqual(EMPTY_LAYERS);
+	});
+
+	it("writes a gameOfLife selection as the foreground like any other content", () => {
+		const next = withEdit(EMPTY_LAYERS, gameOfLife);
+		expect(next.foreground).toEqual(gameOfLife);
+	});
+
+	it("does not apply the 'ohne' sentinel to a gameOfLife selection", () => {
+		// gameOfLife's templateId is a meaningless placeholder (see
+		// AnimationContent) — even if it happens to equal the "ohne" sentinel,
+		// that clearing behaviour is template-mode-only.
+		const next = withEdit(EMPTY_LAYERS, gameOfLife);
+		expect(next.foreground).not.toBeNull();
+	});
+
+	it("suspends rather than discards a screen's Hintergrund when gameOfLife is selected", () => {
+		const applied: ScreenLayers = { background: "#FE4441", foreground: raute };
+		const next = withEdit(applied, gameOfLife);
+		expect(next.foreground).toEqual(gameOfLife);
+		expect(next.background).toBe("#FE4441");
 	});
 });

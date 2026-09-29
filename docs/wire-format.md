@@ -131,8 +131,10 @@ Published retained to `ledwall/screen/<id>`, one topic per screen.
 ```
 offset  size  field
 0       1     magic, 0x57 ('W')
-1       1     version, 0x01
-2       1     flags: bit 0 set = scroll fields are meaningful
+1       1     version, 0x01 or 0x02
+2       1     flags: bit 0 = scroll fields meaningful, bit 1 = background
+              fields meaningful (v2 only), bit 2 = frames fields meaningful
+              (v2 only)
 3       1     color red
 4       1     color green
 5       1     color blue
@@ -145,28 +147,42 @@ offset  size  field
 17      2     scroll pauseMs,          uint16 big-endian
 19      2     scroll compositeWidthPx, uint16 big-endian
 21      1     brightness percent, 5-100
-22      ...   the binary block below (mask1 or pal4), verbatim
+22      1     background red     (v2 only)
+23      1     background green   (v2 only)
+24      1     background blue    (v2 only)
+25      1     frames frameCount              (v2 only) — 1-255
+26      2     frames frameDurationMs, uint16 big-endian, rounded ms (v2 only)
+28      2     frames frameWidthPx (one frame slot's width), uint16
+              big-endian (v2 only)
+22/30   ...   the binary block below (mask1 or pal4), verbatim — offset 22
+              for version 1, 30 for version 2
 ```
 
 Which block follows is read from its own magic byte, not from a field here.
 The `color` bytes are meaningful only for a `mask1` block; a `pal4` block
 carries its own palette and the decoder ignores them.
 
-The scroll fields are always present so the header is a fixed 22 bytes; when
-flags bit 0 is clear they are zero and must be ignored.
+The scroll fields are always present so the v1 header is a fixed 22 bytes;
+when flags bit 0 is clear they are zero and must be ignored. `scroll` and
+`frames` are mutually exclusive on one content (a decoder only ever needs to
+read one of bit 0's fields or bit 2's fields, never both), but they occupy
+different byte ranges regardless — bit 2's fields are new bytes past the v1
+header, not a reinterpretation of bit 0's.
 
-**`frames` has no binary encoding yet.** It exists only in the JSON envelope
-above, which today only reaches large (Pi) screens — the Pi reads the state
-file directly rather than going over MQTT, so this is not a gap in what's
-shipped, only in what the ESP32 side can do. Adding it to this binary
-envelope is planned, not implemented — see
-`docs/plan-esp32-animation-frames.md` for the exact header/flag layout that
-plan proposes, mirroring how `docs/plan-esp32-lauftext-background.md`
-similarly extends this same header for `background`. An ESP32 that receives
-an animated template's multi-frame `data` today (nothing currently sends it
-one, but nothing stops the backend from trying) decodes it as an ordinary
-static block and shows frame 0 — the first `compositeWidthPx`-wide slot of
-the strip — rather than animating or corrupting.
+**Version 2** extends the header with `background` (docs/wire-format.md
+`background`) and `frames` (docs/wire-format.md `frames`), bringing this
+binary envelope to parity with the JSON one — both were previously JSON-only,
+reaching large (Pi) screens (which read the state file directly) but not the
+MQTT-driven small (ESP32) screens. The 8 extra bytes are always present in a
+v2 header, zero when their flag bit is clear, exactly as the v1 scroll fields
+already behave — so a v2-capable decoder reads a v1 frame identically to
+before. An encoder only spends the bigger header on content that actually
+carries `background` or `frames`; anything else stays on the original 22-byte
+v1 header, so an unflashed v1 device keeps rejecting only the frames it
+genuinely can't understand yet (and keeps showing its last good frame) rather
+than every frame outright. See `docs/plan-esp32-lauftext-background.md` and
+`docs/plan-esp32-animation-frames.md` for the design history here — both
+phases shipped together as this single `0x02` version bump.
 
 `brightness` is carried here because a device driven only by MQTT has no other
 way to learn it — the Pi reads it straight out of the state file, but the ESP32

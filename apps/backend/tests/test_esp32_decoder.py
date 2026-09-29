@@ -45,6 +45,44 @@ def _envelope_sample() -> bytes:
     return wire.encode_frame(frame)
 
 
+def _envelope_sample_background() -> bytes:
+    """v2: a static fill behind a scrolling filmstrip (no `frames`)."""
+    frame = wire.ScreenFrame(
+        color=(254, 68, 65),
+        window=wire.Window(84, 0, 64, 64),
+        mask=Mask.from_rows(["####....", "....####"]),
+        scroll=wire.Scroll("left", 60, 2000, 148),
+        background=(30, 55, 145),
+        brightness=85,
+    )
+    return wire.encode_frame(frame)
+
+
+def _envelope_sample_frames() -> bytes:
+    """v2: an animated Animation/Bild template's frame strip (no `scroll`,
+    no `background`)."""
+    frame = wire.ScreenFrame(
+        color=(254, 68, 65),
+        window=wire.Window(0, 0, 32, 32),
+        mask=Mask.from_rows(["####....", "....####"]),
+        frames=wire.Frames(12, 83, 8),
+        brightness=85,
+    )
+    return wire.encode_frame(frame)
+
+
+def _envelope_sample_gameoflife() -> bytes:
+    """v2: native Game of Life — no mask/window/scroll/background/frames at
+    all, just the flag and brightness."""
+    frame = wire.ScreenFrame(
+        color=(0, 0, 0),
+        window=wire.Window(0, 0, 0, 0),
+        brightness=75,
+        game_of_life=True,
+    )
+    return wire.encode_frame(frame)
+
+
 def _generate_header(target: Path) -> int:
     fixtures = json.loads(FIXTURES_JSON.read_text())
     cases = [(case, False) for case in fixtures["cases"]]
@@ -109,6 +147,33 @@ def _generate_header(target: Path) -> int:
     envelope = _envelope_sample()
     lines.append(f"static const uint8_t ENVELOPE_SAMPLE[] = {_c_bytes(envelope)};")
     lines.append("static const size_t ENVELOPE_SAMPLE_LEN = sizeof(ENVELOPE_SAMPLE);")
+    lines.append("")
+
+    envelope_background = _envelope_sample_background()
+    lines.append(
+        f"static const uint8_t ENVELOPE_SAMPLE_BACKGROUND[] = {_c_bytes(envelope_background)};"
+    )
+    lines.append(
+        "static const size_t ENVELOPE_SAMPLE_BACKGROUND_LEN = sizeof(ENVELOPE_SAMPLE_BACKGROUND);"
+    )
+    lines.append("")
+
+    envelope_frames = _envelope_sample_frames()
+    lines.append(
+        f"static const uint8_t ENVELOPE_SAMPLE_FRAMES[] = {_c_bytes(envelope_frames)};"
+    )
+    lines.append(
+        "static const size_t ENVELOPE_SAMPLE_FRAMES_LEN = sizeof(ENVELOPE_SAMPLE_FRAMES);"
+    )
+    lines.append("")
+
+    envelope_gameoflife = _envelope_sample_gameoflife()
+    lines.append(
+        f"static const uint8_t ENVELOPE_SAMPLE_GAMEOFLIFE[] = {_c_bytes(envelope_gameoflife)};"
+    )
+    lines.append(
+        "static const size_t ENVELOPE_SAMPLE_GAMEOFLIFE_LEN = sizeof(ENVELOPE_SAMPLE_GAMEOFLIFE);"
+    )
     lines.append("")
 
     target.write_text("\n".join(lines))

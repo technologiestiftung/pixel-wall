@@ -16,9 +16,19 @@
 #include <string.h>
 
 #define ENVELOPE_MAGIC 0x57
-#define ENVELOPE_VERSION 0x01
-#define ENVELOPE_HEADER 22
+#define ENVELOPE_VERSION_1 0x01
+#define ENVELOPE_VERSION_2 0x02
+#define ENVELOPE_HEADER_V1 22
+#define ENVELOPE_HEADER_V2 30
 #define FLAG_SCROLL 0x01
+#define FLAG_BACKGROUND 0x02
+#define FLAG_FRAMES 0x04
+/* Native on-device Game of Life — no block follows the header at all. Added
+ * as a v2 flag rather than a new envelope version: a v2 decoder built before
+ * this flag existed calls pixelWallDecodeBlock on zero trailing bytes, which
+ * is already shorter than MASK1_HEADER and so already safely rejected,
+ * keeping its last good frame. See docs/wire-format.md "Game of Life". */
+#define FLAG_GAMEOFLIFE 0x08
 
 #define MASK1_MAGIC 0x50
 #define PAL4_MAGIC 0x51
@@ -56,9 +66,30 @@ typedef struct {
 	uint16_t pauseMs;
 	uint16_t compositeWidthPx;
 
+	/* v2 only: a static fill shown wherever nothing is lit (docs/wire-format.md
+	 * `background`). Mutually exclusive with `animating` on one content, but
+	 * independent of it as a concept — a background can also sit behind
+	 * scrolling text. */
+	bool hasBackground;
+	uint8_t bgR, bgG, bgB;
+
+	/* v2 only: an animated Animation/Bild template's frame strip
+	 * (docs/wire-format.md `frames`). Mutually exclusive with `scrolling` on
+	 * one content. */
+	bool animating;
+	uint8_t frameCount;
+	uint16_t frameDurationMs;
+	uint16_t frameWidthPx;
+
 	/* Brightness for this screen's hardware kind, 5-100. Carried on the wire
 	 * because this board never sees the backend's state file. */
 	uint8_t brightness;
+
+	/* v2 only: native on-device Game of Life (docs/wire-format.md "Game of
+	 * Life"). When true, `pixels`/`format`/window/scroll/frames are all
+	 * meaningless — there is no bitmap, and the render loop takes a wholly
+	 * different path (see game_of_life.h and pixel_wall_esp32.ino). */
+	bool nativeGameOfLife;
 } PixelWallScreen;
 
 static inline void pixelWallScreenInit(PixelWallScreen *screen) {
@@ -215,16 +246,43 @@ static inline bool pixelWallDecodeBlock(PixelWallScreen *screen, const uint8_t *
 }
 
 /* Parses a whole retained MQTT message: the fixed envelope header plus the
- * block it carries. */
+ * block it carries. Version 1 is the original 22-byte header; version 2
+ * extends it with 8 more bytes (background + frames, docs/wire-format.md) and
+ * is otherwise identical — a v1 sender that never sets either field has no
+ * reason to pay for them. */
 static inline bool pixelWallDecodeFrame(PixelWallScreen *screen, const uint8_t *payload,
                                         size_t length) {
-	if (length < ENVELOPE_HEADER) return false;
-	if (payload[0] != ENVELOPE_MAGIC || payload[1] != ENVELOPE_VERSION) return false;
+	if (length < 2 || payload[0] != ENVELOPE_MAGIC) return false;
 
-	if (!pixelWallDecodeBlock(screen, payload + ENVELOPE_HEADER,
-	                          length - ENVELOPE_HEADER)) {
+	uint8_t version = payload[1];
+	size_t header;
+	if (version == ENVELOPE_VERSION_1) {
+		header = ENVELOPE_HEADER_V1;
+	} else if (version == ENVELOPE_VERSION_2) {
+		header = ENVELOPE_HEADER_V2;
+	} else {
 		return false;
 	}
+	if (length < header) return false;
+
+	uint8_t flags = payload[2];
+	if (version == ENVELOPE_VERSION_2 && (flags & FLAG_GAMEOFLIFE) != 0) {
+		/* No block follows: an encoder bug producing trailing bytes should be
+		 * visible (rejected) rather than silently ignored. */
+		if (length != header) return false;
+
+		pixelWallScreenFree(screen); /* drop any previous bitmap; nothing to sample while native */
+		pixelWallScreenInit(screen);
+		screen->nativeGameOfLife = true;
+		screen->brightness = payload[21];
+		screen->valid = true;
+		return true;
+	}
+
+	if (!pixelWallDecodeBlock(screen, payload + header, length - header)) {
+		return false;
+	}
+	screen->nativeGameOfLife = false;
 
 	screen->r = payload[3];
 	screen->g = payload[4];
@@ -239,6 +297,22 @@ static inline bool pixelWallDecodeFrame(PixelWallScreen *screen, const uint8_t *
 		screen->compositeWidthPx = pixelWallReadU16(payload + 19);
 	}
 	screen->brightness = payload[21];
+
+	if (version == ENVELOPE_VERSION_2) {
+		screen->hasBackground = (payload[2] & FLAG_BACKGROUND) != 0;
+		if (screen->hasBackground) {
+			screen->bgR = payload[22];
+			screen->bgG = payload[23];
+			screen->bgB = payload[24];
+		}
+		screen->animating = (payload[2] & FLAG_FRAMES) != 0;
+		if (screen->animating) {
+			screen->frameCount = payload[25];
+			screen->frameDurationMs = pixelWallReadU16(payload + 26);
+			screen->frameWidthPx = pixelWallReadU16(payload + 28);
+		}
+	}
+
 	screen->valid = true;
 	return true;
 }

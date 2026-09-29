@@ -41,6 +41,14 @@ export async function contentToWire(
 	const width = Math.max(1, Math.round(size.widthPx));
 	const height = Math.max(1, Math.round(size.heightPx));
 
+	// No bitmap, ever — and deliberately checked before `background` is even
+	// looked at, so a screen's Hintergrund is never leaked onto the wire for
+	// this content (see CONTEXT.md "Content" — Game of Life suspends,
+	// never composites, a screen's Hintergrund).
+	if (content.type === "animation" && content.mode === "gameOfLife") {
+		return { format: "gameOfLife" };
+	}
+
 	if (content.type === "animation" || content.type === "text") {
 		return contentToPal4Wire(content, { width, height, scroll, background });
 	}
@@ -225,6 +233,13 @@ function emptyMask(content: Content, widthPx: number, heightPx: number) {
  * rather than throwing.
  */
 export function compositeWidthOf(content: WireContentDto): number {
+	// gameOfLife has no bitmap and so no real width to report — the value is
+	// never actually consulted for it (ContentLayer.tsx renders its
+	// placeholder before sizing off this), so this is just a safe,
+	// small-screen-sized fallback rather than throwing.
+	if (content.format === "gameOfLife") {
+		return 32;
+	}
 	return (
 		content.frames?.compositeWidthPx ??
 		content.scroll?.compositeWidthPx ??
@@ -239,6 +254,14 @@ export function compositeWidthOf(content: WireContentDto): number {
  * what an unlit LED looks like.
  */
 export function wireToDataUrl(content: WireContentDto): string {
+	// Never actually reached in practice — a gameOfLife screen always carries
+	// `source` (every apply request sends it), so hydrateScreen's fallback to
+	// this function never triggers for one — but the type allows it, so this
+	// degrades to blank rather than reading fields that don't exist on it.
+	if (content.format === "gameOfLife") {
+		return "";
+	}
+
 	const canvas = document.createElement("canvas");
 	// A `frames` payload's `data` is the whole multi-frame strip (see
 	// animationToFramesWire above) — this static preview shows just frame 0,
