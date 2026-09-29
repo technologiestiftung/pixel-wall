@@ -386,7 +386,9 @@ export function pal4FromImageData(
 			}
 			const nearDuplicate = palette.some(
 				([pr, pg, pb]) =>
-					(colour[0] - pr) ** 2 + (colour[1] - pg) ** 2 + (colour[2] - pb) ** 2 <
+					(colour[0] - pr) ** 2 +
+						(colour[1] - pg) ** 2 +
+						(colour[2] - pb) ** 2 <
 					CRISP_MIN_DISTANCE_SQ,
 			);
 			if (nearDuplicate) {

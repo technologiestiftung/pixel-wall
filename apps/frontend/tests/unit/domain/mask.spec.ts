@@ -220,7 +220,11 @@ describe("pal4FromImageData", () => {
 				[...pink, 100],
 			],
 		]);
-		const image = pal4FromImageData(data, { widthPx: 4, heightPx: 1, crisp: true });
+		const image = pal4FromImageData(data, {
+			widthPx: 4,
+			heightPx: 1,
+			crisp: true,
+		});
 		expect(image.palette).toEqual([[0, 0, 0], pink, navy]);
 		expect([...image.indices]).toEqual([1, 2, 1, 0]);
 	});
@@ -229,9 +233,18 @@ describe("pal4FromImageData", () => {
 		const red = [254, 68, 65, 255];
 		const nearRed = [253, 67, 64, 255];
 		const blend = [142, 61, 103, 255];
-		const data = pixels([[...Array(200).fill(red), ...Array(50).fill(nearRed), blend]]);
-		const image = pal4FromImageData(data, { widthPx: 251, heightPx: 1, crisp: true });
-		expect(image.palette).toEqual([[0, 0, 0], [254, 68, 65]]);
+		const data = pixels([
+			[...Array(200).fill(red), ...Array(50).fill(nearRed), blend],
+		]);
+		const image = pal4FromImageData(data, {
+			widthPx: 251,
+			heightPx: 1,
+			crisp: true,
+		});
+		expect(image.palette).toEqual([
+			[0, 0, 0],
+			[254, 68, 65],
+		]);
 		expect(image.indices[250]).toBe(1);
 	});
 
