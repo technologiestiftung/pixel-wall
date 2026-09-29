@@ -30,7 +30,7 @@
 #include "secrets.h"
 #include "wire_decode.h"
 
-#define MQTT_HOST "192.168.4.235"
+#define MQTT_HOST "192.168.4.236"
 #define MQTT_PORT 1883
 #define MQTT_TOPIC "ledwall/screen/+"
 #define MQTT_TOPIC_PREFIX "ledwall/screen/"

@@ -1,7 +1,6 @@
-const API_URL = (import.meta.env.API_URL ?? "http://localhost:5000").replace(
-	/\/$/,
-	"",
-);
+const API_URL = (
+	import.meta.env.VITE_API_URL ?? "http://localhost:5000"
+).replace(/\/$/, "");
 
 /** `RequestInit` is a type-only DOM global, which the shared eslint config
  * does not know about; derive it from `fetch` instead. */

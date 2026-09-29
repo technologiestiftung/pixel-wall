@@ -9,7 +9,7 @@ hosted separately from the Pi; it talks to `@pixel-wall/backend` over the networ
 npm run dev --workspace @pixel-wall/frontend
 ```
 
-Copy `.env.example` to `.env` and point `API_URL` at the backend on port
+Copy `.env.example` to `.env` and point `VITE_API_URL` at the backend on port
 5000 — the Pi on the LAN, or a local dev instance. The API contract is in
 [../backend/README.md](../backend/README.md), and served live at `/docs`.
 

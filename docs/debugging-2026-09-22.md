@@ -260,7 +260,7 @@ backend (`192.168.4.236:5000`):
   requests to the Pi's LAN IP — a tooling gap, not a product bug. Don't
   trust that tool's request list for this app again; check
   `performance.getEntriesByType('resource')` instead.
-- Also ruled out the `API_URL` trailing-whitespace-in-`.env` red herring
+- Also ruled out the `VITE_API_URL` trailing-whitespace-in-`.env` red herring
   (`http://192.168.4.236:5000/ ` — trailing space would break
   `api.ts`'s `.replace(/\/$/, "")` trim if it survived): confirmed via
   `import.meta.env` at runtime that Vite's env loader already strips it,
