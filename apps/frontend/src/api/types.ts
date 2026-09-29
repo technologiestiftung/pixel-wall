@@ -83,13 +83,7 @@ export interface GameOfLifeContentDto {
 
 export type WireContentDto = BitmapContentDto | GameOfLifeContentDto;
 
-export interface BrightnessDto {
-	small: number;
-	large: number;
-}
-
 export interface StateResponse {
-	brightness: BrightnessDto;
 	layout: LayoutPositionDto[];
 	screens: Record<
 		string,
@@ -106,7 +100,6 @@ export interface ApplyRequest {
 	selectionKind: ScreenKind;
 	screens: { screenId: string; window: ScreenWindowDto }[];
 	content: WireContentDto;
-	brightness?: BrightnessDto;
 	/** The editor's layers behind `content`. Stored verbatim by the backend and
 	 * never rendered from — see domain/types.ts ScreenLayers. */
 	source?: ScreenLayers;

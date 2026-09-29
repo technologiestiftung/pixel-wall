@@ -7,14 +7,10 @@ import type {
 	ContentType,
 	TextContent,
 } from "../../domain/types";
-import {
-	effectiveBrightness,
-	resolveScreenRender,
-} from "../../state/selectors";
+import { resolveScreenRender } from "../../state/selectors";
 import { useApplyChanges } from "../../state/useApplyChanges";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
-import { BrightnessSlider } from "./BrightnessSlider";
 import { EditActions } from "./EditActions";
 import { HintergrundPanel } from "./HintergrundPanel";
 import { SelectionStatus } from "./SelectionStatus";
@@ -160,20 +156,6 @@ export function Menu() {
 								/>
 							)}
 						</div>
-
-						<hr className="border-[#e4e4e0]" />
-
-						<BrightnessSlider
-							kind={selection.kind}
-							value={effectiveBrightness(state)[selection.kind]}
-							onChange={(value) =>
-								dispatch({
-									type: "set-draft-brightness",
-									kind: selection.kind,
-									value,
-								})
-							}
-						/>
 					</>
 				) : (
 					<div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2.5 text-blue-700 flex flex-col gap-1">

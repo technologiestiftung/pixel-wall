@@ -48,7 +48,6 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote,
-			brightness: { small: 40, large: 80 },
 		});
 
 		const applied = next.applied["03"];
@@ -56,7 +55,6 @@ describe("wallReducer: hydrated", () => {
 		expect(applied?.bitmap).not.toBeNull();
 		expect(applied?.layers).toEqual({ background: null, foreground: null });
 		expect(applied).toMatchObject({ offsetXPx: 4, offsetYPx: 2 });
-		expect(next.brightness).toEqual({ small: 40, large: 80 });
 		expect(next.syncStatus).toBe("ready");
 	});
 
@@ -92,7 +90,6 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote,
-			brightness: { small: 60, large: 60 },
 		});
 
 		expect(next.applied["04"]?.compositeWidthPx).toBe(32);
@@ -129,7 +126,6 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote,
-			brightness: { small: 60, large: 60 },
 		});
 
 		expect(next.applied["04"]?.compositeWidthPx).toBe(32);
@@ -146,7 +142,6 @@ describe("wallReducer: hydrated", () => {
 					content: wireContent(),
 				},
 			},
-			brightness: { small: 60, large: 60 },
 		});
 
 		const next = wallReducer(seeded, {
@@ -154,7 +149,6 @@ describe("wallReducer: hydrated", () => {
 			specs: SCREEN_SPECS,
 			layout: DEFAULT_LAYOUT,
 			remote: {},
-			brightness: { small: 60, large: 60 },
 		});
 
 		expect(next.applied).toEqual({});

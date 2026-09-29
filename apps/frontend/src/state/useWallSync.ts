@@ -34,7 +34,6 @@ export function useWallSync(
 					specs: screens.screens,
 					layout: layout.positions,
 					remote: state.screens,
-					brightness: state.brightness,
 				});
 			} catch {
 				if (!cancelled) {
@@ -43,7 +42,6 @@ export function useWallSync(
 						specs: SCREEN_SPECS,
 						layout: DEFAULT_LAYOUT,
 						remote: {},
-						brightness: { small: 60, large: 60 },
 					});
 				}
 			}

@@ -8,7 +8,7 @@ each pixel be".
 
 import base64
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 from PIL import Image
 
@@ -157,13 +157,6 @@ def render_frame(state: dict[str, Any], elapsed_ms: float) -> Image.Image:
         frame.paste(screen_tile(entry, (width, height), elapsed_ms), (x0, y0))
 
     return frame
-
-
-def brightness_for_large(state: dict[str, Any]) -> Optional[int]:
-    brightness = state.get("brightness")
-    if isinstance(brightness, dict) and isinstance(brightness.get("large"), int):
-        return brightness["large"]
-    return None
 
 
 def has_motion(state: dict[str, Any]) -> bool:

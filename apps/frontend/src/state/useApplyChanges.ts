@@ -1,12 +1,10 @@
-import { applyChanges, putBrightness } from "../api/wall";
+import { applyChanges } from "../api/wall";
 import { useAuth } from "../auth/AuthContext";
 import { buildApplyRequest } from "../domain/apply";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import {
 	activeContentDrafts,
-	brightnessHasChanges,
 	draftHasChanges,
-	effectiveBrightness,
 	hasContentDraft,
 } from "./selectors";
 import { useWallDispatch, useWallState } from "./WallProvider";
@@ -37,26 +35,8 @@ export function useApplyChanges() {
 	/** Returns whether the save actually succeeded, so callers that need to
 	 * sequence further action afterwards (e.g. switching tabs) can wait for it. */
 	async function handleApply(): Promise<boolean> {
-		const brightness = effectiveBrightness(state);
-
-		// Moving only the slider is a legitimate save with nothing to rasterise,
-		// so it goes to the brightness endpoint rather than through an apply.
 		if (!selection || !hasContentDraft(state)) {
-			if (!brightnessHasChanges(state)) {
-				return false;
-			}
-			dispatch({ type: "apply-pending" });
-			try {
-				await putBrightness(request, brightness);
-				dispatch({ type: "brightness-applied", brightness });
-				return true;
-			} catch {
-				dispatch({
-					type: "apply-error",
-					message: "Helligkeit konnte nicht übertragen werden.",
-				});
-				return false;
-			}
+			return false;
 		}
 
 		dispatch({ type: "apply-pending" });
@@ -64,7 +44,7 @@ export function useApplyChanges() {
 			const payload = await buildApplyRequest(
 				{ specs, positions: layout },
 				selection,
-				{ layers: editedLayers(), brightness },
+				{ layers: editedLayers() },
 			);
 			await applyChanges(request, payload);
 			dispatch({
@@ -73,7 +53,6 @@ export function useApplyChanges() {
 				layers: editedLayers(),
 				specs,
 				layout,
-				brightness,
 			});
 			return true;
 		} catch {

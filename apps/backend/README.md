@@ -30,7 +30,7 @@ returns 200.
 
 Flask would also do the job, but three things here are free in FastAPI and
 hand-rolled in Flask: Pydantic models give the validation and clamping of
-`brightness` / window geometry / bitmap payloads as declarative types rather
+window geometry / bitmap payloads as declarative types rather
 than a wall of `if` statements; the generated OpenAPI schema at `/docs` and `/openapi.json` is
 a live, checkable contract for the frontend you're writing yourself; and the
 ASGI stack means the eventual "push state changes to the browser" step is a
@@ -288,7 +288,6 @@ Everything the wall is currently showing.
 
 ```json
 {
-	"brightness": { "small": 60, "large": 60 },
 	"layout": [{ "screenId": "01", "xMm": 508, "yMm": 3 }],
 	"screens": {
 		"04": {
@@ -355,8 +354,7 @@ Applies one content edit to a selection of screens.
 		"heightPx": 64,
 		"color": [255, 255, 255],
 		"data": "UAEB…"
-	},
-	"brightness": { "small": 60, "large": 85 }
+	}
 }
 ```
 
@@ -370,9 +368,9 @@ Returns `{ "appliedAt": "2026-09-16T09:31:00Z" }`.
   each keeps the whole strip plus its own `window` offset. A composite's screens
   must therefore pan from a shared phase, which is why all four large screens
   are driven from one process.
-- `brightness` is optional; omitting it leaves the current values alone. It is
-  per hardware _kind_, not per screen, because `matrix.brightness` and
-  `setBrightness8` are whole-canvas properties.
+- Brightness is not part of the request. It is fixed per hardware kind in
+  `app/config.py` (`BRIGHTNESS`: small 50%, large 100%) and sent to the ESP32
+  in the MQTT envelope.
 - Screens outside `screens[]` keep whatever they were showing.
 
 ### Validation
@@ -383,14 +381,10 @@ string that is not valid base64 or not a decodable bitmap block. The block is
 decoded here on the way in, so a payload that would fail on a panel — where
 nobody would see the error — fails at the API instead.
 
-`brightness` is clamped rather than rejected: `0` becomes `5`, `999` becomes
-`100`.
-
 ### `GET /api/limits` → `200`
 
 ```json
 {
-	"brightness": { "min": 5, "max": 100 },
 	"bitmap": {
 		"maxWidthPx": 16384,
 		"maxHeightPx": 256,

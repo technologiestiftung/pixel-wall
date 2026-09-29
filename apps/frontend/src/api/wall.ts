@@ -2,7 +2,6 @@ import type { FetchInit } from "../lib/api";
 import type {
 	ApplyRequest,
 	ApplyResponse,
-	BrightnessDto,
 	HealthResponse,
 	LayoutPositionDto,
 	LayoutResponse,
@@ -51,15 +50,5 @@ export function applyChanges(
 	return request<ApplyResponse>("/api/apply", {
 		method: "POST",
 		body: JSON.stringify(body),
-	});
-}
-
-export function putBrightness(
-	request: Requester,
-	brightness: BrightnessDto,
-): Promise<BrightnessDto> {
-	return request<BrightnessDto>("/api/brightness", {
-		method: "PUT",
-		body: JSON.stringify(brightness),
 	});
 }
