@@ -1,8 +1,11 @@
+import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from . import compose, config, screens as screen_inventory, state as state_store
 from .auth import BasicAuthMiddleware
@@ -17,14 +20,19 @@ from .models import (
     MqttStatus,
     ScreenStateModel,
     ScreensResponse,
+    SnakeRequest,
+    SnakeStatus,
     StateResponse,
     WallState,
 )
 from .mqtt import publisher
+from .snake_mode import join_url, snake_mode
 from .wire import encode_frame
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("ledwall.backend")
+
+SNAKE_PAGE = Path(__file__).resolve().parent / "static" / "snake.html"
 
 
 @asynccontextmanager
@@ -34,7 +42,10 @@ async def lifespan(app: FastAPI):
             "LEDWALL_PASSWORD is not set: the API is reachable by anyone on the LAN"
         )
     publisher.start()
+    if state_store.read_state().get("snakeMode"):
+        await snake_mode.start(join_url())
     yield
+    await snake_mode.stop()
     publisher.stop()
 
 
@@ -204,6 +215,49 @@ def limits() -> dict:
         },
         "screens": screen_inventory.SCREEN_SPECS,
     }
+
+
+@app.get("/api/snake", response_model=SnakeStatus, tags=["snake"])
+def get_snake() -> SnakeStatus:
+    return SnakeStatus(**snake_mode.status())
+
+
+@app.put("/api/snake", response_model=SnakeStatus, tags=["snake"])
+async def put_snake(payload: SnakeRequest, request: Request) -> SnakeStatus:
+    """Switches the wall between its applied content and the snake game.
+
+    The applied content is left as it is, so switching back restores it.
+    """
+    current = WallState.model_validate(state_store.read_state())
+    current.snakeMode = payload.enabled
+    _write(current)
+
+    if payload.enabled:
+        await snake_mode.start(join_url(request.url.port))
+    else:
+        await snake_mode.stop()
+    return SnakeStatus(**snake_mode.status())
+
+
+@app.websocket("/api/snake/ws")
+async def snake_socket(websocket: WebSocket) -> None:
+    await snake_mode.connect(websocket)
+    try:
+        while True:
+            try:
+                message = json.loads(await websocket.receive_text())
+            except ValueError:
+                continue
+            await snake_mode.receive(websocket, message)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        snake_mode.disconnect(websocket)
+
+
+@app.get("/snake", include_in_schema=False)
+def snake_page() -> FileResponse:
+    return FileResponse(SNAKE_PAGE, media_type="text/html")
 
 
 @app.get("/", include_in_schema=False)

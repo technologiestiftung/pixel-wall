@@ -36,3 +36,19 @@ DEFAULT_BRIGHTNESS = 60
 #: exhaust memory. A 256-char Lauftext filmstrip at 64px is ~10k px wide.
 MAX_BITMAP_WIDTH_PX = 16384
 MAX_BITMAP_HEIGHT_PX = 256
+
+#: Snake mode. The grid cell is in mm so it is one physical size on both
+#: pixel pitches; 24 mm is 8 px on a large screen and 6 px on a small one.
+SNAKE_CELL_MM = float(os.environ.get("LEDWALL_SNAKE_CELL_MM", "24"))
+#: The large screen that shows the join QR code while nobody is playing.
+SNAKE_QR_SCREEN = os.environ.get("LEDWALL_SNAKE_QR_SCREEN", "04")
+#: What the QR code links to. Unset means http://<this machine's LAN IP>:<port>/snake,
+#: which is right unless the backend sits behind a proxy or a hostname.
+PUBLIC_URL = os.environ.get("LEDWALL_PUBLIC_URL") or None
+
+
+def live_file() -> Path:
+    """Short-lived frames that override the state file on the Pi's panels —
+    see app/snake_mode.py. A function so it follows a patched STATE_FILE."""
+    override = os.environ.get("LEDWALL_LIVE_FILE")
+    return Path(override) if override else STATE_FILE.with_name("live.json")

@@ -430,6 +430,45 @@ gate.
 | `422` | payload failed validation (see above)                      |
 | `500` | the state file could not be written                        |
 
+## Snake mode
+
+"Snake starten" in the editor header (or `PUT /api/snake {"enabled": true}`)
+turns the whole wall into one snake game:
+
+1. Large screen `LEDWALL_SNAKE_QR_SCREEN` (default `04`) shows a QR code, and a
+   demo snake wanders over the other screens.
+2. Scanning the code opens `/snake` on the phone. This page and its websocket
+   (`/api/snake/ws`) are public on purpose, so visitors do not need the API
+   password. Switching the mode on or off still does.
+3. "Spiel starten" starts a game on every screen. The phone shows the whole
+   field, gaps included, and has a D-pad, swipe and arrow-key controls. One
+   person plays at a time, and anyone else who opens the page watches.
+4. After a game over the wall returns to the QR code. "Snake beenden" restores
+   whatever content had been applied.
+
+The field is a grid of `LEDWALL_SNAKE_CELL_MM` (default 24 mm) cells laid over
+the bounding box of the saved Layout. A cell is therefore the same physical
+size on both pixel pitches. The snake travels through the gaps between screens
+unlit and wraps at the edges; only running into itself ends a game.
+
+Applied content is never overwritten during a game:
+
+- The Pi's frames go to `live.json` next to the state file (override with
+  `LEDWALL_LIVE_FILE`). `pi_display.py` prefers that file while it is less
+  than 5 s old, so a backend that dies mid-game hands the wall back by itself.
+- The ESP32 receives non-retained MQTT messages on its usual topics. The
+  retained content stays with the broker and is republished when the mode ends.
+
+The QR code links to `http://<LAN IP>:<port>/snake`. Set `LEDWALL_PUBLIC_URL`
+if phones reach the Pi by a different address. Keep that URL short:
+up to about 50 characters it is drawn at 2 px per module, which phones scan
+reliably, and a longer one drops to 1 px. The mode is saved in the state file
+and comes back after a restart. After a restart the port comes from
+`LEDWALL_PORT`, so keep that in step with uvicorn's `--port`.
+
+For a local test with a real phone, bind to the LAN (`--host 0.0.0.0`), not
+`127.0.0.1`, and make sure the phone is on the same network.
+
 ## Display script
 
 `pi_display.py` is a **compositor, not a renderer**. The frontend rasterises
@@ -544,18 +583,21 @@ mosquitto_sub -h localhost -t 'ledwall/screen/+' -F '%t %l bytes'
 
 ## Layout
 
-| Path               | Purpose                                                  |
-| ------------------ | -------------------------------------------------------- |
-| `app/main.py`      | endpoints                                                |
-| `app/models.py`    | request/response models, clamping, colour coercion       |
-| `app/state.py`     | atomic read/write of the shared state file               |
-| `app/mqtt.py`      | fire-and-forget publisher                                |
-| `app/auth.py`      | HTTP Basic middleware                                    |
-| `app/config.py`    | environment configuration and ranges                     |
-| `systemd/`         | both units and the file-permission rationale             |
-| `pi_display.py`    | display driver, run in place as root by the display unit |
-| `requirements.txt` | pinned runtime dependencies                              |
-| `.env.example`     | every setting, with its default                          |
+| Path                | Purpose                                                  |
+| ------------------- | -------------------------------------------------------- |
+| `app/main.py`       | endpoints                                                |
+| `app/models.py`     | request/response models, clamping, colour coercion       |
+| `app/state.py`      | atomic read/write of the shared state file               |
+| `app/mqtt.py`       | fire-and-forget publisher                                |
+| `app/auth.py`       | HTTP Basic middleware                                    |
+| `app/config.py`     | environment configuration and ranges                     |
+| `app/snake.py`      | snake game, board geometry and QR code, no I/O           |
+| `app/snake_mode.py` | runs the game and sends frames to both panel types       |
+| `app/static/`       | the phone page for snake mode, served at `/snake`        |
+| `systemd/`          | both units and the file-permission rationale             |
+| `pi_display.py`     | display driver, run in place as root by the display unit |
+| `requirements.txt`  | pinned runtime dependencies                              |
+| `.env.example`      | every setting, with its default                          |
 
 ## Local development
 

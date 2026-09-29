@@ -48,6 +48,12 @@ from app.compositor import (  # noqa: E402
 
 STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.json"))
 
+# Snake mode's frames (app/snake_mode.py). Shown instead of the state file
+# while the backend keeps rewriting it; a stale one is ignored, so a backend
+# that dies mid-game cannot leave the wall stuck on its last frame.
+LIVE_FILE = Path(os.environ.get("LEDWALL_LIVE_FILE", str(STATE_FILE.with_name("live.json"))))
+LIVE_STALE_AFTER = 5.0
+
 MAX_BRIGHTNESS = 100         # hard ceiling on current draw
 DEFAULT_BRIGHTNESS = 60
 STATE_POLL_INTERVAL = 0.2    # seconds between state re-reads
@@ -109,6 +115,34 @@ def read_state(previous):
     return raw
 
 
+def read_live(previous):
+    """Return `(mtime, frames)` for a fresh live file, else None.
+
+    Checked on every loop iteration, so it is a stat, and the file is only
+    parsed again when it has changed.
+    """
+    try:
+        mtime = LIVE_FILE.stat().st_mtime_ns
+    except OSError:
+        return None
+
+    if time.time() - mtime / 1e9 > LIVE_STALE_AFTER:
+        return None
+    if previous is not None and previous[0] == mtime:
+        return previous
+
+    try:
+        with LIVE_FILE.open("r", encoding="utf-8") as handle:
+            raw = json.load(handle)
+    except (OSError, ValueError):
+        return previous
+
+    if not isinstance(raw, dict) or not isinstance(raw.get("screens"), dict):
+        return previous
+
+    return mtime, raw
+
+
 # ------------------------------------------------------------ matrix setup
 
 def build_matrix(brightness):
@@ -160,6 +194,7 @@ def main():
     started = time.monotonic()
     last_poll = 0.0
     last_signature = None
+    live = None
 
     while True:
         now = time.monotonic()
@@ -173,19 +208,23 @@ def main():
                 if wanted != matrix.brightness:
                     matrix.brightness = wanted
 
+        live = read_live(live)
+        shown = live[1] if live else state
+
         # Redraw only when the frame can actually differ. The matrix library
         # refreshes the panels from its own thread, and redrawing static
         # content at 60 fps starves that thread — which looks like flicker,
-        # not like slowness.
-        animating = has_motion(state)
-        signature = (state.get("updated_at"), matrix.brightness)
+        # not like slowness. Live frames are static too; they only need the
+        # loop to keep checking for the next one.
+        animating = has_motion(shown)
+        signature = (live[0] if live else state.get("updated_at"), matrix.brightness)
 
         if animating or signature != last_signature:
-            canvas.SetImage(render_frame(state, (now - started) * 1000))
+            canvas.SetImage(render_frame(shown, (now - started) * 1000))
             canvas = matrix.SwapOnVSync(canvas)
             last_signature = signature
 
-        if animating:
+        if animating or live:
             elapsed = time.monotonic() - now
             if elapsed < TARGET_FRAME_INTERVAL:
                 time.sleep(TARGET_FRAME_INTERVAL - elapsed)
