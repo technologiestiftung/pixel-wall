@@ -244,6 +244,79 @@ def test_pal4_frame_keeps_its_palette_on_the_wire(api, monkeypatch):
     assert frame.mask.to_rows() == ["1212", "2121"]
 
 
+def frames_content(image, frame_count, frame_duration_ms, composite_width_px):
+    return {
+        "format": "pal4",
+        "widthPx": image.width_px,
+        "heightPx": image.height_px,
+        "data": base64.b64encode(encode_pal4(image)).decode(),
+        "frames": {
+            "frameCount": frame_count,
+            "frameDurationMs": frame_duration_ms,
+            "compositeWidthPx": composite_width_px,
+        },
+    }
+
+
+def test_small_screen_frames_are_cropped_to_each_screens_window(api):
+    """Each small screen keeps only its own slot of every frame, not the whole
+    composite — otherwise the strip outgrows what the ESP32 can decode."""
+    # Two 4-wide frames of an 8-wide composite: frame 0 is 1s|2s, frame 1 is 2s|1s.
+    image = Palette4.from_rows(["1111222222221111"], PALETTE)
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [
+            {"screenId": "01", "window": window(0, 0, 4, 1)},
+            {"screenId": "02", "window": window(4, 0, 4, 1)},
+        ],
+        "content": frames_content(image, 2, 100, 8),
+    })
+
+    screens = api.get("/api/state").json()["screens"]
+    assert rows_of(screens["01"]["content"]) == ["11112222"]
+    assert rows_of(screens["02"]["content"]) == ["22221111"]
+    for screen_id in ("01", "02"):
+        assert screens[screen_id]["window"]["offsetXPx"] == 0
+        assert screens[screen_id]["content"]["frames"] == {
+            "frameCount": 2,
+            "frameDurationMs": 100,
+            "compositeWidthPx": 4,
+        }
+
+
+def test_small_screen_frames_fit_the_esp32_decode_budget(api, monkeypatch):
+    """A 4 s loop at 16 fps across all three small screens is ~96 KB decoded
+    per screen; the firmware rejects anything over MAX_PIXELS_BYTES
+    (wire_decode.h), so frames are dropped evenly to fit, keeping the loop
+    length."""
+    from app import wire
+    from app.compose import ESP32_MAX_PIXELS_BYTES
+
+    sent = capture_published(monkeypatch)
+    frame_count, composite = 64, 96
+    image = Palette4(
+        composite * frame_count, 32, list(PALETTE),
+        bytearray(1 if (x // composite) % 2 else 2
+                  for _ in range(32) for x in range(composite * frame_count)),
+    )
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [
+            {"screenId": f"0{n + 1}", "window": window(n * 32, 0, 32, 32)}
+            for n in range(3)
+        ],
+        "content": frames_content(image, frame_count, 62.5, composite),
+    })
+
+    for screen_id in ("01", "02", "03"):
+        frame = wire.decode_frame(sent[screen_id])
+        assert frame.mask.stride * frame.mask.height_px <= ESP32_MAX_PIXELS_BYTES
+        assert frame.frames.composite_width_px == 32
+        assert frame.frames.frame_count * frame.frames.frame_duration_ms == pytest.approx(
+            frame_count * 62.5, abs=frame.frames.frame_count
+        )
+
+
 def test_apply_rejects_mixed_kinds(api):
     response = api.post("/api/apply", json={
         "selectionKind": "small",
