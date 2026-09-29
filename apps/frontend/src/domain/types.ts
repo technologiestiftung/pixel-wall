@@ -94,7 +94,10 @@ export function withEdit(layers: ScreenLayers, edit: Content): ScreenLayers {
 	if (edit.type === "color") {
 		return { ...layers, background: edit.hex };
 	}
-	if (edit.type === "animation" && edit.templateId === NO_ANIMATION_TEMPLATE_ID) {
+	if (
+		edit.type === "animation" &&
+		edit.templateId === NO_ANIMATION_TEMPLATE_ID
+	) {
 		return { ...layers, foreground: null };
 	}
 	return { ...layers, foreground: edit };

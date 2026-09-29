@@ -112,7 +112,15 @@ describe("wallReducer: hydrated", () => {
 						compositeWidthPx: 32,
 					},
 				},
-				source: { background: null, foreground: { ...TEXT_FIELDS, type: "text", mode: "scrolling", value: "hi" } },
+				source: {
+					background: null,
+					foreground: {
+						...TEXT_FIELDS,
+						type: "text",
+						mode: "scrolling",
+						value: "hi",
+					},
+				},
 			},
 		};
 
