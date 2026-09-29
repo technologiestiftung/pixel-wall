@@ -78,7 +78,7 @@ LEDWALL_PASSWORD=demo123
 With that line empty or absent the backend runs unauthenticated and the
 frontend skips its password gate on purpose.
 
-The backend runs off the Pi for development — point `VITE_API_URL` at it, or at
+The backend runs off the Pi for development — point `API_URL` at it, or at
 the real Pi. The API contract is documented in
 [apps/backend/README.md](./apps/backend/README.md) and served live at
 `/docs`.
