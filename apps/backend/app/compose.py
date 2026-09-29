@@ -9,8 +9,16 @@ Phase B, "Where the slicing happens".
 
 import base64
 
-from .mask import Mask, Palette4, decode_block, encode, encode_pal4
-from .models import ContentModel, ScreenWindow
+from .mask import (
+    Mask,
+    Palette4,
+    decode_block,
+    encode,
+    encode_pal4,
+    pal4_stride_for,
+    stride_for,
+)
+from .models import ContentModel, FramesModel, ScreenKind, ScreenWindow
 from .wire import Frames, Scroll, ScreenFrame, Window
 
 #: Scrolling content and an animated Animation/Bild template's frame strip are
@@ -31,10 +39,72 @@ def _encode(image) -> bytes:
     return encode_pal4(image) if isinstance(image, Palette4) else encode(image)
 
 
-def slice_for_screen(
+#: Mirrors MAX_PIXELS_BYTES in apps/esp32/pixel_wall_esp32/wire_decode.h —
+#: the firmware rejects any block that decodes to more than this.
+ESP32_MAX_PIXELS_BYTES = 12288
+
+
+def _fit_frames_for_small_screen(
     content: ContentModel, window: ScreenWindow
 ) -> tuple[ContentModel, ScreenWindow]:
+    """An animated template's strip holds every frame at full composite width,
+    which on a small screen is several times what the ESP32 can hold. Each
+    screen only ever shows its own window of a frame, so crop every frame to
+    that, then drop frames evenly (keeping the loop's total length) until the
+    strip fits the firmware's decode budget."""
+    image = decode_block(content.block())
+    source_count = content.frames.frameCount
+    frame_width = content.frames.compositeWidthPx
+    width, height = window.widthPx, window.heightPx
+
+    is_pal4 = isinstance(image, Palette4)
+    bytes_per_frame = (pal4_stride_for(width) if is_pal4 else stride_for(width)) * height
+    count = max(1, min(source_count, ESP32_MAX_PIXELS_BYTES // bytes_per_frame))
+
+    if is_pal4:
+        strip = Palette4(
+            width * count, height, list(image.palette), bytearray(width * count * height)
+        )
+    else:
+        strip = Mask.blank(width * count, height)
+
+    for index in range(count):
+        source_index = index * source_count // count
+        frame = image.window(
+            source_index * frame_width + window.offsetXPx, window.offsetYPx, width, height
+        )
+        for y in range(height):
+            for x in range(width):
+                if is_pal4:
+                    strip.indices[y * strip.width_px + index * width + x] = frame.indices[
+                        y * width + x
+                    ]
+                elif frame.get(x, y):
+                    strip.set(index * width + x, y)
+
+    loop_ms = source_count * content.frames.frameDurationMs
+    fitted = content.model_copy(
+        update={
+            "widthPx": strip.width_px,
+            "heightPx": height,
+            "data": base64.b64encode(_encode(strip)).decode(),
+            "frames": FramesModel(
+                frameCount=count,
+                frameDurationMs=loop_ms / count,
+                compositeWidthPx=width,
+            ),
+        }
+    )
+    origin = ScreenWindow(offsetXPx=0, offsetYPx=0, widthPx=width, heightPx=height)
+    return fitted, origin
+
+
+def slice_for_screen(
+    content: ContentModel, window: ScreenWindow, kind: ScreenKind = "large"
+) -> tuple[ContentModel, ScreenWindow]:
     """Returns the content this screen should store, and its window into it."""
+    if kind == "small" and content.frames is not None:
+        return _fit_frames_for_small_screen(content, window)
     if not _is_sliceable(content):
         return content, window
 
