@@ -445,9 +445,9 @@ turns the whole wall into one snake game:
 2. Scanning the code opens `/snake` on the phone. This page and its websocket
    (`/api/snake/ws`) are public on purpose, so visitors do not need the API
    password. Switching the mode on or off still does.
-3. "Spiel starten" starts a game on every screen. The phone shows the whole
-   field, gaps included, and has a D-pad, swipe and arrow-key controls. One
-   person plays at a time, and anyone else who opens the page watches.
+3. "Spiel starten" starts a game on every screen. The phone is only a
+   controller: a D-pad, swipe and arrow keys, plus the score. One person plays
+   at a time, and anyone else who opens the page is told to watch the wall.
 4. After a game over the wall returns to the QR code. "Snake beenden" restores
    whatever content had been applied.
 
