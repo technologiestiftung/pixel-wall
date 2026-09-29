@@ -56,6 +56,18 @@ export const handlers = [
 		const body = (await request.json()) as ApplyRequest;
 
 		for (const screen of body.screens) {
+			if (body.content.format === "gameOfLife") {
+				// No bitmap to slice or synthesize — every selected screen
+				// just gets the flag verbatim, mirroring
+				// apps/backend/app/compose.py's `_is_sliceable`.
+				applied[screen.screenId] = {
+					window: screen.window,
+					content: body.content,
+					source: body.source,
+				};
+				continue;
+			}
+
 			// Scrolling content cannot be sliced: every screen pans the same
 			// filmstrip, so it keeps the whole strip plus its own offset.
 			applied[screen.screenId] = body.content.scroll

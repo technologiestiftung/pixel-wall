@@ -13,10 +13,21 @@ from . import config
 from .mask import Mask, MaskFormatError, Palette4, decode_block, encode, encode_pal4
 
 MAGIC = 0x57
-VERSION = 0x01
-HEADER_BYTES = 22
+VERSION_1 = 0x01
+VERSION_2 = 0x02
+HEADER_BYTES_V1 = 22
+HEADER_BYTES_V2 = 30
 
 FLAG_SCROLL = 0x01
+FLAG_BACKGROUND = 0x02
+FLAG_FRAMES = 0x04
+#: Native on-device Game of Life — no block follows the header at all. Added
+#: as a v2 flag rather than a new envelope version: a v2 decoder that doesn't
+#: know this flag yet calls its block decoder on zero trailing bytes, which is
+#: already `< MASK1_HEADER` and so already safely rejected, keeping the last
+#: good frame — see docs/wire-format.md "Game of Life" and
+#: docs/adr/0003-game-of-life-native-esp32-content-type.md.
+FLAG_GAMEOFLIFE = 0x08
 
 DIRECTION_LEFT = 0
 DIRECTION_RIGHT = 1
@@ -38,6 +49,18 @@ class Scroll:
 
 
 @dataclass
+class Frames:
+    """An animated Animation/Bild template's frame strip — the stepped
+    counterpart of `Scroll`. Mutually exclusive with `scroll` on one content.
+    See docs/wire-format.md `frames`."""
+
+    frame_count: int
+    frame_duration_ms: int
+    #: Width of one frame slot — not the whole strip. See docs/wire-format.md.
+    composite_width_px: int
+
+
+@dataclass
 class Window:
     offset_x_px: int
     offset_y_px: int
@@ -50,12 +73,22 @@ class ScreenFrame:
     color: tuple[int, int, int]
     window: Window
     #: A `mask1` mask (tinted with `color`) or a `pal4` image (which carries
-    #: its own palette, making `color` meaningless).
-    mask: Union[Mask, Palette4]
+    #: its own palette, making `color` meaningless). `None` only for
+    #: `game_of_life=True`, which carries no bitmap at all.
+    mask: Optional[Union[Mask, Palette4]] = None
     scroll: Optional[Scroll] = None
+    frames: Optional[Frames] = None
+    #: A static fill behind the mask, wherever it has nothing lit — see
+    #: docs/wire-format.md `background`. Independent of `scroll`/`frames`: a
+    #: background can sit behind either.
+    background: Optional[tuple[int, int, int]] = None
     #: Brightness for this screen's hardware kind, 5-100. Carried on the wire
     #: because an MQTT-only device cannot read the state file.
     brightness: int = 60
+    #: Native on-device Game of Life — see docs/wire-format.md "Game of
+    #: Life". Mutually exclusive with everything else on this dataclass
+    #: except `brightness`: no mask, no scroll, no frames, no background.
+    game_of_life: bool = False
 
 
 def _u16(value: int, field: str) -> bytes:
@@ -69,14 +102,59 @@ def _read_u16(buffer: bytes, offset: int) -> int:
 
 
 def encode_frame(frame: ScreenFrame) -> bytes:
+    if frame.game_of_life:
+        # No block follows: the encoder must not spend bytes on window/scroll/
+        # background/frames fields a native on-device simulation never reads,
+        # so every one of them is left zero — only `brightness` (offset 21,
+        # already present at v1) is meaningful. See docs/wire-format.md "Game
+        # of Life".
+        header = bytearray()
+        header.append(MAGIC)
+        header.append(VERSION_2)
+        header.append(FLAG_GAMEOFLIFE)
+        header.extend((0, 0, 0))
+        header.extend(_u16(0, "window.offsetXPx"))
+        header.extend(_u16(0, "window.offsetYPx"))
+        header.extend(_u16(0, "window.widthPx"))
+        header.extend(_u16(0, "window.heightPx"))
+        header.extend(bytes(7))  # scroll fields, unused
+        header.append(max(5, min(100, frame.brightness)))
+        header.extend(bytes(3))  # background, unused
+        header.extend(bytes(5))  # frames, unused
+        assert len(header) == HEADER_BYTES_V2
+        return bytes(header)
+
+    if frame.mask is None:
+        raise MaskFormatError("mask is required unless game_of_life is set")
     if len(frame.color) != 3 or not all(0 <= c <= 255 for c in frame.color):
         raise MaskFormatError(f"colour {frame.color!r} is not three 0-255 channels")
+    background = frame.background
+    if background is not None and (
+        len(background) != 3 or not all(0 <= c <= 255 for c in background)
+    ):
+        raise MaskFormatError(f"background {background!r} is not three 0-255 channels")
 
     scroll = frame.scroll
+    frames = frame.frames
+    # v1's 22-byte header is all a plain frame (no background, no frames) ever
+    # needs, so it stays there — only content that actually carries a new
+    # field pays for the bigger v2 header. An unflashed v1 device would
+    # otherwise reject every frame outright instead of just the ones it can't
+    # understand yet.
+    version = VERSION_2 if (background is not None or frames is not None) else VERSION_1
+
+    flags = 0x00
+    if scroll:
+        flags |= FLAG_SCROLL
+    if background is not None:
+        flags |= FLAG_BACKGROUND
+    if frames is not None:
+        flags |= FLAG_FRAMES
+
     header = bytearray()
     header.append(MAGIC)
-    header.append(VERSION)
-    header.append(FLAG_SCROLL if scroll else 0x00)
+    header.append(version)
+    header.append(flags)
     header.extend(frame.color)
     header.extend(_u16(frame.window.offset_x_px, "window.offsetXPx"))
     header.extend(_u16(frame.window.offset_y_px, "window.offsetYPx"))
@@ -95,18 +173,55 @@ def encode_frame(frame: ScreenFrame) -> bytes:
 
     header.append(max(5, min(100, frame.brightness)))
 
-    assert len(header) == HEADER_BYTES
+    if version == VERSION_2:
+        header.extend(background if background is not None else bytes(3))
+        if frames is None:
+            header.extend(bytes(5))
+        else:
+            if not 1 <= frames.frame_count <= 255:
+                raise MaskFormatError(
+                    f"frames.frameCount is {frames.frame_count}, outside 1-255"
+                )
+            header.append(frames.frame_count)
+            header.extend(_u16(round(frames.frame_duration_ms), "frames.frameDurationMs"))
+            header.extend(_u16(frames.composite_width_px, "frames.compositeWidthPx"))
+
+    assert len(header) == (HEADER_BYTES_V2 if version == VERSION_2 else HEADER_BYTES_V1)
     body = encode_pal4(frame.mask) if isinstance(frame.mask, Palette4) else encode(frame.mask)
     return bytes(header) + body
 
 
 def decode_frame(payload: bytes) -> ScreenFrame:
-    if len(payload) < HEADER_BYTES:
+    if len(payload) < HEADER_BYTES_V1:
         raise MaskFormatError(f"frame is {len(payload)} bytes, too short for a header")
-    if payload[0] != MAGIC or payload[1] != VERSION:
+    if payload[0] != MAGIC or payload[1] not in (VERSION_1, VERSION_2):
         raise MaskFormatError(f"unexpected frame magic/version: {payload[0]}/{payload[1]}")
 
+    version = payload[1]
+    header_bytes = HEADER_BYTES_V2 if version == VERSION_2 else HEADER_BYTES_V1
+    if len(payload) < header_bytes:
+        raise MaskFormatError(
+            f"frame is {len(payload)} bytes, too short for a v{version} header"
+        )
+
     flags = payload[2]
+
+    if version == VERSION_2 and (flags & FLAG_GAMEOFLIFE):
+        if len(payload) != header_bytes:
+            raise MaskFormatError("gameOfLife frame must not carry a trailing block")
+        return ScreenFrame(
+            color=(payload[3], payload[4], payload[5]),
+            window=Window(
+                _read_u16(payload, 6),
+                _read_u16(payload, 8),
+                _read_u16(payload, 10),
+                _read_u16(payload, 12),
+            ),
+            mask=None,
+            brightness=payload[21],
+            game_of_life=True,
+        )
+
     scroll = None
     if flags & FLAG_SCROLL:
         direction = _DIRECTIONS.get(payload[14])
@@ -119,6 +234,18 @@ def decode_frame(payload: bytes) -> ScreenFrame:
             _read_u16(payload, 19),
         )
 
+    background = None
+    frames = None
+    if version == VERSION_2:
+        if flags & FLAG_BACKGROUND:
+            background = (payload[22], payload[23], payload[24])
+        if flags & FLAG_FRAMES:
+            frames = Frames(
+                payload[25],
+                _read_u16(payload, 26),
+                _read_u16(payload, 28),
+            )
+
     return ScreenFrame(
         color=(payload[3], payload[4], payload[5]),
         window=Window(
@@ -127,8 +254,10 @@ def decode_frame(payload: bytes) -> ScreenFrame:
             _read_u16(payload, 10),
             _read_u16(payload, 12),
         ),
-        mask=decode_block(payload[HEADER_BYTES:]),
+        mask=decode_block(payload[header_bytes:]),
         scroll=scroll,
+        frames=frames,
+        background=background,
         brightness=payload[21],
     )
 

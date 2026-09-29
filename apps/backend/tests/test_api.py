@@ -31,6 +31,11 @@ def pal4_content(rows, palette=PALETTE):
     }
 
 
+def game_of_life_content():
+    """No bitmap at all — see docs/wire-format.md "Game of Life"."""
+    return {"format": "gameOfLife"}
+
+
 def window(x=0, y=0, w=4, h=2):
     return {"offsetXPx": x, "offsetYPx": y, "widthPx": w, "heightPx": h}
 
@@ -291,6 +296,77 @@ def test_apply_rejects_an_empty_selection(api):
         "content": mask_content(["####", "...."]),
     })
     assert response.status_code == 422
+
+
+# ------------------------------------------------------------- game of life
+
+
+def test_apply_accepts_game_of_life_for_a_small_screen(api):
+    response = api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": game_of_life_content(),
+    })
+    assert response.status_code == 200
+
+    stored = api.get("/api/state").json()["screens"]["01"]["content"]
+    assert stored["format"] == "gameOfLife"
+    assert stored["data"] is None
+
+
+def test_apply_rejects_game_of_life_for_a_large_screen(api):
+    """Game of Life runs natively on the ESP32 — the Pi has no such
+    mechanism (see CONTEXT.md "Content")."""
+    response = api.post("/api/apply", json={
+        "selectionKind": "large",
+        "screens": [{"screenId": "04", "window": window(0, 0, 64, 64)}],
+        "content": game_of_life_content(),
+    })
+    assert response.status_code == 422
+    assert "gameOfLife" in response.json()["detail"]
+
+
+def test_game_of_life_rejects_a_bitmap_field(api):
+    response = api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": {"format": "gameOfLife", "widthPx": 32, "heightPx": 32},
+    })
+    assert response.status_code == 422
+
+
+def test_game_of_life_is_not_sliced_across_a_multi_screen_selection(api):
+    """Every selected small screen gets the same flag, not a crop of a
+    shared composite — see CONTEXT.md "Selection" (small screens never
+    combine, and Game of Life doesn't even have a bitmap to combine)."""
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [
+            {"screenId": "01", "window": window()},
+            {"screenId": "02", "window": window()},
+        ],
+        "content": game_of_life_content(),
+    })
+    screens = api.get("/api/state").json()["screens"]
+    assert screens["01"]["content"]["format"] == "gameOfLife"
+    assert screens["02"]["content"]["format"] == "gameOfLife"
+
+
+def test_game_of_life_publishes_the_flag_on_the_wire(api, monkeypatch):
+    sent = capture_published(monkeypatch)
+    api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": game_of_life_content(),
+        "brightness": {"small": 42, "large": 60},
+    })
+
+    from app import wire
+
+    frame = wire.decode_frame(sent["01"])
+    assert frame.game_of_life
+    assert frame.mask is None
+    assert frame.brightness == 42
 
 
 # ---------------------------------------------------------------- brightness

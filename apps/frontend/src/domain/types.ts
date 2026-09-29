@@ -49,6 +49,18 @@ export interface TextContent {
 
 export interface AnimationContent {
 	type: "animation";
+	/** "template" is everything this tab did before Game of Life existed
+	 * (`templateId`/`scalePercent`/`hAlign`/`vAlign` below). "gameOfLife" is
+	 * a distinct native-on-device mode offered only for small (ESP32)
+	 * selections — see CONTEXT.md "Content" (Game of Life) and
+	 * `docs/adr/0003-game-of-life-native-esp32-content-type.md`. It stays a
+	 * mode of `AnimationContent` rather than a whole separate `ContentType`
+	 * so it can live inside the Animation/Bild tab without widening
+	 * `ContentType` (TabBar, the per-tab draft slots, `withEdit`, ...)
+	 * everywhere that's matched exhaustively. */
+	mode: "template" | "gameOfLife";
+	/** Meaningless when `mode` is "gameOfLife" — the board is native,
+	 * full-canvas, and never scaled or aligned. */
 	templateId: string;
 	scalePercent: number;
 	hAlign: HorizontalAlign;
@@ -96,10 +108,16 @@ export function withEdit(layers: ScreenLayers, edit: Content): ScreenLayers {
 	}
 	if (
 		edit.type === "animation" &&
+		edit.mode === "template" &&
 		edit.templateId === NO_ANIMATION_TEMPLATE_ID
 	) {
 		return { ...layers, foreground: null };
 	}
+	// A "gameOfLife" edit still writes the foreground slot like any other —
+	// it's just bookkeeping for what the editor currently has selected. What
+	// actually makes it bypass Hintergrund compositing happens one level
+	// deeper, in render/wire.ts's contentToWire, not here — see CONTEXT.md
+	// "Content" (Game of Life) and "Layers".
 	return { ...layers, foreground: edit };
 }
 
