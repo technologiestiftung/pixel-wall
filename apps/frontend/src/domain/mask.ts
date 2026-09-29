@@ -337,12 +337,20 @@ export function pal4ToRows(image: Palette4): string[] {
  * in-between colours and blow through the 16-colour cap — snap to whichever
  * existing palette entry (background included) they're closest to, rather
  * than each becoming its own colour.
+ *
+ * `crisp` is for moving artwork (animated templates), where that snapping
+ * misbehaves: a half-covered pink edge darkens to something closer to navy
+ * than to pink or black, and which edge pixels do so changes every frame, so
+ * the edges sparkle with wrong colours. In crisp mode a pixel is either
+ * unlit (under half covered) or the palette colour nearest its own,
+ * un-darkened colour, and only colours covering a real share of the artwork
+ * get a palette slot — not the one-off blends where two shapes meet.
  */
 export function pal4FromImageData(
 	data: Uint8ClampedArray,
-	options: { widthPx: number; heightPx: number },
+	options: { widthPx: number; heightPx: number; crisp?: boolean },
 ): Palette4 {
-	const { widthPx, heightPx } = options;
+	const { widthPx, heightPx, crisp = false } = options;
 	const pixelCount = widthPx * heightPx;
 
 	// Only fully (or near-fully) opaque pixels vote for palette entries —
@@ -363,24 +371,46 @@ export function pal4FromImageData(
 	// (and shouldn't waste) a second palette slot.
 	frequency.delete(0);
 	const byFrequencyDesc = [...frequency.entries()].sort((a, b) => b[1] - a[1]);
+	const solidCount = byFrequencyDesc.reduce((sum, [, count]) => sum + count, 0);
+	const CRISP_MIN_SHARE = 0.01;
+	const CRISP_MIN_DISTANCE_SQ = 24 * 24;
 	const palette: number[][] = [[0, 0, 0]];
-	for (const [key] of byFrequencyDesc) {
+	for (const [key, count] of byFrequencyDesc) {
 		if (palette.length >= PAL4_MAX_COLORS) {
 			break;
 		}
-		palette.push([(key >> 16) & 0xff, (key >> 8) & 0xff, key & 0xff]);
+		const colour = [(key >> 16) & 0xff, (key >> 8) & 0xff, key & 0xff];
+		if (crisp) {
+			if (count < solidCount * CRISP_MIN_SHARE) {
+				break;
+			}
+			const nearDuplicate = palette.some(
+				([pr, pg, pb]) =>
+					(colour[0] - pr) ** 2 + (colour[1] - pg) ** 2 + (colour[2] - pb) ** 2 <
+					CRISP_MIN_DISTANCE_SQ,
+			);
+			if (nearDuplicate) {
+				continue;
+			}
+		}
+		palette.push(colour);
 	}
 
 	const indices = new Uint8Array(pixelCount);
 	for (let i = 0; i < pixelCount; i++) {
 		const alpha = data[i * 4 + 3];
+		if (crisp && alpha < 128) {
+			indices[i] = 0;
+			continue;
+		}
+		const weight = crisp ? 255 : alpha;
 		// Premultiply by alpha (i.e. blend onto a black background) so a
 		// half-covered edge pixel is judged by how it will actually look
 		// next to unlit neighbours, not by the fully-saturated colour under
 		// its fringe.
-		const r = (data[i * 4] * alpha) / 255;
-		const g = (data[i * 4 + 1] * alpha) / 255;
-		const b = (data[i * 4 + 2] * alpha) / 255;
+		const r = (data[i * 4] * weight) / 255;
+		const g = (data[i * 4 + 1] * weight) / 255;
+		const b = (data[i * 4 + 2] * weight) / 255;
 
 		let bestIndex = 0;
 		let bestDistance = Number.POSITIVE_INFINITY;

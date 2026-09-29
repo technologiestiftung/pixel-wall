@@ -209,6 +209,32 @@ describe("pal4FromImageData", () => {
 		expect([...image.indices]).toEqual([1, 2, 0]);
 	});
 
+	it("crisp: a half-covered edge is unlit or its own colour, never a darker neighbour", () => {
+		const pink = [252, 170, 182];
+		const navy = [30, 55, 145];
+		const data = pixels([
+			[
+				[...pink, 255],
+				[...navy, 255],
+				[...pink, 150],
+				[...pink, 100],
+			],
+		]);
+		const image = pal4FromImageData(data, { widthPx: 4, heightPx: 1, crisp: true });
+		expect(image.palette).toEqual([[0, 0, 0], pink, navy]);
+		expect([...image.indices]).toEqual([1, 2, 1, 0]);
+	});
+
+	it("crisp: rare blends and near-duplicates get no palette slot", () => {
+		const red = [254, 68, 65, 255];
+		const nearRed = [253, 67, 64, 255];
+		const blend = [142, 61, 103, 255];
+		const data = pixels([[...Array(200).fill(red), ...Array(50).fill(nearRed), blend]]);
+		const image = pal4FromImageData(data, { widthPx: 251, heightPx: 1, crisp: true });
+		expect(image.palette).toEqual([[0, 0, 0], [254, 68, 65]]);
+		expect(image.indices[250]).toBe(1);
+	});
+
 	it("caps the palette at 16 entries, keeping the most frequent colours", () => {
 		// Colour `n` (1-20, grayscale) appears `n` times, so frequency ranks
 		// exactly by colour value with no ties.
