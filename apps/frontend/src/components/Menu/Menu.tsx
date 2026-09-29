@@ -7,7 +7,6 @@ import type {
 	ContentType,
 	TextContent,
 } from "../../domain/types";
-import { backgroundIsLost } from "../../render/layers";
 import {
 	effectiveBrightness,
 	resolveScreenRender,
@@ -59,9 +58,6 @@ export function Menu() {
 			EMPTY_LAYERS)
 		: EMPTY_LAYERS;
 	const previewForeground = previewLayers.foreground;
-	const backgroundHidesOnSmallScreen = selection
-		? backgroundIsLost(previewLayers, selection.kind)
-		: false;
 	const textInvisibleOnBackground =
 		previewForeground?.type === "text" &&
 		previewLayers.background !== null &&
@@ -132,12 +128,6 @@ export function Menu() {
 
 				{selection ? (
 					<>
-						{backgroundHidesOnSmallScreen && (
-							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
-								Hintergrundfarbe wird bei Lauftext auf kleinen Bildschirmen noch
-								nicht unterstützt — der Bildschirm bleibt schwarz.
-							</div>
-						)}
 						{textInvisibleOnBackground && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
 								Textfarbe und Hintergrundfarbe sind identisch — der Text wird
@@ -160,6 +150,7 @@ export function Menu() {
 								<AnimationPanel
 									content={current as AnimationContent}
 									onChange={handleContentChange}
+									screenKind={selection.kind}
 								/>
 							)}
 							{activeTab === "color" && (

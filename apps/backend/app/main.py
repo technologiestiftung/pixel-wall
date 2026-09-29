@@ -91,6 +91,16 @@ def _require_matching_kind(payload: ApplyRequest) -> None:
         )
 
 
+def _require_game_of_life_only_on_small(payload: ApplyRequest) -> None:
+    """Game of Life runs natively on the ESP32 — large (Pi) screens have no
+    such mechanism. See CONTEXT.md "Content" (Game of Life)."""
+    if payload.content.format == "gameOfLife" and payload.selectionKind != "small":
+        raise HTTPException(
+            status_code=422,
+            detail="gameOfLife content is only valid for small (ESP32) screens",
+        )
+
+
 def _write(new_state: WallState) -> dict:
     try:
         return state_store.write_state(new_state)
@@ -164,6 +174,7 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     """
     current = WallState.model_validate(state_store.read_state())
     _require_matching_kind(payload)
+    _require_game_of_life_only_on_small(payload)
 
     if payload.brightness is not None:
         current.brightness = payload.brightness
