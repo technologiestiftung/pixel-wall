@@ -39,6 +39,11 @@ websocket endpoint rather than a rewrite. Cost is one extra dependency
 
 ## Install
 
+`./apps/backend/setup-pi.sh` does everything in this section in one go: it
+checks out and pulls `main`, then runs the steps below. It is safe to re-run,
+and it never overwrites an existing `/etc/ledwall/backend.env`. The steps are
+kept here so you can see what it does, or do it by hand.
+
 On the Pi. The systemd units ship with `/home/pi/ledwall` and `User=pi` baked
 in, which is only right if your login user is `pi` and you cloned to that path.
 Set these two once and the rest of this section rewrites the units for you:
