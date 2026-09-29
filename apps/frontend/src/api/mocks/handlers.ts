@@ -1,11 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { DEFAULT_LAYOUT, SCREEN_SPECS } from "../../domain/layout";
 import { createMask, encodeMaskBase64 } from "../../domain/mask";
-import type {
-	ApplyRequest,
-	LayoutPositionDto,
-	StateResponse,
-} from "../types";
+import type { ApplyRequest, LayoutPositionDto, StateResponse } from "../types";
 
 /**
  * In-memory stand-in for the backend, used by tests and by
