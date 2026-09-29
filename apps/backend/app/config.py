@@ -29,8 +29,8 @@ MQTT_USERNAME = os.environ.get("LEDWALL_MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("LEDWALL_MQTT_PASSWORD") or None
 MQTT_ENABLED = os.environ.get("LEDWALL_MQTT_ENABLED", "1") != "0"
 
-BRIGHTNESS_MIN, BRIGHTNESS_MAX = 5, 100
-DEFAULT_BRIGHTNESS = 60
+#: Fixed per hardware kind; there is no user control for it.
+BRIGHTNESS = {"small": 50, "large": 100}
 
 #: Ceiling on a single content bitmap, so a malformed or hostile payload cannot
 #: exhaust memory. A 256-char Lauftext filmstrip at 64px is ~10k px wide.

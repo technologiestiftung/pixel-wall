@@ -1,4 +1,4 @@
-import type { BrightnessDto, StateResponse } from "../api/types";
+import type { StateResponse } from "../api/types";
 import { computeDisplayComposite, validateSelection } from "../domain/mapping";
 import {
 	DEFAULT_LAYOUT,
@@ -12,7 +12,6 @@ import type {
 	ColorContent,
 	ContentType,
 	LayoutPosition,
-	ScreenKind,
 	ScreenLayers,
 	ScreenSpec,
 	Selection,
@@ -72,10 +71,6 @@ export interface WallState {
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
 	applyError: string | null;
-	/** Per hardware kind, not per screen — the panel drivers expose brightness
-	 * as a whole-canvas property. `draftBrightness` is the unsaved edit. */
-	brightness: BrightnessDto;
-	draftBrightness: BrightnessDto | null;
 	/** "Layout bearbeiten" — dragging screens around is a distinct mode from
 	 * everyday content editing (see CONTEXT.md "Layout"). */
 	layoutEditMode: boolean;
@@ -96,8 +91,6 @@ export const initialWallState: WallState = {
 	syncStatus: "loading",
 	applyStatus: "idle",
 	applyError: null,
-	brightness: { small: 60, large: 60 },
-	draftBrightness: null,
 	layoutEditMode: false,
 	pendingIntent: null,
 };
@@ -107,7 +100,6 @@ export type WallAction =
 	| { type: "resolve-intent"; commit: boolean }
 	| { type: "set-active-tab"; tab: ContentType }
 	| { type: "set-draft-content"; content: Content }
-	| { type: "set-draft-brightness"; kind: ScreenKind; value: number }
 	| { type: "discard-draft" }
 	| { type: "apply-pending" }
 	| {
@@ -119,16 +111,13 @@ export type WallAction =
 			layers: ScreenLayers;
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
-			brightness: BrightnessDto;
 	  }
-	| { type: "brightness-applied"; brightness: BrightnessDto }
 	| { type: "apply-error"; message: string }
 	| {
 			type: "hydrated";
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
 			remote: StateResponse["screens"];
-			brightness: BrightnessDto;
 	  }
 	| { type: "move-screen"; screenId: string; xMm: number; yMm: number };
 
@@ -154,29 +143,16 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		case "set-draft-content":
 			return setDraftContent(state, action.content);
 
-		case "set-draft-brightness":
-			return {
-				...state,
-				draftBrightness: {
-					...(state.draftBrightness ?? state.brightness),
-					[action.kind]: action.value,
-				},
-			};
-
 		case "discard-draft":
 			return {
 				...state,
 				draftText: null,
 				draftAnimation: null,
 				draftColor: null,
-				draftBrightness: null,
 			};
 
 		case "apply-pending":
 			return { ...state, applyStatus: "pending", applyError: null };
-
-		case "brightness-applied":
-			return { ...settled(state), brightness: action.brightness };
 
 		case "apply-error":
 			return { ...state, applyStatus: "error", applyError: action.message };
@@ -199,7 +175,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 					bitmap: null,
 				};
 			}
-			return { ...settled(state), applied, brightness: action.brightness };
+			return { ...settled(state), applied };
 		}
 
 		case "hydrated": {
@@ -212,7 +188,6 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 				specs: action.specs,
 				layout: action.layout,
 				applied,
-				brightness: action.brightness,
 				syncStatus: "ready",
 			};
 		}
@@ -256,7 +231,6 @@ function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
 function settled(state: WallState): WallState {
 	return {
 		...state,
-		draftBrightness: null,
 		applyStatus: "idle",
 		applyError: null,
 	};
@@ -272,15 +246,13 @@ function resolveIntent(state: WallState, commit: boolean): WallState {
 	if (!commit) {
 		return cleared;
 	}
-	// "Verwerfen": the draft(s) are what the user chose to give up, so they go
-	// along with the brightness edit that shares the same button.
+	// "Verwerfen": the draft(s) are what the user chose to give up.
 	return applyIntent(
 		{
 			...cleared,
 			draftText: null,
 			draftAnimation: null,
 			draftColor: null,
-			draftBrightness: null,
 		},
 		intent,
 	);
@@ -312,7 +284,6 @@ function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 				draftText: null,
 				draftAnimation: null,
 				draftColor: null,
-				draftBrightness: null,
 			};
 
 		case "toggle-layout-edit-mode":

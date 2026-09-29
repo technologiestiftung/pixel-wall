@@ -38,18 +38,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from rgbmatrix import RGBMatrix, RGBMatrixOptions  # noqa: E402
 
-from app.compositor import (  # noqa: E402
-    brightness_for_large,
-    has_motion,
-    render_frame,
-)
+from app.compositor import has_motion, render_frame  # noqa: E402
+from app.config import BRIGHTNESS  # noqa: E402
 
 # ---------------------------------------------------------------- settings
 
 STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.json"))
 
-MAX_BRIGHTNESS = 100         # hard ceiling on current draw
-DEFAULT_BRIGHTNESS = 60
 STATE_POLL_INTERVAL = 0.2    # seconds between state re-reads
 TARGET_FRAME_INTERVAL = 1 / 60
 
@@ -81,14 +76,10 @@ HARDWARE_MAPPING = os.environ.get("LEDWALL_HARDWARE_MAPPING", "regular")
 # eye starts to see it.
 SHOW_REFRESH = os.environ.get("LEDWALL_SHOW_REFRESH", "0") == "1"
 
-EMPTY_STATE: dict = {"screens": {}, "brightness": {"small": 60, "large": 60}}
+EMPTY_STATE: dict = {"screens": {}}
 
 
 # ------------------------------------------------------------ shared state
-
-def _clamp(value, low, high):
-    return max(low, min(high, value))
-
 
 def read_state(previous):
     """Return the state on disk, or `previous` if it is missing or unusable.
@@ -111,7 +102,7 @@ def read_state(previous):
 
 # ------------------------------------------------------------ matrix setup
 
-def build_matrix(brightness):
+def build_matrix():
     options = RGBMatrixOptions()
 
     # Panel geometry: two chains of two, one per bonnet output, presented as a
@@ -126,7 +117,7 @@ def build_matrix(brightness):
     options.hardware_mapping = HARDWARE_MAPPING
 
     # Quality and stability.
-    options.brightness = brightness
+    options.brightness = BRIGHTNESS["large"]
     options.pwm_bits = PWM_BITS
     options.pwm_dither_bits = PWM_DITHER_BITS
     options.pwm_lsb_nanoseconds = PWM_LSB_NANOSECONDS
@@ -142,10 +133,7 @@ def build_matrix(brightness):
 def main():
     state = read_state(EMPTY_STATE)
 
-    brightness = _clamp(
-        brightness_for_large(state) or DEFAULT_BRIGHTNESS, 5, MAX_BRIGHTNESS
-    )
-    matrix = build_matrix(brightness)
+    matrix = build_matrix()
     canvas = matrix.CreateFrameCanvas()
 
     def shutdown(_signum, _frame):
@@ -167,18 +155,13 @@ def main():
         if now - last_poll >= STATE_POLL_INTERVAL:
             last_poll = now
             state = read_state(state)
-            fresh = brightness_for_large(state)
-            if fresh is not None:
-                wanted = _clamp(fresh, 5, MAX_BRIGHTNESS)
-                if wanted != matrix.brightness:
-                    matrix.brightness = wanted
 
         # Redraw only when the frame can actually differ. The matrix library
         # refreshes the panels from its own thread, and redrawing static
         # content at 60 fps starves that thread — which looks like flicker,
         # not like slowness.
         animating = has_motion(state)
-        signature = (state.get("updated_at"), matrix.brightness)
+        signature = state.get("updated_at")
 
         if animating or signature != last_signature:
             canvas.SetImage(render_frame(state, (now - started) * 1000))

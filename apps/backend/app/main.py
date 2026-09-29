@@ -10,7 +10,6 @@ from .models import (
     ApplyRequest,
     ApplyResponse,
     AuthStatus,
-    BrightnessByKind,
     HealthResponse,
     LayoutRequest,
     LayoutResponse,
@@ -65,21 +64,6 @@ def _publish(screen_id: str, frame) -> None:
             "screen %s written but MQTT publish failed; state file is still authoritative",
             screen_id,
         )
-
-
-def _republish_all(state: WallState) -> None:
-    """Re-sends every screen that has content.
-
-    Used after a brightness change: brightness travels in the MQTT envelope
-    because a device driven only by MQTT never sees the state file, so it only
-    reaches the ESP32 by resending the frames.
-    """
-    for screen_id, entry in state.screens.items():
-        kind = screen_inventory.kind_of(screen_id)
-        frame = compose.frame_for_screen(
-            entry.content, entry.window, getattr(state.brightness, kind)
-        )
-        _publish(screen_id, frame)
 
 
 def _require_matching_kind(payload: ApplyRequest) -> None:
@@ -146,20 +130,6 @@ def put_layout(payload: LayoutRequest) -> LayoutResponse:
     return LayoutResponse(positions=written["layout"])
 
 
-@app.put("/api/brightness", response_model=BrightnessByKind, tags=["wall"])
-def put_brightness(payload: BrightnessByKind) -> BrightnessByKind:
-    """Brightness on its own, for when the user moves only the slider.
-
-    It is not part of a content edit — `POST /api/apply` also accepts it so the
-    common case is one request — but it has to be settable without one.
-    """
-    current = WallState.model_validate(state_store.read_state())
-    current.brightness = payload
-    written = _write(current)
-    _republish_all(current)
-    return BrightnessByKind(**written["brightness"])
-
-
 @app.get("/api/state", response_model=StateResponse, tags=["wall"])
 def get_state() -> StateResponse:
     return StateResponse(**state_store.read_state())
@@ -176,10 +146,7 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     _require_matching_kind(payload)
     _require_game_of_life_only_on_small(payload)
 
-    if payload.brightness is not None:
-        current.brightness = payload.brightness
-
-    kind_brightness = getattr(current.brightness, payload.selectionKind)
+    kind_brightness = config.BRIGHTNESS[payload.selectionKind]
 
     frames = {}
     for target in payload.screens:
@@ -198,18 +165,12 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     for screen_id, frame in frames.items():
         _publish(screen_id, frame)
 
-    # Brightness is per hardware kind, so changing it while editing one screen
-    # also has to reach the others on that board.
-    if payload.brightness is not None:
-        _republish_all(current)
-
     return ApplyResponse(appliedAt=written["updated_at"])
 
 
 @app.get("/api/limits", tags=["wall"])
 def limits() -> dict:
     return {
-        "brightness": {"min": config.BRIGHTNESS_MIN, "max": config.BRIGHTNESS_MAX},
         "bitmap": {
             "maxWidthPx": config.MAX_BITMAP_WIDTH_PX,
             "maxHeightPx": config.MAX_BITMAP_HEIGHT_PX,

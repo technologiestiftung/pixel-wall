@@ -1,4 +1,4 @@
-import type { ApplyRequest, BrightnessDto, ScrollDto } from "../api/types";
+import type { ApplyRequest, ScrollDto } from "../api/types";
 import { LOOP_PAUSE_MS } from "./content";
 import { PITCH_MM_PER_PX, specById } from "./layout";
 import { computeDisplayComposite } from "./mapping";
@@ -16,9 +16,9 @@ import type { ScreenLayers } from "./types";
 export async function buildApplyRequest(
 	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
 	selection: Selection,
-	edit: { layers: ScreenLayers; brightness?: BrightnessDto },
+	edit: { layers: ScreenLayers },
 ): Promise<ApplyRequest> {
-	const { layers, brightness } = edit;
+	const { layers } = edit;
 	// Only the foreground decides the bitmap's shape (a scrolling filmstrip is
 	// wider than the composite); a lone background fills whatever it is given.
 	const content: Content = layers.foreground ?? {
@@ -68,6 +68,5 @@ export async function buildApplyRequest(
 			{ scroll },
 		),
 		source: layers,
-		...(brightness ? { brightness } : {}),
 	};
 }

@@ -77,7 +77,7 @@ def test_state_starts_with_default_layout_and_no_content(api):
     body = api.get("/api/state").json()
     assert body["screens"] == {}
     assert len(body["layout"]) == 7
-    assert body["brightness"] == {"small": 60, "large": 60}
+    assert "brightness" not in body
 
 
 # -------------------------------------------------------------------- layout
@@ -431,7 +431,6 @@ def test_game_of_life_publishes_the_flag_on_the_wire(api, monkeypatch):
         "selectionKind": "small",
         "screens": [{"screenId": "01", "window": window()}],
         "content": game_of_life_content(),
-        "brightness": {"small": 42, "large": 60},
     })
 
     from app import wire
@@ -439,45 +438,25 @@ def test_game_of_life_publishes_the_flag_on_the_wire(api, monkeypatch):
     frame = wire.decode_frame(sent["01"])
     assert frame.game_of_life
     assert frame.mask is None
-    assert frame.brightness == 42
+    assert frame.brightness == 50
 
 
 # ---------------------------------------------------------------- brightness
 
 
-def test_brightness_is_applied_and_persisted(api):
+@pytest.mark.parametrize("kind, screen_id, expected", [("small", "01", 50), ("large", "04", 100)])
+def test_brightness_is_fixed_per_kind(api, monkeypatch, kind, screen_id, expected):
+    sent = capture_published(monkeypatch)
     api.post("/api/apply", json={
-        "selectionKind": "large",
-        "screens": [{"screenId": "04", "window": window()}],
+        "selectionKind": kind,
+        "screens": [{"screenId": screen_id, "window": window()}],
         "content": mask_content(["####", "...."]),
-        "brightness": {"small": 60, "large": 85},
+        "brightness": {"small": 5, "large": 5},
     })
-    assert api.get("/api/state").json()["brightness"] == {"small": 60, "large": 85}
 
+    from app import wire
 
-def test_brightness_is_clamped_to_the_hardware_range(api):
-    api.post("/api/apply", json={
-        "selectionKind": "large",
-        "screens": [{"screenId": "04", "window": window()}],
-        "content": mask_content(["####", "...."]),
-        "brightness": {"small": 0, "large": 999},
-    })
-    assert api.get("/api/state").json()["brightness"] == {"small": 5, "large": 100}
-
-
-def test_apply_without_brightness_leaves_it_alone(api):
-    api.post("/api/apply", json={
-        "selectionKind": "large",
-        "screens": [{"screenId": "04", "window": window()}],
-        "content": mask_content(["####", "...."]),
-        "brightness": {"small": 30, "large": 40},
-    })
-    api.post("/api/apply", json={
-        "selectionKind": "large",
-        "screens": [{"screenId": "05", "window": window()}],
-        "content": mask_content(["####", "...."]),
-    })
-    assert api.get("/api/state").json()["brightness"] == {"small": 30, "large": 40}
+    assert wire.decode_frame(sent[screen_id]).brightness == expected
 
 
 # -------------------------------------------------------------------- limits
@@ -486,7 +465,6 @@ def test_apply_without_brightness_leaves_it_alone(api):
 def test_limits_advertises_both_formats(api):
     body = api.get("/api/limits").json()
     assert body["bitmap"]["formats"] == ["mask1", "pal4"]
-    assert body["brightness"] == {"min": 5, "max": 100}
 
 
 # --------------------------------------------------------------- retired API
@@ -498,53 +476,6 @@ def test_old_flat_state_endpoints_are_gone(api, method):
     assert response.status_code == 405
 
 
-def test_brightness_can_be_set_on_its_own(api):
+def test_brightness_endpoint_is_gone(api):
     response = api.put("/api/brightness", json={"small": 35, "large": 95})
-    assert response.status_code == 200
-    assert response.json() == {"small": 35, "large": 95}
-    assert api.get("/api/state").json()["brightness"] == {"small": 35, "large": 95}
-
-
-def test_setting_brightness_alone_keeps_applied_content(api):
-    api.post("/api/apply", json={
-        "selectionKind": "small",
-        "screens": [{"screenId": "01", "window": window()}],
-        "content": mask_content(["####", "...."]),
-    })
-    api.put("/api/brightness", json={"small": 10, "large": 20})
-
-    state = api.get("/api/state").json()
-    assert rows_of(state["screens"]["01"]["content"]) == ["####", "...."]
-    assert state["brightness"] == {"small": 10, "large": 20}
-
-
-def test_brightness_endpoint_clamps(api):
-    assert api.put("/api/brightness", json={"small": 1, "large": 500}).json() == {
-        "small": 5,
-        "large": 100,
-    }
-
-
-def test_brightness_travels_in_the_published_frame(api, monkeypatch):
-    """An MQTT-only device never sees the state file, so brightness has to
-    reach it in the envelope — and a brightness-only change has to resend."""
-    from app import wire
-    from app.mqtt import publisher
-
-    sent: dict[str, bytes] = {}
-    monkeypatch.setattr(
-        publisher, "publish_screen", lambda screen_id, payload: sent.update({screen_id: payload}) or True
-    )
-
-    api.post("/api/apply", json={
-        "selectionKind": "small",
-        "screens": [{"screenId": "01", "window": window()}],
-        "content": mask_content(["####", "...."]),
-        "brightness": {"small": 25, "large": 60},
-    })
-    assert wire.decode_frame(sent["01"]).brightness == 25
-
-    sent.clear()
-    api.put("/api/brightness", json={"small": 90, "large": 60})
-    assert "01" in sent, "a brightness-only change must resend the frames"
-    assert wire.decode_frame(sent["01"]).brightness == 90
+    assert response.status_code in (404, 405)

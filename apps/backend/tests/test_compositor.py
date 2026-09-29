@@ -5,7 +5,7 @@ import base64
 
 import pytest
 
-from app.compositor import brightness_for_large, has_motion, render_frame, screen_tile
+from app.compositor import has_motion, render_frame, screen_tile
 from app.hardware import LARGE_SCREEN_MATRIX_RECT
 from app.mask import Mask, Palette4, encode, encode_pal4
 
@@ -294,16 +294,3 @@ def test_render_frame_leaves_unapplied_screens_black():
 def test_render_frame_tolerates_an_empty_state():
     assert render_frame({}, 0).getpixel((0, 0)) == (0, 0, 0)
     assert render_frame({"screens": {}}, 0).size == (128, 128)
-
-
-@pytest.mark.parametrize(
-    "state, expected",
-    [
-        ({"brightness": {"small": 10, "large": 70}}, 70),
-        ({"brightness": {}}, None),
-        ({}, None),
-        ({"brightness": "bright"}, None),
-    ],
-)
-def test_brightness_for_large(state, expected):
-    assert brightness_for_large(state) == expected

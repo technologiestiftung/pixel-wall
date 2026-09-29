@@ -51,7 +51,7 @@ Commits the in-progress (locally previewed, not-yet-sent) content edit for the c
 
 ## Unsaved changes
 
-Any action that would throw away an in-progress edit — selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. An unsaved brightness edit counts as a change like any other. Closing the dialog without choosing — the × button, Escape, or clicking outside — keeps the draft and does nothing else.
+Any action that would throw away an in-progress edit — selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. Closing the dialog without choosing — the × button, Escape, or clicking outside — keeps the draft and does nothing else.
 
 Switching content tabs is _not_ gated by this dialog: Text, Animation/Bild and Hintergrund each keep their own in-progress draft, so moving between them never silently loses anything — with one exception. Text and Animation/Bild both write the same foreground layer (see "Layers" above), so only one of them can actually be drafted at a time: editing one silently drops whatever was drafted for the other, no confirmation asked, since there is no way to reconcile "scrolling text" and "a logo" into a single foreground.
 

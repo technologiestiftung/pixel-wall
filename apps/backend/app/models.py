@@ -1,17 +1,15 @@
 import base64
 import binascii
-from typing import Annotated, Any, Literal, Optional
+from typing import Literal, Optional
 
 from pydantic import (
     BaseModel,
-    BeforeValidator,
     ConfigDict,
     Field,
     field_validator,
     model_validator,
 )
 
-from . import config
 from .mask import MaskFormatError, decode_block
 from .screens import DEFAULT_LAYOUT, SCREEN_IDS
 
@@ -22,36 +20,12 @@ BitmapFormat = Literal["mask1", "pal4"]
 ContentFormat = Literal["mask1", "pal4", "gameOfLife"]
 
 
-def _clamp(value: int, low: int, high: int) -> int:
-    return max(low, min(high, value))
-
-
-def _coerce_brightness(value: Any) -> Any:
-    if isinstance(value, int) and not isinstance(value, bool):
-        return _clamp(value, config.BRIGHTNESS_MIN, config.BRIGHTNESS_MAX)
-    return value
-
-
 def _validate_rgb(value: Optional[list[int]], field: str) -> Optional[list[int]]:
     if value is None:
         return None
     if len(value) != 3 or any(not 0 <= c <= 255 for c in value):
         raise ValueError(f"{field} must be three 0-255 channels")
     return value
-
-
-Brightness = Annotated[int, BeforeValidator(_coerce_brightness)]
-
-
-class BrightnessByKind(BaseModel):
-    """Per hardware kind, not per screen: `matrix.brightness` on the Pi and
-    `setBrightness8` on the ESP32 are both whole-canvas properties, so this is
-    the finest granularity the hardware supports."""
-
-    model_config = ConfigDict(extra="ignore")
-
-    small: Brightness = config.DEFAULT_BRIGHTNESS
-    large: Brightness = config.DEFAULT_BRIGHTNESS
 
 
 class LayoutPositionModel(BaseModel):
@@ -195,7 +169,6 @@ class ScreenStateModel(BaseModel):
 class WallState(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    brightness: BrightnessByKind = Field(default_factory=BrightnessByKind)
     layout: list[LayoutPositionModel] = Field(
         default_factory=lambda: [LayoutPositionModel(**p) for p in DEFAULT_LAYOUT]
     )
@@ -248,7 +221,6 @@ class ApplyRequest(BaseModel):
     selectionKind: ScreenKind
     screens: list[ApplyTarget] = Field(min_length=1)
     content: ContentModel
-    brightness: Optional[BrightnessByKind] = None
     #: Editor-only layer description stored verbatim — see ScreenStateModel.
     source: Optional[dict] = None
 
