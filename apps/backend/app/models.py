@@ -10,6 +10,7 @@ from pydantic import (
     model_validator,
 )
 
+from . import config
 from .mask import MaskFormatError, decode_block
 from .screens import DEFAULT_LAYOUT, SCREEN_IDS
 
@@ -248,3 +249,42 @@ class HealthResponse(BaseModel):
     updated_at: Optional[str] = None
     auth: AuthStatus
     mqtt: MqttStatus
+
+
+class UploadRequest(BaseModel):
+    """An uploaded image/animation as the editor decoded it — the fields of
+    the frontend's `UploadedMedia` (domain/types.ts), minus `id`."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    name: str = Field(min_length=1, max_length=255)
+    sheetDataUrl: str = Field(pattern=r"^data:image/png;base64,")
+    frameWidthPx: int = Field(gt=0, le=1024)
+    frameHeightPx: int = Field(gt=0, le=1024)
+    frameCount: int = Field(gt=0, le=255)
+    columns: int = Field(gt=0, le=255)
+    frameDurationMs: float = Field(gt=0, le=65535)
+
+    @field_validator("sheetDataUrl")
+    @classmethod
+    def _bounded(cls, value: str) -> str:
+        if len(value) > config.MAX_UPLOAD_SHEET_CHARS:
+            raise ValueError("sprite sheet is too large")
+        try:
+            base64.b64decode(value.split(",", 1)[1], validate=True)
+        except (binascii.Error, ValueError) as error:
+            raise ValueError(f"sprite sheet is not valid base64: {error}") from error
+        return value
+
+
+class UploadModel(UploadRequest):
+    id: str
+    createdAt: str
+
+
+class UploadLibrary(BaseModel):
+    uploads: list[UploadModel] = Field(default_factory=list)
+
+
+class UploadSummary(BaseModel):
+    id: str

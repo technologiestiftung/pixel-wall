@@ -14,6 +14,7 @@ def api(tmp_path, monkeypatch):
     like `Palette4` so that `isinstance` checks fail across test modules.
     """
     monkeypatch.setattr(config, "STATE_FILE", tmp_path / "state.json")
+    monkeypatch.setattr(config, "UPLOADS_DIR", tmp_path / "uploads")
     monkeypatch.setattr(config, "PASSWORD", None)
     monkeypatch.setattr(config, "AUTH_ENABLED", False)
     monkeypatch.setattr(config, "MQTT_ENABLED", False)

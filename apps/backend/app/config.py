@@ -14,6 +14,9 @@ if load_dotenv is not None:
             load_dotenv(candidate, override=False)
 
 STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.json"))
+#: The upload library lives in the repo checkout so it can be committed with
+#: the code (see app/uploads.py).
+UPLOADS_DIR = Path(os.environ.get("LEDWALL_UPLOADS_DIR", BASE_DIR / "uploads"))
 
 HOST = os.environ.get("LEDWALL_HOST", "0.0.0.0")
 PORT = int(os.environ.get("LEDWALL_PORT", "5000"))
@@ -36,3 +39,8 @@ BRIGHTNESS = {"small": 50, "large": 100}
 #: exhaust memory. A 256-char Lauftext filmstrip at 64px is ~10k px wide.
 MAX_BITMAP_WIDTH_PX = 16384
 MAX_BITMAP_HEIGHT_PX = 256
+
+#: Upload library limits (see app/uploads.py). A sprite sheet is at most 128
+#: frames of 128px, which as a PNG data URL stays well under the size cap.
+MAX_UPLOADS = 50
+MAX_UPLOAD_SHEET_CHARS = 4_000_000

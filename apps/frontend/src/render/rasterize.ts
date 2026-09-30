@@ -2,9 +2,10 @@ import type {
 	AnimationContent,
 	Content,
 	HorizontalAlign,
+	UploadedMedia,
 	VerticalAlign,
 } from "../domain/types";
-import { getTemplateImage } from "./templateImages";
+import { getTemplateImage, getUploadImage } from "./templateImages";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
  * given alignment — shared by both the animation icon and static text.
@@ -47,6 +48,67 @@ export function templateBox(
 		y: alignOffset(content.vAlign, canvasSize.heightPx, size),
 		size,
 	};
+}
+
+/**
+ * Where an uploaded frame sits within a canvas. Unlike `templateBox`, uploads
+ * aren't square, so this "contains" them: at 100% the whole picture fits the
+ * composite, keeping its aspect ratio, and alignment pushes it within the
+ * leftover space.
+ */
+export function uploadBox(
+	content: AnimationContent,
+	media: UploadedMedia,
+	canvasSize: { widthPx: number; heightPx: number },
+): { x: number; y: number; widthPx: number; heightPx: number } {
+	const fit =
+		Math.min(
+			canvasSize.widthPx / media.frameWidthPx,
+			canvasSize.heightPx / media.frameHeightPx,
+		) *
+		(content.scalePercent / 100);
+	const widthPx = media.frameWidthPx * fit;
+	const heightPx = media.frameHeightPx * fit;
+	return {
+		x: alignOffset(content.hAlign, canvasSize.widthPx, widthPx),
+		y: alignOffset(content.vAlign, canvasSize.heightPx, heightPx),
+		widthPx,
+		heightPx,
+	};
+}
+
+/** Draws one frame out of an upload's sprite sheet. Enlarging keeps hard
+ * pixel edges, since uploads are often pixel art already at LED size. */
+// eslint-disable-next-line max-params -- mirrors drawImage's own shape; an options object would only rename the same five values.
+export function drawUploadFrame(
+	ctx: CanvasRenderingContext2D,
+	sheet: HTMLImageElement,
+	media: UploadedMedia,
+	frameIndex: number,
+	box: { x: number; y: number; widthPx: number; heightPx: number },
+) {
+	const sx = (frameIndex % media.columns) * media.frameWidthPx;
+	const sy = Math.floor(frameIndex / media.columns) * media.frameHeightPx;
+	ctx.save();
+	ctx.imageSmoothingEnabled = box.widthPx < media.frameWidthPx;
+	ctx.drawImage(
+		sheet,
+		sx,
+		sy,
+		media.frameWidthPx,
+		media.frameHeightPx,
+		box.x,
+		box.y,
+		box.widthPx,
+		box.heightPx,
+	);
+	ctx.restore();
+}
+
+export function isImageReady(
+	img: HTMLImageElement | undefined,
+): img is HTMLImageElement {
+	return img !== undefined && img.complete && img.naturalWidth > 0;
 }
 
 /**
@@ -143,6 +205,23 @@ export function drawContentToCanvas(
 		if (content.hex !== null) {
 			ctx.fillStyle = monochrome ? "#ffffff" : content.hex;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
+		}
+		return canvas;
+	}
+
+	if (content.type === "animation" && content.mode === "upload") {
+		const sheet = content.upload && getUploadImage(content.upload.sheetDataUrl);
+		if (content.upload && isImageReady(sheet)) {
+			drawUploadFrame(
+				ctx,
+				sheet,
+				content.upload,
+				0,
+				uploadBox(content, content.upload, {
+					widthPx: canvas.width,
+					heightPx: canvas.height,
+				}),
+			);
 		}
 		return canvas;
 	}

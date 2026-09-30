@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
 from threading import Lock
 from typing import Any
 
@@ -41,20 +42,27 @@ def read_state() -> dict[str, Any]:
 def write_state(state: WallState) -> dict[str, Any]:
     payload = state.model_dump()
     payload["updated_at"] = _now()
+    atomic_write_json(config.STATE_FILE, payload)
+    return payload
+
+
+def atomic_write_json(target: Path, payload: Any) -> None:
+    """Write-then-rename, so a crash or power cut mid-write leaves the previous
+    file intact rather than a truncated one."""
     serialised = json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
-    directory = config.STATE_FILE.parent
+    directory = target.parent
     directory.mkdir(parents=True, exist_ok=True)
 
     with _write_lock:
-        fd, temp_path = tempfile.mkstemp(dir=directory, prefix=".state-", suffix=".tmp")
+        fd, temp_path = tempfile.mkstemp(dir=directory, prefix=f".{target.stem}-", suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write(serialised)
                 handle.flush()
                 os.fsync(handle.fileno())
             os.chmod(temp_path, 0o664)
-            os.replace(temp_path, config.STATE_FILE)
+            os.replace(temp_path, target)
         except BaseException:
             os.unlink(temp_path)
             raise
@@ -64,8 +72,6 @@ def write_state(state: WallState) -> dict[str, Any]:
             os.fsync(dir_fd)
         finally:
             os.close(dir_fd)
-
-    return payload
 
 
 def state_file_writable() -> bool:

@@ -58,13 +58,35 @@ export interface AnimationContent {
 	 * so it can live inside the Animation/Bild tab without widening
 	 * `ContentType` (TabBar, the per-tab draft slots, `withEdit`, ...)
 	 * everywhere that's matched exhaustively. */
-	mode: "template" | "gameOfLife";
+	mode: "template" | "gameOfLife" | "upload";
 	/** Meaningless when `mode` is "gameOfLife" — the board is native,
 	 * full-canvas, and never scaled or aligned. */
 	templateId: string;
 	scalePercent: number;
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
+	/** The user's own image or animation when `mode` is "upload". Carried
+	 * inline so it survives a reload through the backend's opaque `source`. */
+	upload?: UploadedMedia;
+}
+
+/**
+ * A user-uploaded image or animation, already decoded, downscaled and
+ * resampled to `ANIMATION_FPS` in the browser (see render/uploadedMedia.ts).
+ * Frames are packed row-major into one sprite sheet `columns` frames wide; a
+ * still image is simply `frameCount: 1`.
+ */
+export interface UploadedMedia {
+	/** Set once the upload is in the shared library (see LibraryUpload), so
+	 * the picker can show which entry a screen is using. */
+	id?: string;
+	name: string;
+	sheetDataUrl: string;
+	frameWidthPx: number;
+	frameHeightPx: number;
+	frameCount: number;
+	columns: number;
+	frameDurationMs: number;
 }
 
 /** Reserved `AnimationContent.templateId` meaning "nothing" — lets the
@@ -113,12 +135,29 @@ export function withEdit(layers: ScreenLayers, edit: Content): ScreenLayers {
 	) {
 		return { ...layers, foreground: null };
 	}
+	// Picking "Hochladen" before choosing a file changes nothing yet, so
+	// Speichern stays disabled rather than blanking the screen.
+	if (edit.type === "animation" && edit.mode === "upload" && !edit.upload) {
+		return layers;
+	}
+	// The draft keeps an upload around while the user flips to Vorlage and
+	// back, but a saved template shouldn't carry the image data with it.
+	if (edit.type === "animation" && edit.mode !== "upload" && edit.upload) {
+		const { upload: _unused, ...withoutUpload } = edit;
+		return { ...layers, foreground: withoutUpload };
+	}
 	// A "gameOfLife" edit still writes the foreground slot like any other —
 	// it's just bookkeeping for what the editor currently has selected. What
 	// actually makes it bypass Hintergrund compositing happens one level
 	// deeper, in render/wire.ts's contentToWire, not here — see CONTEXT.md
 	// "Content" (Game of Life) and "Layers".
 	return { ...layers, foreground: edit };
+}
+
+/** An entry in the backend's shared upload library (`/api/uploads`). */
+export interface LibraryUpload extends UploadedMedia {
+	id: string;
+	createdAt: string;
 }
 
 export interface Selection {

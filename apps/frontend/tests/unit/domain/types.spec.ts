@@ -4,7 +4,11 @@ import {
 	NO_ANIMATION_TEMPLATE_ID,
 	withEdit,
 } from "../../../src/domain/types";
-import type { AnimationContent, ScreenLayers } from "../../../src/domain/types";
+import type {
+	AnimationContent,
+	ScreenLayers,
+	UploadedMedia,
+} from "../../../src/domain/types";
 
 const raute: AnimationContent = {
 	type: "animation",
@@ -70,5 +74,37 @@ describe("withEdit", () => {
 		const next = withEdit(applied, gameOfLife);
 		expect(next.foreground).toEqual(gameOfLife);
 		expect(next.background).toBe("#FE4441");
+	});
+});
+
+const media: UploadedMedia = {
+	name: "cat.gif",
+	sheetDataUrl: "data:image/png;base64,AAAA",
+	frameWidthPx: 32,
+	frameHeightPx: 32,
+	frameCount: 4,
+	columns: 2,
+	frameDurationMs: 62.5,
+};
+
+describe("withEdit: uploads", () => {
+	it("leaves the layers untouched while no file has been chosen", () => {
+		const applied: ScreenLayers = { background: "#FE4441", foreground: raute };
+		const next = withEdit(applied, { ...raute, mode: "upload" });
+		expect(next).toBe(applied);
+	});
+
+	it("writes a chosen upload as the foreground", () => {
+		const upload: AnimationContent = {
+			...raute,
+			mode: "upload",
+			upload: media,
+		};
+		expect(withEdit(EMPTY_LAYERS, upload).foreground).toEqual(upload);
+	});
+
+	it("drops a leftover upload when saving a template", () => {
+		const next = withEdit(EMPTY_LAYERS, { ...raute, upload: media });
+		expect(next.foreground).toEqual(raute);
 	});
 });

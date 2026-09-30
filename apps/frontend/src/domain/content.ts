@@ -24,7 +24,8 @@ export interface Template {
 	loopMs?: number;
 }
 
-/** Fixed built-in template library (no user upload in v1), sourced from the
+/** Fixed built-in template library (user uploads are a separate mode — see
+ * AnimationContent.upload), sourced from the
  * SVGs under `public/visuals/` — see CONTEXT.md "Content". This is the
  * closed set approved for Bild/Animation; nothing else ships. */
 export const TEMPLATES: Template[] = [
@@ -61,23 +62,21 @@ export interface PaletteColor {
 	hex: string;
 }
 
-/** Fixed closed palette of 14 named presets (brand colours plus Weiß/Schwarz),
+/** Fixed closed palette of named presets (brand colours plus Weiß/Schwarz),
  * plus a free colour picker for anything else — shared by the Hintergrund and
  * Textfarbe pickers (see components/Menu/ColorPicker.tsx). Names are internal
  * (shown as a hover tooltip on the swatch), not printed in the UI otherwise. */
 export const PALETTE: PaletteColor[] = [
-	{ name: "Coral Red 500", hex: "#FE4441" },
-	{ name: "Coral Red 100", hex: "#DE8290" },
-	{ name: "TSB Blau", hex: "#1E3791" },
-	{ name: "Citric Citron 200", hex: "#FFF59E" },
-	{ name: "Citric Citron 500", hex: "#FAE737" },
-	{ name: "Citric Citron 800", hex: "#F9A927" },
-	{ name: "Citric Citron 900", hex: "#F58019" },
-	{ name: "Electric Lavender 100", hex: "#D2D4FF" },
-	{ name: "Electric Lavender 500", hex: "#6F6BEA" },
-	{ name: "Electric Lavender 900", hex: "#4D36AC" },
-	{ name: "Subtle Green 200", hex: "#B5EAC2" },
-	{ name: "Subtle Green 300", hex: "#95E3A9" },
+	{ name: "Creme hell", hex: "#FAFAF2" },
+	{ name: "Creme", hex: "#F5F5ED" },
+	{ name: "Rosa", hex: "#FFCFD6" },
+	{ name: "Rot", hex: "#FE4441" },
+	{ name: "Blau", hex: "#1E3791" },
+	{ name: "Lavender hell", hex: "#D2D4FF" },
+	{ name: "Lavender", hex: "#B4B9FF" },
+	{ name: "Gelb", hex: "#FEF177" },
+	{ name: "Grün hell", hex: "#B5EAC2" },
+	{ name: "Grün", hex: "#95E3A9" },
 	{ name: "Weiß", hex: "#FFFFFF" },
 	{ name: "Schwarz", hex: "#000000" },
 ];
