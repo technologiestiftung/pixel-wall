@@ -52,6 +52,21 @@ export type NavigationIntent =
 	| { kind: "clear-selection" }
 	| { kind: "toggle-layout-edit-mode" };
 
+/**
+ * How many local writes have landed for each piece of state that the
+ * background poller (`useWallSync`) also overwrites wholesale. A poll started
+ * before a local write can resolve after it; tagging the poll with the
+ * generation it started at lets `hydrated` tell that response is stale for
+ * whatever it would otherwise clobber, instead of blindly reverting a save
+ * that already landed — see CONTEXT.md "Client sync".
+ */
+export interface Generation {
+	screens: Record<string, number>;
+	layout: Record<string, number>;
+}
+
+const EMPTY_GENERATION: Generation = { screens: {}, layout: {} };
+
 export interface WallState {
 	specs: ScreenSpec[];
 	layout: LayoutPosition[];
@@ -77,6 +92,8 @@ export interface WallState {
 	/** An intent held back pending confirmation, because carrying it out would
 	 * discard unsaved changes. Null whenever no dialog is open. */
 	pendingIntent: NavigationIntent | null;
+	/** See `Generation`. */
+	generation: Generation;
 }
 
 export const initialWallState: WallState = {
@@ -93,6 +110,7 @@ export const initialWallState: WallState = {
 	applyError: null,
 	layoutEditMode: false,
 	pendingIntent: null,
+	generation: EMPTY_GENERATION,
 };
 
 export type WallAction =
@@ -118,6 +136,12 @@ export type WallAction =
 			specs: ScreenSpec[];
 			layout: LayoutPosition[];
 			remote: StateResponse["screens"];
+			/** The `Generation` snapshot taken when this poll started, so a
+			 * response that resolves after a newer local write can be told apart
+			 * from a current one. Omitted (rather than defaulted at the call
+			 * site) so callers that don't care about the race — tests included —
+			 * can leave it out and get the old blind-overwrite behaviour. */
+			sinceGeneration?: Generation;
 	  }
 	| { type: "move-screen"; screenId: string; xMm: number; yMm: number };
 
@@ -165,6 +189,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 				devicePxPerMm,
 			);
 			const applied = { ...state.applied };
+			const screenGeneration = { ...state.generation.screens };
 			for (const slot of composite.slots) {
 				applied[slot.screenId] = {
 					layers: action.layers,
@@ -174,23 +199,21 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 					offsetYPx: slot.offsetYPx,
 					bitmap: null,
 				};
-			}
-			return { ...settled(state), applied };
-		}
-
-		case "hydrated": {
-			const applied: Record<string, AppliedRender> = {};
-			for (const [screenId, entry] of Object.entries(action.remote)) {
-				applied[screenId] = hydrateScreen(entry);
+				screenGeneration[slot.screenId] =
+					(screenGeneration[slot.screenId] ?? 0) + 1;
 			}
 			return {
-				...state,
-				specs: action.specs,
-				layout: action.layout,
+				...settled(state),
 				applied,
-				syncStatus: "ready",
+				generation: {
+					...state.generation,
+					screens: screenGeneration,
+				},
 			};
 		}
+
+		case "hydrated":
+			return hydrate(state, action);
 
 		case "move-screen":
 			return {
@@ -200,11 +223,64 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 						? { ...p, xMm: action.xMm, yMm: action.yMm }
 						: p,
 				),
+				generation: {
+					...state.generation,
+					layout: {
+						...state.generation.layout,
+						[action.screenId]:
+							(state.generation.layout[action.screenId] ?? 0) + 1,
+					},
+				},
 			};
 
 		default:
 			return state;
 	}
+}
+
+/**
+ * Folds a poll response into state, screen-by-screen (and likewise for
+ * layout): anything the poll's `sinceGeneration` snapshot shows as unchanged
+ * since it started is safe to overwrite with the response, but anything with
+ * a newer generation had a local write land while the poll was in flight, so
+ * the (by now stale) response is dropped for just that piece — see
+ * `Generation`.
+ */
+function hydrate(
+	state: WallState,
+	action: Extract<WallAction, { type: "hydrated" }>,
+): WallState {
+	// Old call sites (and tests) that don't care about the race can omit this
+	// and get the pre-guard, always-overwrite behaviour.
+	const since = action.sinceGeneration ?? EMPTY_GENERATION;
+
+	const applied: Record<string, AppliedRender> = {};
+	for (const [screenId, entry] of Object.entries(action.remote)) {
+		const stale =
+			(state.generation.screens[screenId] ?? 0) !==
+			(since.screens[screenId] ?? 0);
+		applied[screenId] = stale
+			? (state.applied[screenId] ?? hydrateScreen(entry))
+			: hydrateScreen(entry);
+	}
+
+	const layout = action.layout.map((remote) => {
+		const stale =
+			(state.generation.layout[remote.screenId] ?? 0) !==
+			(since.layout[remote.screenId] ?? 0);
+		if (!stale) {
+			return remote;
+		}
+		return state.layout.find((p) => p.screenId === remote.screenId) ?? remote;
+	});
+
+	return {
+		...state,
+		specs: action.specs,
+		layout,
+		applied,
+		syncStatus: "ready",
+	};
 }
 
 /** One screen as the server has it. With layers we can rebuild the picture —
@@ -227,10 +303,17 @@ function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
 }
 
 /** The state every successful save lands in: nothing left unsaved, because
- * the wall now holds what the draft held. */
+ * the wall now holds what the draft held. Clearing the drafts here (rather
+ * than leaving them and relying on them folding back to a no-op diff against
+ * the newly-applied layers) is what keeps `draftHasChanges` correctly `false`
+ * even if `applied` is later touched by something else, like a stale poll
+ * response for an unrelated screen. */
 function settled(state: WallState): WallState {
 	return {
 		...state,
+		draftText: null,
+		draftAnimation: null,
+		draftColor: null,
 		applyStatus: "idle",
 		applyError: null,
 	};

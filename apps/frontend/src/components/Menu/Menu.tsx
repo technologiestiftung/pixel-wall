@@ -32,14 +32,34 @@ export function Menu() {
 	const dispatch = useWallDispatch();
 	const { handleApply } = useApplyChanges();
 
+	const appliedLayers = selection
+		? (state.applied[selection.screenIds[0]]?.layers ?? EMPTY_LAYERS)
+		: EMPTY_LAYERS;
+	const appliedForeground = appliedLayers.foreground;
+
 	function currentContentFor(tab: ContentType): Content {
 		switch (tab) {
 			case "text":
-				return draftText ?? defaultContentFor("text");
+				return (
+					draftText ??
+					(appliedForeground?.type === "text"
+						? appliedForeground
+						: defaultContentFor("text"))
+				);
 			case "animation":
-				return draftAnimation ?? defaultContentFor("animation");
+				return (
+					draftAnimation ??
+					(appliedForeground?.type === "animation"
+						? appliedForeground
+						: defaultContentFor("animation"))
+				);
 			case "color":
-				return draftColor ?? defaultContentFor("color");
+				return (
+					draftColor ??
+					(appliedLayers.background !== null
+						? { type: "color", hex: appliedLayers.background }
+						: defaultContentFor("color"))
+				);
 			default:
 				throw new Error(`Unknown content type: ${tab satisfies never}`);
 		}
