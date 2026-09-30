@@ -109,6 +109,11 @@ export interface ApplyResponse {
 	appliedAt: string;
 }
 
+/** POST /api/control — see apps/backend/app/control.py. */
+export interface ControlResponse {
+	controller: boolean;
+}
+
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };

@@ -138,21 +138,6 @@ class ContentModel(BaseModel):
         except (binascii.Error, ValueError) as error:
             raise ValueError(f"data is not valid base64: {error}") from error
 
-    @field_validator("data")
-    @classmethod
-    def _decodable(cls, value: Optional[str]) -> Optional[str]:
-        """A payload that cannot be decoded here would reach a panel and be
-        rejected there instead, where nobody sees the error. `None` is valid
-        for `gameOfLife`, which carries no data — that absence is enforced by
-        `_format_matches_its_fields` instead."""
-        if value is None:
-            return None
-        try:
-            decode_block(base64.b64decode(value, validate=True))
-        except (binascii.Error, ValueError, MaskFormatError) as error:
-            raise ValueError(f"data is not a valid bitmap block: {error}") from error
-        return value
-
 
 class ScreenStateModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -225,6 +210,21 @@ class ApplyRequest(BaseModel):
     #: Editor-only layer description stored verbatim — see ScreenStateModel.
     source: Optional[dict] = None
 
+    @field_validator("content")
+    @classmethod
+    def _decodable(cls, value: ContentModel) -> ContentModel:
+        """A payload that cannot be decoded here would reach a panel and be
+        rejected there instead, where nobody sees the error. Checked on the way
+        in only: decoding a large animation strip in pure Python takes seconds
+        on the Pi, and every read of the state file would otherwise pay it."""
+        if value.data is None:
+            return value
+        try:
+            decode_block(value.block())
+        except (ValueError, MaskFormatError) as error:
+            raise ValueError(f"data is not a valid bitmap block: {error}") from error
+        return value
+
 
 class ApplyResponse(BaseModel):
     appliedAt: str
@@ -240,6 +240,18 @@ class MqttStatus(BaseModel):
 
 class AuthStatus(BaseModel):
     enabled: bool
+
+
+class ControlRequest(BaseModel):
+    sessionId: str = Field(min_length=8, max_length=128)
+    #: Take control even if another session holds it.
+    takeover: bool = False
+
+
+class ControlResponse(BaseModel):
+    #: Whether this session now controls the wall. False means another
+    #: session holds it and this one can only watch.
+    controller: bool
 
 
 class HealthResponse(BaseModel):

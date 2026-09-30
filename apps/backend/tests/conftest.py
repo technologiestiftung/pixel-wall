@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import config
+from app.control import lease
 from app.main import app
 
 
@@ -18,6 +19,7 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "PASSWORD", None)
     monkeypatch.setattr(config, "AUTH_ENABLED", False)
     monkeypatch.setattr(config, "MQTT_ENABLED", False)
+    lease.reset()
 
     with TestClient(app) as client:
         yield client

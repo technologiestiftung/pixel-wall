@@ -3,6 +3,7 @@ import type { FetchInit } from "../lib/api";
 import type {
 	ApplyRequest,
 	ApplyResponse,
+	ControlResponse,
 	HealthResponse,
 	LayoutPositionDto,
 	LayoutResponse,
@@ -20,6 +21,17 @@ export type Requester = <T>(path: string, init?: FetchInit) => Promise<T>;
 
 export function getHealth(request: Requester): Promise<HealthResponse> {
 	return request<HealthResponse>("/api/health");
+}
+
+export function claimControl(
+	request: Requester,
+	sessionId: string,
+	takeover = false,
+): Promise<ControlResponse> {
+	return request<ControlResponse>("/api/control", {
+		method: "POST",
+		body: JSON.stringify({ sessionId, takeover }),
+	});
 }
 
 export function getScreens(request: Requester): Promise<ScreensResponse> {

@@ -25,6 +25,10 @@ PASSWORD = os.environ.get("LEDWALL_PASSWORD") or None
 AUTH_REALM = os.environ.get("LEDWALL_AUTH_REALM", "Pixel Wall")
 AUTH_ENABLED = PASSWORD is not None
 
+#: How long a browser keeps control of the wall without a heartbeat (see
+#: app/control.py). The editor sends one every 10 s.
+CONTROL_TTL_S = float(os.environ.get("LEDWALL_CONTROL_TTL_S", "30"))
+
 MQTT_HOST = os.environ.get("LEDWALL_MQTT_HOST", "127.0.0.1")
 MQTT_PORT = int(os.environ.get("LEDWALL_MQTT_PORT", "1883"))
 MQTT_TOPIC_PREFIX = os.environ.get("LEDWALL_MQTT_TOPIC_PREFIX", "ledwall/screen")
