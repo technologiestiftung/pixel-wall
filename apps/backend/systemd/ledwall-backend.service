@@ -19,7 +19,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=/var/lib/ledwall
+ReadWritePaths=/var/lib/ledwall /home/pi/ledwall/apps/backend/uploads
 
 [Install]
 WantedBy=multi-user.target

@@ -24,7 +24,8 @@ export interface Template {
 	loopMs?: number;
 }
 
-/** Fixed built-in template library (no user upload in v1), sourced from the
+/** Fixed built-in template library (user uploads are a separate mode — see
+ * AnimationContent.upload), sourced from the
  * SVGs under `public/visuals/` — see CONTEXT.md "Content". This is the
  * closed set approved for Bild/Animation; nothing else ships. */
 export const TEMPLATES: Template[] = [

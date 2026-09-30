@@ -381,6 +381,33 @@ string that is not valid base64 or not a decodable bitmap block. The block is
 decoded here on the way in, so a payload that would fail on a panel — where
 nobody would see the error — fails at the API instead.
 
+### `GET /api/uploads` → `200`, `POST /api/uploads` → `200`, `DELETE /api/uploads/{id}` → `200`
+
+The shared library of user-uploaded images/animations offered in the editor's
+Hochladen picker. Stored as files in the repo checkout, in `apps/backend/uploads/`
+(override with `LEDWALL_UPLOADS_DIR`): `<id>.png` is the sprite sheet as a real
+image, `<id>.json` the rest of its metadata, so the library can be committed
+from the Pi. Listed newest first, at most 50 entries (`409` when full).
+Nothing on a panel reads it: a screen showing an upload carries its own copy in
+`source`, so deleting an entry never changes the wall.
+
+`POST` takes the editor's decoded sprite sheet and returns it with an `id` and
+`createdAt`:
+
+```json
+{
+	"name": "ball.gif",
+	"sheetDataUrl": "data:image/png;base64,…",
+	"frameWidthPx": 128,
+	"frameHeightPx": 64,
+	"frameCount": 13,
+	"columns": 4,
+	"frameDurationMs": 61.5
+}
+```
+
+`DELETE` returns `{ "id": "…" }`, or `404` for an unknown id.
+
 ### `GET /api/limits` → `200`
 
 ```json

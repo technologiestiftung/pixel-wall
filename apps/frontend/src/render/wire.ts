@@ -9,12 +9,11 @@ import {
 	setBit,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
-import { ANIMATION_FPS, TEMPLATES } from "../domain/content";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
-import { frameCountFor, renderAnimationFrameStrip } from "./animatedTemplate";
+import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
 import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
-import { waitForTemplateImage } from "./templateImages";
+import { waitForTemplateImage, waitForUploadImage } from "./templateImages";
 
 const WHITE: [number, number, number] = [255, 255, 255];
 
@@ -105,9 +104,9 @@ async function contentToPal4Wire(
 	const { width, height, scroll, background = null } = size;
 
 	if (content.type === "animation") {
-		const template = TEMPLATES.find((t) => t.id === content.templateId);
-		if (template?.animated) {
-			return animationToFramesWire(content, template, {
+		const timing = animationTiming(content);
+		if (timing) {
+			return animationToFramesWire(content, timing, {
 				width,
 				height,
 				background,
@@ -116,7 +115,13 @@ async function contentToPal4Wire(
 	}
 
 	if (content.type === "animation" && hasCanvasSupport()) {
-		await waitForTemplateImage(content.templateId);
+		if (content.mode === "upload") {
+			if (content.upload) {
+				await waitForUploadImage(content.upload.sheetDataUrl);
+			}
+		} else {
+			await waitForTemplateImage(content.templateId);
+		}
 	}
 	if (content.type === "text" && hasCanvasSupport()) {
 		await waitForFont(content.fontFamily, content.fontWeight);
@@ -164,14 +169,14 @@ async function contentToPal4Wire(
  */
 async function animationToFramesWire(
 	content: AnimationContent,
-	template: { loopMs?: number },
+	timing: { frameCount: number; frameDurationMs: number },
 	size: { width: number; height: number; background: string | null },
 ): Promise<WireContentDto> {
 	const { width, height, background } = size;
-	const frameCount = frameCountFor(template.loopMs ?? 4000, ANIMATION_FPS);
+	const { frameCount, frameDurationMs } = timing;
 	const frames: FramesDto = {
 		frameCount,
-		frameDurationMs: (template.loopMs ?? 4000) / frameCount,
+		frameDurationMs,
 		compositeWidthPx: width,
 	};
 

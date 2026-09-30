@@ -1,6 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { DEFAULT_LAYOUT, SCREEN_SPECS } from "../../domain/layout";
 import { createMask, encodeMaskBase64 } from "../../domain/mask";
+import type { LibraryUpload, UploadedMedia } from "../../domain/types";
+import { API_URL } from "../../lib/api";
 import type { ApplyRequest, LayoutPositionDto, StateResponse } from "../types";
 
 /**
@@ -11,8 +13,12 @@ import type { ApplyRequest, LayoutPositionDto, StateResponse } from "../types";
  */
 let layout: LayoutPositionDto[] = DEFAULT_LAYOUT.map((p) => ({ ...p }));
 const applied: StateResponse["screens"] = {};
+let uploads: LibraryUpload[] = [];
 
-export const API_BASE = "/api";
+// Must match the origin the app actually calls: a bare "/api" only matches the
+// dev server's own origin, so requests to VITE_API_URL passed straight through
+// to the real wall even with mocks enabled.
+export const API_BASE = `${API_URL}/api`;
 
 function blankMask(widthPx: number, heightPx: number): string {
 	return encodeMaskBase64(createMask(widthPx, heightPx));
@@ -44,6 +50,24 @@ export const handlers = [
 			updated_at: new Date().toISOString(),
 		}),
 	),
+
+	http.get(`${API_BASE}/uploads`, () => HttpResponse.json({ uploads })),
+
+	http.post(`${API_BASE}/uploads`, async ({ request }) => {
+		const body = (await request.json()) as UploadedMedia;
+		const entry: LibraryUpload = {
+			...body,
+			id: crypto.randomUUID(),
+			createdAt: new Date().toISOString(),
+		};
+		uploads = [entry, ...uploads];
+		return HttpResponse.json(entry);
+	}),
+
+	http.delete(`${API_BASE}/uploads/:id`, ({ params }) => {
+		uploads = uploads.filter((u) => u.id !== params.id);
+		return HttpResponse.json({ id: params.id });
+	}),
 
 	http.post(`${API_BASE}/apply`, async ({ request }) => {
 		const body = (await request.json()) as ApplyRequest;

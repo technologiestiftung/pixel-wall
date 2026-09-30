@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import compose, config, screens as screen_inventory, state as state_store
+from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
 from .auth import BasicAuthMiddleware
 from .models import (
     ApplyRequest,
@@ -17,6 +17,10 @@ from .models import (
     ScreenStateModel,
     ScreensResponse,
     StateResponse,
+    UploadLibrary,
+    UploadModel,
+    UploadRequest,
+    UploadSummary,
     WallState,
 )
 from .mqtt import publisher
@@ -53,7 +57,7 @@ app.add_middleware(BasicAuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
 
@@ -166,6 +170,31 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
         _publish(screen_id, frame)
 
     return ApplyResponse(appliedAt=written["updated_at"])
+
+
+@app.get("/api/uploads", response_model=UploadLibrary, tags=["uploads"])
+def get_uploads() -> UploadLibrary:
+    return UploadLibrary(uploads=upload_library.list_uploads())
+
+
+@app.post("/api/uploads", response_model=UploadModel, tags=["uploads"])
+def post_upload(payload: UploadRequest) -> UploadModel:
+    try:
+        return UploadModel(**upload_library.add_upload(payload))
+    except upload_library.LibraryFullError as error:
+        raise HTTPException(status_code=409, detail=str(error))
+    except OSError as error:
+        logger.error("upload library write failed: %s", error)
+        raise HTTPException(status_code=500, detail=f"could not write upload library: {error}")
+
+
+@app.delete("/api/uploads/{upload_id}", response_model=UploadSummary, tags=["uploads"])
+def delete_upload(upload_id: str) -> UploadSummary:
+    """Removes an entry from the library only — screens already showing it
+    keep their own copy (see app/uploads.py)."""
+    if not upload_library.delete_upload(upload_id):
+        raise HTTPException(status_code=404, detail=f"unknown upload: {upload_id}")
+    return UploadSummary(id=upload_id)
 
 
 @app.get("/api/limits", tags=["wall"])
