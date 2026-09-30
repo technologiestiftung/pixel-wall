@@ -6,71 +6,102 @@ import {
 } from "../../../src/domain/layout";
 import {
 	computeDisplayComposite,
-	validateSelection,
+	layersForGroup,
+	referenceScreenId,
+	selectionGroups,
+	selectionKindOf,
 } from "../../../src/domain/mapping";
 
-describe("validateSelection", () => {
-	test("empty selection is valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, [])).toEqual({
-			valid: true,
-		});
+describe("selectionKindOf", () => {
+	test("is the shared kind for a single-kind selection", () => {
+		expect(selectionKindOf(SCREEN_SPECS, ["04", "06"])).toBe("large");
+		expect(selectionKindOf(SCREEN_SPECS, ["01", "02"])).toBe("small");
 	});
 
-	test("a single screen is always valid", () => {
-		expect(validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04"])).toEqual({
-			valid: true,
-		});
+	test("is mixed when small and large screens are selected together", () => {
+		expect(selectionKindOf(SCREEN_SPECS, ["01", "04"])).toBe("mixed");
+	});
+});
+
+describe("selectionGroups", () => {
+	test("keeps a single-kind selection as one group", () => {
+		expect(selectionGroups(SCREEN_SPECS, { screenIds: ["05", "06"] })).toEqual([
+			{ kind: "large", screenIds: ["05", "06"] },
+		]);
 	});
 
-	test("mixing small and large screens is invalid", () => {
+	test("splits a mixed selection into one group per kind", () => {
 		expect(
-			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "04"]),
-		).toEqual({
-			valid: false,
-			reason: "mixed-kind",
+			selectionGroups(SCREEN_SPECS, { screenIds: ["04", "01", "06", "03"] }),
+		).toEqual([
+			{
+				kind: "large",
+				screenIds: ["04", "06"],
+				canvasScreenIds: ["04", "01", "06", "03"],
+			},
+			{
+				kind: "small",
+				screenIds: ["01", "03"],
+				canvasScreenIds: ["04", "01", "06", "03"],
+			},
+		]);
+	});
+});
+
+describe("referenceScreenId", () => {
+	test("is the first screen of a single-kind selection", () => {
+		expect(
+			referenceScreenId(SCREEN_SPECS, {
+				kind: "small",
+				screenIds: ["02", "01"],
+			}),
+		).toBe("02");
+	});
+
+	test("is a large screen in a mixed selection", () => {
+		expect(
+			referenceScreenId(SCREEN_SPECS, {
+				kind: "mixed",
+				screenIds: ["01", "06", "04"],
+			}),
+		).toBe("06");
+	});
+});
+
+describe("layersForGroup", () => {
+	const layers = {
+		background: "#000000",
+		foreground: {
+			type: "text" as const,
+			mode: "scrolling" as const,
+			value: "Hallo",
+			fontSizePx: 16,
+			fontFamily: "sans-serif",
+			fontWeight: "400",
+			color: "#FFFFFF",
+			speedPxPerSec: 60,
+			hAlign: "center" as const,
+			vAlign: "center" as const,
+			paddingPx: 4,
+		},
+	};
+
+	test("leaves single-kind groups untouched", () => {
+		expect(layersForGroup(layers, { kind: "small", screenIds: ["01"] })).toBe(
+			layers,
+		);
+	});
+
+	test("rescales text to the small pitch within a mixed canvas", () => {
+		const scaled = layersForGroup(layers, {
+			kind: "small",
+			screenIds: ["01"],
+			canvasScreenIds: ["01", "04"],
 		});
-	});
-
-	test("multiple small screens are always valid (never combined)", () => {
-		expect(
-			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["01", "02", "03"]),
-		).toEqual({ valid: true });
-	});
-
-	test("adjacent large screens (04 + 07 in the default layout) are valid", () => {
-		expect(
-			validateSelection(SCREEN_SPECS, DEFAULT_LAYOUT, ["04", "07"]),
-		).toEqual({ valid: true });
-	});
-
-	test("non-contiguous large screens are invalid", () => {
-		const specs = [
-			{ id: "a", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
-			{ id: "b", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
-		];
-		const positions = [
-			{ screenId: "a", xMm: 0, yMm: 0 },
-			{ screenId: "b", xMm: 800, yMm: 800 },
-		];
-		const result = validateSelection(specs, positions, ["a", "b"]);
-		expect(result.valid).toBe(false);
-		expect(result.reason).toBe("not-contiguous");
-	});
-
-	test("a chain of adjacent large screens is valid even if not all pairwise-adjacent", () => {
-		// synthetic layout: three large screens in a row, only neighbours touch
-		const specs = [
-			{ id: "a", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
-			{ id: "b", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
-			{ id: "c", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
-		];
-		const positions = [
-			{ screenId: "a", xMm: 0, yMm: 0 },
-			{ screenId: "b", xMm: 192, yMm: 0 },
-			{ screenId: "c", xMm: 384, yMm: 0 },
-		];
-		expect(validateSelection(specs, positions, ["a", "c", "b"])).toEqual({
-			valid: true,
+		expect(scaled.foreground).toMatchObject({
+			fontSizePx: 12,
+			paddingPx: 3,
+			speedPxPerSec: 45,
 		});
 	});
 });
@@ -100,14 +131,14 @@ describe("computeDisplayComposite", () => {
 		]);
 	});
 
-	test("small selection: every screen is an independent full-size copy at offset 0,0", () => {
+	test("small selection: screens are windows into one shared canvas", () => {
 		const smallSpecs = [
 			{ id: "x", kind: "small" as const, pixelSize: 32, physicalSizeMm: 128 },
 			{ id: "y", kind: "small" as const, pixelSize: 32, physicalSizeMm: 128 },
 		];
 		const positions = [
 			{ screenId: "x", xMm: 0, yMm: 0 },
-			{ screenId: "y", xMm: 500, yMm: 500 },
+			{ screenId: "y", xMm: 500, yMm: 100 },
 		];
 		const composite = computeDisplayComposite(
 			{ specs: smallSpecs, positions },
@@ -115,11 +146,33 @@ describe("computeDisplayComposite", () => {
 			2,
 		);
 
-		expect(composite.widthPx).toBe(256);
-		expect(composite.heightPx).toBe(256);
+		expect(composite.widthPx).toBe(628 * 2);
+		expect(composite.heightPx).toBe(228 * 2);
 		expect(composite.slots).toEqual([
 			{ screenId: "x", offsetXPx: 0, offsetYPx: 0 },
-			{ screenId: "y", offsetXPx: 0, offsetYPx: 0 },
+			{ screenId: "y", offsetXPx: 1000, offsetYPx: 200 },
+		]);
+	});
+
+	test("mixed selection: small screens are windows into the shared canvas", () => {
+		const mixedSpecs = [
+			{ id: "a", kind: "large" as const, pixelSize: 64, physicalSizeMm: 192 },
+			{ id: "s", kind: "small" as const, pixelSize: 32, physicalSizeMm: 128 },
+		];
+		const positions = [
+			{ screenId: "a", xMm: 0, yMm: 0 },
+			{ screenId: "s", xMm: 200, yMm: 40 },
+		];
+		const composite = computeDisplayComposite(
+			{ specs: mixedSpecs, positions },
+			{ kind: "small", screenIds: ["s"], canvasScreenIds: ["a", "s"] },
+			1 / 4,
+		);
+
+		expect(composite.widthPx).toBeCloseTo(328 / 4);
+		expect(composite.heightPx).toBeCloseTo(192 / 4);
+		expect(composite.slots).toEqual([
+			{ screenId: "s", offsetXPx: 50, offsetYPx: 10 },
 		]);
 	});
 

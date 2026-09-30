@@ -32,7 +32,6 @@
 
 #define MQTT_HOST "192.168.4.235"
 #define MQTT_PORT 1883
-#define MQTT_TOPIC "ledwall/screen/+"
 #define MQTT_TOPIC_PREFIX "ledwall/screen/"
 #define MQTT_CLIENT_ID "pixel-wall-esp32"
 
@@ -77,7 +76,12 @@ int brightnessPercent = 60;
 unsigned long lastReconnect = 0;
 unsigned long startedAt = 0;
 unsigned long lastFrame = 0;
-bool dirty = true;
+
+// With double buffering, a screen whose content changed must be drawn into
+// both buffers before it can be skipped — otherwise the stale buffer would
+// show its old content on every other flip.
+#define DMA_BUFFER_COUNT 2
+uint8_t pendingDraws[SCREEN_COUNT] = {DMA_BUFFER_COUNT, DMA_BUFFER_COUNT, DMA_BUFFER_COUNT};
 
 // ~50 fps is far more than a scrolling marquee needs, and leaves the I2S DMA
 // refresh and mqtt.loop() the CPU they need. Redrawing as fast as the loop
@@ -157,7 +161,7 @@ static void onMessage(char *topic, byte *payload, unsigned int length) {
 		applyBrightness();
 	}
 
-	dirty = true;
+	pendingDraws[index] = DMA_BUFFER_COUNT;
 
 	if (next.nativeGameOfLife) {
 		Serial.printf("screen %d: gameOfLife, brightness %u%%\n", index + 1, next.brightness);
@@ -203,16 +207,24 @@ static float frameShiftX(const PixelWallScreen &screen, unsigned long elapsedMs)
 	return -(float)(frameIndex * screen.frameWidthPx);
 }
 
-/* Whether anything on the board needs redrawing every tick — scrolling text,
- * a stepping frame strip, or a native Game of Life simulation. Static content
+/* Whether this screen needs redrawing every tick — scrolling text, a
+ * stepping frame strip, or a native Game of Life simulation. Static content
  * only needs redrawing when a message changes it. */
+static bool isMoving(const PixelWallScreen &screen) {
+	return screen.valid &&
+	       (screen.scrolling || screen.animating || screen.nativeGameOfLife);
+}
+
 static bool anyMotion() {
 	for (int index = 0; index < SCREEN_COUNT; index++) {
-		if (screens[index].valid &&
-		    (screens[index].scrolling || screens[index].animating ||
-		     screens[index].nativeGameOfLife)) {
-			return true;
-		}
+		if (isMoving(screens[index])) return true;
+	}
+	return false;
+}
+
+static bool anyPendingDraws() {
+	for (int index = 0; index < SCREEN_COUNT; index++) {
+		if (pendingDraws[index] > 0) return true;
 	}
 	return false;
 }
@@ -231,16 +243,22 @@ static void advanceGameOfLife(int index, unsigned long elapsedMs) {
 	}
 }
 
+/* Only screens that are moving or were just changed are redrawn: repainting
+ * a static screen 50 times a second is what made it flicker whenever a
+ * neighbour animated. Each pixel is written exactly once with its final
+ * colour, so a buffer caught mid-draw never shows a background-only frame. */
 static void drawFrame(unsigned long elapsedMs) {
 	for (int index = 0; index < SCREEN_COUNT; index++) {
 		const PixelWallScreen &screen = screens[index];
+		if (!isMoving(screen) && pendingDraws[index] == 0) continue;
+		if (pendingDraws[index] > 0) pendingDraws[index]--;
+
 		int slotX = index * PANEL_RES_X;
 
 		// Native Game of Life bypasses the whole bitmap/background/window
 		// path below entirely — it never had a background to begin with
 		// (see CONTEXT.md "Content" — Game of Life suspends, never
-		// composites, a screen's Hintergrund), so there is nothing here to
-		// fill before blitting the board itself.
+		// composites, a screen's Hintergrund).
 		if (screen.valid && screen.nativeGameOfLife) {
 			advanceGameOfLife(index, elapsedMs);
 			const GameOfLifeBoard &board = golBoards[index];
@@ -253,21 +271,11 @@ static void drawFrame(unsigned long elapsedMs) {
 			continue;
 		}
 
-		// Per-screen base fill: this screen's background if it has one, else
-		// black — replaces a single canvas-wide clearScreen(), since the 3
-		// screens are independently addressed and could each have a
-		// different background.
 		uint8_t fillR = 0, fillG = 0, fillB = 0;
 		if (screen.valid && screen.hasBackground) {
 			fillR = screen.bgR; fillG = screen.bgG; fillB = screen.bgB;
 		}
-		for (int y = 0; y < PANEL_RES_Y; y++) {
-			for (int x = 0; x < PANEL_RES_X; x++) {
-				display->drawPixelRGB888(slotX + x, y, fillR, fillG, fillB);
-			}
-		}
-
-		if (!screen.valid || screen.pixels == nullptr) continue;
+		bool hasPixels = screen.valid && screen.pixels != nullptr;
 
 		float shiftX = screen.scrolling ? marqueeOffset(screen, elapsedMs)
 		                                 : (screen.animating ? frameShiftX(screen, elapsedMs) : 0.0f);
@@ -276,10 +284,11 @@ static void drawFrame(unsigned long elapsedMs) {
 
 		for (int y = 0; y < PANEL_RES_Y; y++) {
 			for (int x = 0; x < PANEL_RES_X; x++) {
-				uint8_t r, g, b;
-				if (pixelWallSample(&screen, x - originX, y - originY, &r, &g, &b)) {
-					display->drawPixelRGB888(slotX + x, y, r, g, b);
+				uint8_t r = fillR, g = fillG, b = fillB;
+				if (hasPixels) {
+					pixelWallSample(&screen, x - originX, y - originY, &r, &g, &b);
 				}
+				display->drawPixelRGB888(slotX + x, y, r, g, b);
 			}
 		}
 	}
@@ -306,9 +315,16 @@ static bool connectMQTT() {
 		Serial.printf("mqtt: failed, rc=%d\n", mqtt.state());
 		return false;
 	}
-	// Retained per screen, so all three arrive right here.
-	mqtt.subscribe(MQTT_TOPIC);
-	Serial.printf("mqtt: subscribed to %s\n", MQTT_TOPIC);
+	// Only this board's screens: a wildcard would also pull in every large
+	// screen's (often much bigger) frames just to discard them. Retained per
+	// screen, so all three arrive right here.
+	static const char *ids[SCREEN_COUNT] = {"01", "02", "03"};
+	for (int i = 0; i < SCREEN_COUNT; i++) {
+		char topic[32];
+		snprintf(topic, sizeof(topic), "%s%s", MQTT_TOPIC_PREFIX, ids[i]);
+		mqtt.subscribe(topic);
+		Serial.printf("mqtt: subscribed to %s\n", topic);
+	}
 	return true;
 }
 
@@ -364,13 +380,10 @@ void loop() {
 		mqtt.loop();
 	}
 
-	bool motion = anyMotion();
-
-	// Redraw only when the frame can actually differ: on a new message, or
-	// while something is scrolling or animating.
-	if (dirty || (motion && now - lastFrame >= FRAME_INTERVAL_MS)) {
+	// Redraw only when the frame can actually differ: after a new message,
+	// or while something is scrolling or animating.
+	if ((anyPendingDraws() || anyMotion()) && now - lastFrame >= FRAME_INTERVAL_MS) {
 		lastFrame = now;
-		dirty = false;
 		drawFrame(now - startedAt);
 	}
 }

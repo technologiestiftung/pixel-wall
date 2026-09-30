@@ -1,10 +1,14 @@
 import type { StateResponse } from "../api/types";
-import { computeDisplayComposite, validateSelection } from "../domain/mapping";
+import {
+	computeDisplayComposite,
+	layersForGroup,
+	selectionGroups,
+	selectionKindOf,
+} from "../domain/mapping";
 import {
 	DEFAULT_LAYOUT,
 	PITCH_MM_PER_PX,
 	SCREEN_SPECS,
-	specById,
 } from "../domain/layout";
 import type {
 	AnimationContent,
@@ -182,25 +186,27 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			return { ...state, applyStatus: "error", applyError: action.message };
 
 		case "apply-success": {
-			const devicePxPerMm = 1 / PITCH_MM_PER_PX[action.selection.kind];
-			const composite = computeDisplayComposite(
-				{ specs: action.specs, positions: action.layout },
-				action.selection,
-				devicePxPerMm,
-			);
 			const applied = { ...state.applied };
 			const screenGeneration = { ...state.generation.screens };
-			for (const slot of composite.slots) {
-				applied[slot.screenId] = {
-					layers: action.layers,
-					compositeWidthPx: composite.widthPx,
-					compositeHeightPx: composite.heightPx,
-					offsetXPx: slot.offsetXPx,
-					offsetYPx: slot.offsetYPx,
-					bitmap: null,
-				};
-				screenGeneration[slot.screenId] =
-					(screenGeneration[slot.screenId] ?? 0) + 1;
+			for (const group of selectionGroups(action.specs, action.selection)) {
+				const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
+				const composite = computeDisplayComposite(
+					{ specs: action.specs, positions: action.layout },
+					group,
+					devicePxPerMm,
+				);
+				for (const slot of composite.slots) {
+					applied[slot.screenId] = {
+						layers: layersForGroup(action.layers, group),
+						compositeWidthPx: composite.widthPx,
+						compositeHeightPx: composite.heightPx,
+						offsetXPx: slot.offsetXPx,
+						offsetYPx: slot.offsetYPx,
+						bitmap: null,
+					};
+					screenGeneration[slot.screenId] =
+						(screenGeneration[slot.screenId] ?? 0) + 1;
+				}
 			}
 			return {
 				...settled(state),
@@ -260,8 +266,8 @@ function hydrate(
 			(state.generation.screens[screenId] ?? 0) !==
 			(since.screens[screenId] ?? 0);
 		applied[screenId] = stale
-			? (state.applied[screenId] ?? hydrateScreen(entry))
-			: hydrateScreen(entry);
+			? (state.applied[screenId] ?? hydrateScreen(screenId, entry))
+			: hydrateScreen(screenId, entry);
 	}
 
 	const layout = action.layout.map((remote) => {
@@ -286,19 +292,37 @@ function hydrate(
 /** One screen as the server has it. With layers we can rebuild the picture —
  * and animate it, which a flat frame could never do; without them (a state
  * file written before layers) the flattened frame is all there is. */
-function hydrateScreen(entry: StateResponse["screens"][string]): AppliedRender {
+function hydrateScreen(
+	screenId: string,
+	entry: StateResponse["screens"][string],
+): AppliedRender {
+	const { source } = entry;
+	const window = source?.canvas?.windows[screenId];
+	if (source?.canvas && window) {
+		return {
+			layers: { background: source.background, foreground: source.foreground },
+			compositeWidthPx: source.canvas.widthPx,
+			compositeHeightPx: source.canvas.heightPx,
+			offsetXPx: window.offsetXPx,
+			offsetYPx: window.offsetYPx,
+			bitmap: null,
+		};
+	}
+
 	// gameOfLife has no real height to report — like compositeWidthOf, this
 	// is never actually consulted for it (ContentLayer.tsx renders its own
 	// placeholder before sizing off this).
 	const compositeHeightPx =
 		entry.content.format === "gameOfLife" ? 32 : entry.content.heightPx;
 	return {
-		layers: entry.source ?? EMPTY_LAYERS,
+		layers: source
+			? { background: source.background, foreground: source.foreground }
+			: EMPTY_LAYERS,
 		compositeWidthPx: compositeWidthOf(entry.content),
 		compositeHeightPx,
 		offsetXPx: entry.window.offsetXPx,
 		offsetYPx: entry.window.offsetYPx,
-		bitmap: entry.source ? null : wireToDataUrl(entry.content),
+		bitmap: source ? null : wireToDataUrl(entry.content),
 	};
 }
 
@@ -385,54 +409,32 @@ function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 }
 
 /** Plain click always selects just this screen; shift+click builds a
- * multi-selection, and shift+clicking a selected screen removes it. */
+ * multi-selection of any screens, and shift+clicking a selected screen
+ * removes it. */
 function toggleScreen(
 	state: WallState,
 	screenId: string,
 	additive: boolean,
 ): WallState {
-	const { kind } = specById(state.specs, screenId);
-
-	// Plain click always selects just this screen, deselecting any others —
-	// shift+click is required to build a multi-selection.
-	if (!additive) {
-		return {
-			...state,
-			selection: { kind, screenIds: [screenId] },
-			draftText: null,
-			draftAnimation: null,
-			draftColor: null,
-		};
-	}
-
 	const current = state.selection?.screenIds ?? [];
 
-	// Shift+clicking an already-selected screen removes it.
-	if (current.includes(screenId)) {
-		const remaining = current.filter((id) => id !== screenId);
-		return {
-			...state,
-			selection: remaining.length > 0 ? { kind, screenIds: remaining } : null,
-			draftText: null,
-			draftAnimation: null,
-			draftColor: null,
-		};
+	let screenIds: string[];
+	if (!additive) {
+		screenIds = [screenId];
+	} else if (current.includes(screenId)) {
+		screenIds = current.filter((id) => id !== screenId);
+	} else {
+		screenIds = [...current, screenId];
 	}
 
-	const attempted = [...current, screenId];
-	const validation = validateSelection(state.specs, state.layout, attempted);
-	if (validation.valid) {
-		return {
-			...state,
-			selection: { kind, screenIds: attempted },
-			draftText: null,
-			draftAnimation: null,
-			draftColor: null,
-		};
-	}
-
-	// Adding this screen to the current selection isn't valid (different
-	// kind, or breaks contiguity) — ignore the shift+click rather than
-	// silently replacing what the user was deliberately building up.
-	return state;
+	return {
+		...state,
+		selection:
+			screenIds.length > 0
+				? { kind: selectionKindOf(state.specs, screenIds), screenIds }
+				: null,
+		draftText: null,
+		draftAnimation: null,
+		draftColor: null,
+	};
 }

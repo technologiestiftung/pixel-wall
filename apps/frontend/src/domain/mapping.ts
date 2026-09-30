@@ -1,78 +1,103 @@
-import { areAdjacent, rectFor, specById } from "./layout";
-import type { LayoutPosition, ScreenSpec, Selection } from "./types";
+import { PITCH_MM_PER_PX, rectFor, specById } from "./layout";
+import type {
+	LayoutPosition,
+	ScreenLayers,
+	ScreenSpec,
+	SelectionGroup,
+	SelectionKind,
+} from "./types";
 
-export interface SelectionValidation {
-	valid: boolean;
-	reason?: "mixed-kind" | "not-contiguous";
+export function selectionKindOf(
+	specs: ScreenSpec[],
+	screenIds: string[],
+): SelectionKind {
+	const kinds = new Set(screenIds.map((id) => specById(specs, id).kind));
+	if (kinds.size > 1) {
+		return "mixed";
+	}
+	return kinds.has("small") ? "small" : "large";
 }
 
 /**
- * A selection of large screens is only meaningful as one continuous canvas,
- * so every screen in it must be reachable from every other via a chain of
- * adjacent screens within the same selection (see CONTEXT.md "Selection").
- * Small screens never combine, so any non-empty, single-kind small selection
- * is automatically valid.
+ * A selection is rendered and saved as one group per kind, since the two
+ * kinds have different pixel densities and are driven by different hardware.
+ * In a mixed selection every group is a window into one canvas spanning all
+ * selected screens (see CONTEXT.md "Selection").
  */
-export function validateSelection(
+export function selectionGroups(
 	specs: ScreenSpec[],
-	positions: LayoutPosition[],
-	screenIds: string[],
-): SelectionValidation {
-	if (screenIds.length === 0) {
-		return { valid: true };
-	}
-
-	const selectedSpecs = screenIds.map((id) => specById(specs, id));
-	const kinds = new Set(selectedSpecs.map((s) => s.kind));
-	if (kinds.size > 1) {
-		return { valid: false, reason: "mixed-kind" };
-	}
-
-	if (selectedSpecs[0].kind === "small" || selectedSpecs.length === 1) {
-		return { valid: true };
-	}
-
-	const positionById = new Map(positions.map((p) => [p.screenId, p]));
-	const rectById = new Map(
-		selectedSpecs.map((spec) => {
-			const position = positionById.get(spec.id);
-			if (!position) {
-				throw new Error(`No layout position for screen ${spec.id}`);
-			}
-			return [spec.id, rectFor(spec, position)] as const;
-		}),
-	);
-
-	function rectOf(id: string) {
-		const rect = rectById.get(id);
-		if (!rect) {
-			throw new Error(`No rect computed for screen ${id}`);
-		}
-		return rect;
-	}
-
-	const visited = new Set<string>([screenIds[0]]);
-	const queue = [screenIds[0]];
-	while (queue.length > 0) {
-		const currentId = queue.pop();
-		if (currentId === undefined) {
-			break;
-		}
-		const currentRect = rectOf(currentId);
-		for (const id of screenIds) {
-			if (visited.has(id)) {
-				continue;
-			}
-			if (areAdjacent(currentRect, rectOf(id))) {
-				visited.add(id);
-				queue.push(id);
-			}
+	selection: { screenIds: string[] },
+): SelectionGroup[] {
+	const groups: SelectionGroup[] = [];
+	for (const screenId of selection.screenIds) {
+		const { kind } = specById(specs, screenId);
+		const group = groups.find((g) => g.kind === kind);
+		if (group) {
+			group.screenIds.push(screenId);
+		} else {
+			groups.push({ kind, screenIds: [screenId] });
 		}
 	}
+	if (groups.length > 1) {
+		for (const group of groups) {
+			group.canvasScreenIds = selection.screenIds;
+		}
+	}
+	return groups;
+}
 
-	return visited.size === screenIds.length
-		? { valid: true }
-		: { valid: false, reason: "not-contiguous" };
+/**
+ * The screen whose layers a selection is edited from. In a mixed selection
+ * that is a large screen, since sizes are specified in large-screen pixels
+ * there (see `layersForGroup`).
+ */
+export function referenceScreenId(
+	specs: ScreenSpec[],
+	selection: { kind: SelectionKind; screenIds: string[] },
+): string {
+	if (selection.kind === "mixed") {
+		const large = selection.screenIds.find(
+			(id) => specById(specs, id).kind === "large",
+		);
+		if (large) {
+			return large;
+		}
+	}
+	return selection.screenIds[0];
+}
+
+/**
+ * Text size, padding and scroll speed are in device pixels. Within a mixed
+ * selection they are specified in large-screen pixels, so a small-screen
+ * group rescales them to cover the same physical size at its coarser pitch.
+ */
+export function layersForGroup(
+	layers: ScreenLayers,
+	group: SelectionGroup,
+): ScreenLayers {
+	const { foreground } = layers;
+	if (!group.canvasScreenIds || foreground?.type !== "text") {
+		return layers;
+	}
+	const factor = PITCH_MM_PER_PX.large / PITCH_MM_PER_PX[group.kind];
+	if (factor === 1) {
+		return layers;
+	}
+	return {
+		...layers,
+		foreground: {
+			...foreground,
+			fontSizePx: foreground.fontSizePx * factor,
+			paddingPx:
+				foreground.paddingPx === undefined
+					? undefined
+					: foreground.paddingPx * factor,
+			speedPxPerSec:
+				foreground.speedPxPerSec === undefined
+					? undefined
+					: foreground.speedPxPerSec * factor,
+		},
+	};
 }
 
 export interface DisplayCompositeSlot {
@@ -88,21 +113,19 @@ export interface DisplayComposite {
 }
 
 /**
- * Maps a validated selection onto one shared "composite" content area, in
+ * Maps a single-kind selection group onto one shared "composite" content area, in
  * on-screen preview pixels (mmToPx-scaled, not device pixels — see
  * CONTEXT.md "Rendering split": the device-pixel-accurate version of this is
  * a Phase 3 concern, for the bitmap actually sent to the backend).
  *
- * Large selections stretch content across their combined bounding box
- * (including any real physical gaps between screens, which naturally fall
- * out of using each screen's real mm position). Small selections are
- * "independent copies" — every selected screen gets its own full-size
- * composite with a zero offset, i.e. the same content repeated whole on
- * each screen rather than split across them (see CONTEXT.md "Selection").
+ * Content stretches across the selection's combined bounding box (including
+ * any real physical gaps between screens, which naturally fall out of using
+ * each screen's real mm position), so every selected screen shows its own
+ * slice of one picture (see CONTEXT.md "Selection").
  */
 export function computeDisplayComposite(
 	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
-	selection: Selection,
+	selection: SelectionGroup,
 	mmToPx: number,
 ): DisplayComposite {
 	const { specs, positions } = wall;
@@ -116,21 +139,7 @@ export function computeDisplayComposite(
 		return position;
 	}
 
-	if (selection.kind === "small") {
-		const spec = specById(specs, selection.screenIds[0]);
-		const sizePx = spec.physicalSizeMm * mmToPx;
-		return {
-			widthPx: sizePx,
-			heightPx: sizePx,
-			slots: selection.screenIds.map((screenId) => ({
-				screenId,
-				offsetXPx: 0,
-				offsetYPx: 0,
-			})),
-		};
-	}
-
-	const rects = selection.screenIds.map((id) =>
+	const rects = (selection.canvasScreenIds ?? selection.screenIds).map((id) =>
 		rectFor(specById(specs, id), positionOf(id)),
 	);
 	const minXmm = Math.min(...rects.map((r) => r.xMm));
