@@ -1,5 +1,6 @@
 import { ANIMATION_FPS } from "../domain/content";
 import type { UploadedMedia } from "../domain/types";
+import { decodeAnimatedSvg } from "./animatedSvg";
 
 /** The largest composite is a few 64px panels across, so anything bigger is
  * wasted bytes in the stored `source` and the apply request. */
@@ -51,12 +52,15 @@ interface SourceFrame {
  * downscaled to at most MAX_EDGE_PX, resampled to ANIMATION_FPS (the rate
  * the wire's `frames` steps at — GIF frame delays vary per frame, the wire's
  * don't) and packed into one PNG sprite sheet. Animations longer than
- * MAX_UPLOAD_FRAMES are cut off rather than sped up.
+ * MAX_UPLOAD_FRAMES are cut off rather than sped up. Animated SVGs have no
+ * frames to decode, so they are sampled instead (see render/animatedSvg.ts).
  */
 export async function decodeUpload(file: File): Promise<UploadedMedia> {
-	const sourceFrames = (await decodeAnimatedFrames(file)) ?? [
-		await decodeStillFrame(file),
-	];
+	const sourceFrames = (await decodeAnimatedSvg(file, {
+		maxEdgePx: MAX_EDGE_PX,
+		maxFrames: MAX_UPLOAD_FRAMES,
+	})) ??
+		(await decodeAnimatedFrames(file)) ?? [await decodeStillFrame(file)];
 	const { frames, frameDurationMs } = resample(sourceFrames);
 	const { width: frameWidthPx, height: frameHeightPx } = frames[0];
 	const columns = Math.ceil(Math.sqrt(frames.length));

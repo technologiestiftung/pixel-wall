@@ -67,15 +67,11 @@ export interface PaletteColor {
  * Textfarbe pickers (see components/Menu/ColorPicker.tsx). Names are internal
  * (shown as a hover tooltip on the swatch), not printed in the UI otherwise. */
 export const PALETTE: PaletteColor[] = [
-	{ name: "Creme hell", hex: "#FAFAF2" },
-	{ name: "Creme", hex: "#F5F5ED" },
 	{ name: "Rosa", hex: "#FFCFD6" },
 	{ name: "Rot", hex: "#FE4441" },
 	{ name: "Blau", hex: "#1E3791" },
-	{ name: "Lavender hell", hex: "#D2D4FF" },
 	{ name: "Lavender", hex: "#B4B9FF" },
 	{ name: "Gelb", hex: "#FEF177" },
-	{ name: "Grün hell", hex: "#B5EAC2" },
 	{ name: "Grün", hex: "#95E3A9" },
 	{ name: "Weiß", hex: "#FFFFFF" },
 	{ name: "Schwarz", hex: "#000000" },
