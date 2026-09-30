@@ -1,7 +1,9 @@
 import base64
+import json
 
 import pytest
 
+from app import config
 from app.mask import Mask, Palette4, decode_block, encode, encode_pal4
 
 PALETTE = [(0, 0, 0), (254, 68, 65), (180, 185, 255)]
@@ -479,3 +481,94 @@ def test_old_flat_state_endpoints_are_gone(api, method):
 def test_brightness_endpoint_is_gone(api):
     response = api.put("/api/brightness", json={"small": 35, "large": 95})
     assert response.status_code in (404, 405)
+
+
+SHEET = "data:image/png;base64,iVBORw0KGgo="
+UPLOAD = {
+    "name": "ball.gif",
+    "sheetDataUrl": SHEET,
+    "frameWidthPx": 32,
+    "frameHeightPx": 32,
+    "frameCount": 4,
+    "columns": 2,
+    "frameDurationMs": 62.5,
+}
+
+
+def test_upload_library_starts_empty(api):
+    assert api.get("/api/uploads").json() == {"uploads": []}
+
+
+def test_upload_is_stored_newest_first(api):
+    first = api.post("/api/uploads", json=UPLOAD).json()
+    second = api.post("/api/uploads", json={**UPLOAD, "name": "two.png"}).json()
+
+    listed = api.get("/api/uploads").json()["uploads"]
+    assert [u["id"] for u in listed] == [second["id"], first["id"]]
+    assert listed[1]["sheetDataUrl"] == SHEET
+
+
+def test_upload_can_be_deleted(api):
+    created = api.post("/api/uploads", json=UPLOAD).json()
+
+    assert api.delete(f"/api/uploads/{created['id']}").json() == {"id": created["id"]}
+    assert api.get("/api/uploads").json() == {"uploads": []}
+    assert api.delete(f"/api/uploads/{created['id']}").status_code == 404
+
+
+def test_deleting_an_upload_leaves_the_wall_untouched(api):
+    created = api.post("/api/uploads", json=UPLOAD).json()
+    source = {"background": None, "foreground": {"type": "animation", "mode": "upload", "upload": created}}
+    api.post(
+        "/api/apply",
+        json={
+            "selectionKind": "small",
+            "screens": [{"screenId": "01", "window": window()}],
+            "content": mask_content(["####", "...."]),
+            "source": source,
+        },
+    )
+
+    api.delete(f"/api/uploads/{created['id']}")
+
+    assert api.get("/api/state").json()["screens"]["01"]["source"] == source
+
+
+def test_upload_rejects_a_non_png_sheet(api):
+    response = api.post("/api/uploads", json={**UPLOAD, "sheetDataUrl": "data:text/html;base64,AAAA"})
+    assert response.status_code == 422
+
+
+def test_upload_library_is_capped(api, monkeypatch):
+    monkeypatch.setattr(config, "MAX_UPLOADS", 1)
+    api.post("/api/uploads", json=UPLOAD)
+    assert api.post("/api/uploads", json=UPLOAD).status_code == 409
+
+
+def test_upload_is_stored_as_a_png_and_metadata_file(api):
+    created = api.post("/api/uploads", json=UPLOAD).json()
+    directory = config.UPLOADS_DIR
+
+    assert (directory / f"{created['id']}.png").read_bytes() == base64.b64decode(SHEET.split(",")[1])
+    meta = json.loads((directory / f"{created['id']}.json").read_text())
+    assert meta["name"] == "ball.gif"
+    assert "sheetDataUrl" not in meta
+
+    api.delete(f"/api/uploads/{created['id']}")
+    assert sorted(p.name for p in directory.iterdir()) == []
+
+
+def test_upload_rejects_invalid_base64(api):
+    response = api.post("/api/uploads", json={**UPLOAD, "sheetDataUrl": "data:image/png;base64,@@@"})
+    assert response.status_code == 422
+
+
+def test_upload_library_skips_an_entry_with_a_missing_image(api):
+    created = api.post("/api/uploads", json=UPLOAD).json()
+    (config.UPLOADS_DIR / f"{created['id']}.png").unlink()
+
+    assert api.get("/api/uploads").json() == {"uploads": []}
+
+
+def test_delete_ignores_path_like_ids(api):
+    assert api.delete("/api/uploads/..%2Fstate").status_code in (404, 405)

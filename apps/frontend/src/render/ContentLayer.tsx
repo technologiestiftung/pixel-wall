@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { ANIMATION_FPS, LOOP_PAUSE_MS, TEMPLATES } from "../domain/content";
+import { LOOP_PAUSE_MS } from "../domain/content";
 import type {
 	AnimationContent,
 	ScreenLayers,
 	TextContent,
 } from "../domain/types";
 import type { AppliedRender } from "../state/reducer";
-import { frameCountFor, renderAnimationFrameStrip } from "./animatedTemplate";
+import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
 import { measureTextWidthPx } from "./text";
@@ -87,15 +87,14 @@ export function ContentLayer({ render }: ContentLayerProps) {
 		);
 	}
 
-	const animatedTemplate =
-		foreground?.type === "animation" && foreground.mode === "template"
-			? TEMPLATES.find((t) => t.id === foreground.templateId)
-			: undefined;
-	if (foreground?.type === "animation" && animatedTemplate?.animated) {
+	const timing =
+		foreground?.type === "animation" ? animationTiming(foreground) : null;
+	if (foreground?.type === "animation" && timing) {
 		return (
 			<AnimatedBitmap
 				content={foreground}
-				loopMs={animatedTemplate.loopMs ?? 4000}
+				frameCount={timing.frameCount}
+				frameDurationMs={timing.frameDurationMs}
 				backgroundHex={layers.background}
 				compositeWidthPx={compositeWidthPx}
 				compositeHeightPx={compositeHeightPx}
@@ -291,7 +290,8 @@ function ScrollingBitmap({
  */
 function AnimatedBitmap({
 	content,
-	loopMs,
+	frameCount,
+	frameDurationMs,
 	backgroundHex,
 	compositeWidthPx,
 	compositeHeightPx,
@@ -299,16 +299,14 @@ function AnimatedBitmap({
 	offsetYPx,
 }: {
 	content: AnimationContent;
-	loopMs: number;
+	frameCount: number;
+	frameDurationMs: number;
 	backgroundHex: string | null;
 	compositeWidthPx: number;
 	compositeHeightPx: number;
 	offsetXPx: number;
 	offsetYPx: number;
 }) {
-	const frameCount = frameCountFor(loopMs, ANIMATION_FPS);
-	const frameDurationMs = loopMs / frameCount;
-
 	const [stripUrl, setStripUrl] = useState<string | null>(null);
 	useEffect(() => {
 		let cancelled = false;

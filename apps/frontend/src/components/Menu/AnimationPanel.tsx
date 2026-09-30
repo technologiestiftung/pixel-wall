@@ -3,7 +3,14 @@ import { NO_ANIMATION_TEMPLATE_ID } from "../../domain/types";
 import type { AnimationContent, ScreenKind } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
 import { TemplateIcon } from "../../render/TemplateIcon";
-import { AlignmentPicker } from "./AlignmentPicker";
+import { PlacementControls } from "./PlacementControls";
+import { UploadPicker } from "./UploadPicker";
+
+const MODES: { mode: AnimationContent["mode"]; label: string }[] = [
+	{ mode: "template", label: "Vorlage" },
+	{ mode: "upload", label: "Hochladen" },
+	{ mode: "gameOfLife", label: "Game of Life" },
+];
 
 interface AnimationPanelProps {
 	content: AnimationContent;
@@ -19,49 +26,44 @@ export function AnimationPanel({
 	onChange,
 	screenKind,
 }: AnimationPanelProps) {
-	const isGameOfLife = content.mode === "gameOfLife";
+	const modes = MODES.filter(
+		({ mode }) => mode !== "gameOfLife" || screenKind === "small",
+	);
 
 	return (
 		<div className="flex w-full flex-col gap-5">
-			{screenKind === "small" && (
-				<div
-					role="tablist"
-					aria-label="Vorlage oder Game of Life"
-					className="flex w-full gap-1 rounded-[8px] border border-[#e4e4e0] bg-white p-1"
-				>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={!isGameOfLife}
-						onClick={() => onChange({ ...content, mode: "template" })}
-						className={`flex-1 rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
-							!isGameOfLife
-								? "bg-[#20201b] text-white"
-								: "text-[#4b4b47] hover:bg-[#f4f4f2]"
-						}`}
-					>
-						Vorlage
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={isGameOfLife}
-						onClick={() => onChange({ ...content, mode: "gameOfLife" })}
-						className={`flex-1 rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
-							isGameOfLife
-								? "bg-[#20201b] text-white"
-								: "text-[#4b4b47] hover:bg-[#f4f4f2]"
-						}`}
-					>
-						Game of Life
-					</button>
-				</div>
-			)}
+			<div
+				role="tablist"
+				aria-label="Quelle"
+				className="flex w-full gap-1 rounded-[8px] border border-[#e4e4e0] bg-white p-1"
+			>
+				{modes.map(({ mode, label }) => {
+					const selected = content.mode === mode;
+					return (
+						<button
+							key={mode}
+							type="button"
+							role="tab"
+							aria-selected={selected}
+							onClick={() => onChange({ ...content, mode })}
+							className={`flex-1 rounded-[6px] px-[9px] py-[7px] text-[13.5px] font-medium ${
+								selected
+									? "bg-[#20201b] text-white"
+									: "text-[#4b4b47] hover:bg-[#f4f4f2]"
+							}`}
+						>
+							{label}
+						</button>
+					);
+				})}
+			</div>
 
-			{isGameOfLife ? (
-				<GameOfLifeExplainer />
-			) : (
+			{content.mode === "gameOfLife" && <GameOfLifeExplainer />}
+			{content.mode === "template" && (
 				<AnimationTemplatePicker content={content} onChange={onChange} />
+			)}
+			{content.mode === "upload" && (
+				<UploadPicker content={content} onChange={onChange} />
 			)}
 		</div>
 	);
@@ -180,34 +182,7 @@ function AnimationTemplatePicker({
 				</div>
 			</div>
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="scale">
-					Skalierung
-				</label>
-				<div className="flex items-center gap-3">
-					<input
-						id="scale"
-						type="range"
-						min={25}
-						max={400}
-						value={content.scalePercent}
-						onChange={(e) =>
-							onChange({ ...content, scalePercent: Number(e.target.value) })
-						}
-						className="flex-1"
-					/>
-					<span className="w-12 shrink-0 text-right text-[13px] text-[#6b6b66]">
-						{content.scalePercent}%
-					</span>
-				</div>
-			</div>
-
-			<AlignmentPicker
-				hAlign={content.hAlign}
-				vAlign={content.vAlign}
-				onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
-				onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
-			/>
+			<PlacementControls content={content} onChange={onChange} />
 		</>
 	);
 }

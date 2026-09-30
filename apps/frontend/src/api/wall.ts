@@ -1,3 +1,4 @@
+import type { LibraryUpload, UploadedMedia } from "../domain/types";
 import type { FetchInit } from "../lib/api";
 import type {
 	ApplyRequest,
@@ -50,5 +51,28 @@ export function applyChanges(
 	return request<ApplyResponse>("/api/apply", {
 		method: "POST",
 		body: JSON.stringify(body),
+	});
+}
+
+export async function getUploads(request: Requester): Promise<LibraryUpload[]> {
+	const { uploads } = await request<{ uploads: LibraryUpload[] }>(
+		"/api/uploads",
+	);
+	return uploads;
+}
+
+export function createUpload(
+	request: Requester,
+	media: UploadedMedia,
+): Promise<LibraryUpload> {
+	return request<LibraryUpload>("/api/uploads", {
+		method: "POST",
+		body: JSON.stringify(media),
+	});
+}
+
+export function deleteUpload(request: Requester, id: string): Promise<void> {
+	return request(`/api/uploads/${encodeURIComponent(id)}`, {
+		method: "DELETE",
 	});
 }
