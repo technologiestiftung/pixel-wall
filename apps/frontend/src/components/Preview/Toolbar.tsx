@@ -1,8 +1,10 @@
+import { useControl } from "../../auth/ControlContext";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 
 export function Toolbar() {
 	const { layoutEditMode } = useWallState();
 	const dispatch = useWallDispatch();
+	const { isController } = useControl();
 
 	return (
 		<div className="flex items-center justify-between">
@@ -18,11 +20,12 @@ export function Toolbar() {
 					})
 				}
 				aria-pressed={layoutEditMode}
+				disabled={!isController && !layoutEditMode}
 				className={`whitespace-nowrap rounded-[8px] border px-[14px] py-2 text-[13px] font-medium ${
 					layoutEditMode
 						? "border-[#20201b] bg-[#20201b] text-white"
 						: "border-[#e4e4e0] bg-white text-[#4b4b47]"
-				}`}
+				} disabled:cursor-not-allowed disabled:opacity-40`}
 			>
 				{layoutEditMode ? "Layout fertig" : "Layout bearbeiten"}
 			</button>

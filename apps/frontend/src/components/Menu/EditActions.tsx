@@ -1,5 +1,18 @@
 import { useApplyChanges } from "../../state/useApplyChanges";
 
+function saveHint(
+	isController: boolean,
+	hasSelection: boolean,
+): string | undefined {
+	if (!isController) {
+		return "Ein anderes Gerät steuert gerade die Wand";
+	}
+	if (!hasSelection) {
+		return "Bildschirme auswählen und Inhalt bearbeiten, um zu speichern";
+	}
+	return undefined;
+}
+
 /** "Speichern" at the bottom of the edit panel — commits the draft(s) to the
  * physical screens. Until it is pressed, edits only show in the digital
  * preview and are discarded if left unsaved. */
@@ -11,6 +24,7 @@ export function EditActions() {
 		applyError,
 		handleApply,
 		hasSelection,
+		isController,
 	} = useApplyChanges();
 
 	return (
@@ -37,11 +51,7 @@ export function EditActions() {
 				type="button"
 				disabled={!canApply}
 				onClick={handleApply}
-				title={
-					hasSelection
-						? undefined
-						: "Bildschirme auswählen und Inhalt bearbeiten, um zu speichern"
-				}
+				title={saveHint(isController, hasSelection)}
 				className="w-full whitespace-nowrap rounded-[8px] bg-[#006fff] px-3 py-2.5 text-[13.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
 			>
 				{applyStatus === "pending" ? "Wird gespeichert…" : "Speichern"}

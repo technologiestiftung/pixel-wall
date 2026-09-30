@@ -1,3 +1,5 @@
+import { sessionId } from "./session";
+
 const API_URL = (
 	import.meta.env.VITE_API_URL ?? "http://localhost:5000"
 ).replace(/\/$/, "");
@@ -21,6 +23,16 @@ export function authHeader(password: string): string {
 	return `Basic ${btoa(`:${password}`)}`;
 }
 
+function errorMessage(status: number): string {
+	if (status === 401) {
+		return "Wrong password";
+	}
+	if (status === 423) {
+		return "Die Wand wird gerade von einem anderen Gerät gesteuert.";
+	}
+	return `Request failed with status ${status}`;
+}
+
 export async function apiFetch<T>(
 	path: string,
 	password: string | null,
@@ -37,6 +49,12 @@ export async function apiFetch<T>(
 		headers.set("Authorization", authHeader(password));
 	}
 
+	// Only writes are checked against the control lease, and a custom header
+	// on every GET would cost each poll a CORS preflight.
+	if (init.method !== undefined && init.method !== "GET") {
+		headers.set("X-Wall-Session", sessionId());
+	}
+
 	let response: Response;
 
 	try {
@@ -46,12 +64,7 @@ export async function apiFetch<T>(
 	}
 
 	if (!response.ok) {
-		throw new ApiError(
-			response.status,
-			response.status === 401
-				? "Wrong password"
-				: `Request failed with status ${response.status}`,
-		);
+		throw new ApiError(response.status, errorMessage(response.status));
 	}
 
 	return (await response.json()) as T;

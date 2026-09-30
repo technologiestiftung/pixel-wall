@@ -29,6 +29,10 @@ export const handlers = [
 		HttpResponse.json({ status: "ok", auth: { enabled: false } }),
 	),
 
+	http.post(`${API_BASE}/control`, () =>
+		HttpResponse.json({ controller: true }),
+	),
+
 	http.get(`${API_BASE}/screens`, () =>
 		HttpResponse.json({ screens: SCREEN_SPECS }),
 	),

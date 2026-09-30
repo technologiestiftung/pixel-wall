@@ -6,10 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
 from .auth import BasicAuthMiddleware
+from .control import SESSION_HEADER, ControlLeaseMiddleware, lease as control_lease
 from .models import (
     ApplyRequest,
     ApplyResponse,
     AuthStatus,
+    ControlRequest,
+    ControlResponse,
     HealthResponse,
     LayoutRequest,
     LayoutResponse,
@@ -48,6 +51,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(ControlLeaseMiddleware)
 app.add_middleware(BasicAuthMiddleware)
 
 # Added after the auth middleware so it wraps it: Starlette runs the
@@ -58,7 +62,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", SESSION_HEADER],
 )
 
 
@@ -114,6 +118,13 @@ def health() -> HealthResponse:
             last_error=publisher.last_error,
         ),
     )
+
+
+@app.post("/api/control", response_model=ControlResponse, tags=["system"])
+def post_control(payload: ControlRequest) -> ControlResponse:
+    """Claims or renews control of the wall for one browser session — the
+    editor calls it as a heartbeat. See app/control.py."""
+    return ControlResponse(controller=control_lease.claim(payload.sessionId, payload.takeover))
 
 
 @app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])

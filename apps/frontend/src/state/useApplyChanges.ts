@@ -1,6 +1,8 @@
 import { applyChanges } from "../api/wall";
 import { useAuth } from "../auth/AuthContext";
+import { useControl } from "../auth/ControlContext";
 import { buildApplyRequest } from "../domain/apply";
+import { ApiError } from "../lib/api";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import {
 	activeContentDrafts,
@@ -14,9 +16,10 @@ export function useApplyChanges() {
 	const { specs, layout, selection, applied, applyStatus, applyError } = state;
 	const dispatch = useWallDispatch();
 	const { request } = useAuth();
+	const { isController } = useControl();
 	const hasChanges = draftHasChanges(state);
 	const busy = applyStatus === "pending";
-	const canApply = !busy && hasChanges;
+	const canApply = !busy && hasChanges && isController;
 
 	/** The edits folded into what the selection already shows — this is what
 	 * keeps a Hintergrund change from flattening the text on top of it. The
@@ -55,10 +58,13 @@ export function useApplyChanges() {
 				layout,
 			});
 			return true;
-		} catch {
+		} catch (error) {
 			dispatch({
 				type: "apply-error",
-				message: "Änderungen konnten nicht übertragen werden.",
+				message:
+					error instanceof ApiError && error.status === 423
+						? error.message
+						: "Änderungen konnten nicht übertragen werden.",
 			});
 			return false;
 		}
@@ -71,5 +77,6 @@ export function useApplyChanges() {
 		applyError,
 		handleApply,
 		hasSelection: selection !== null,
+		isController,
 	};
 }

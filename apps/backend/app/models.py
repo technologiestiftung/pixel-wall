@@ -242,6 +242,18 @@ class AuthStatus(BaseModel):
     enabled: bool
 
 
+class ControlRequest(BaseModel):
+    sessionId: str = Field(min_length=8, max_length=128)
+    #: Take control even if another session holds it.
+    takeover: bool = False
+
+
+class ControlResponse(BaseModel):
+    #: Whether this session now controls the wall. False means another
+    #: session holds it and this one can only watch.
+    controller: bool
+
+
 class HealthResponse(BaseModel):
     status: str
     state_file: str
