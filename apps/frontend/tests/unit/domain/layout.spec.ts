@@ -1,8 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
-	areAdjacent,
 	displayScaleForKind,
-	gapBetweenMm,
 	MM_TO_PX,
 	pitchMmPerPx,
 	rectsOverlap,
@@ -47,26 +45,6 @@ describe("displayScaleForKind", () => {
 	});
 });
 
-describe("gapBetweenMm", () => {
-	test("is 0 for touching rects", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 100, heightMm: 100 };
-		const b = { xMm: 100, yMm: 0, widthMm: 100, heightMm: 100 };
-		expect(gapBetweenMm(a, b)).toBe(0);
-	});
-
-	test("measures the real gap along the axis the rects face each other on", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 100, heightMm: 100 };
-		const b = { xMm: 110, yMm: 0, widthMm: 100, heightMm: 100 };
-		expect(gapBetweenMm(a, b)).toBe(10);
-	});
-
-	test("is null for rects that don't face each other on either axis", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 100, heightMm: 100 };
-		const b = { xMm: 150, yMm: 150, widthMm: 100, heightMm: 100 };
-		expect(gapBetweenMm(a, b)).toBeNull();
-	});
-});
-
 describe("rectsOverlap", () => {
 	test("touching rects do not overlap", () => {
 		const a = { xMm: 0, yMm: 0, widthMm: 100, heightMm: 100 };
@@ -78,26 +56,6 @@ describe("rectsOverlap", () => {
 		const a = { xMm: 0, yMm: 0, widthMm: 100, heightMm: 100 };
 		const b = { xMm: 50, yMm: 50, widthMm: 100, heightMm: 100 };
 		expect(rectsOverlap(a, b)).toBe(true);
-	});
-});
-
-describe("areAdjacent", () => {
-	test("true within tolerance", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 192, heightMm: 192 };
-		const b = { xMm: 200, yMm: 0, widthMm: 192, heightMm: 192 };
-		expect(areAdjacent(a, b, 15)).toBe(true);
-	});
-
-	test("false beyond tolerance", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 192, heightMm: 192 };
-		const b = { xMm: 250, yMm: 0, widthMm: 192, heightMm: 192 };
-		expect(areAdjacent(a, b, 15)).toBe(false);
-	});
-
-	test("false for diagonally placed rects", () => {
-		const a = { xMm: 0, yMm: 0, widthMm: 192, heightMm: 192 };
-		const b = { xMm: 200, yMm: 200, widthMm: 192, heightMm: 192 };
-		expect(areAdjacent(a, b, 15)).toBe(false);
 	});
 });
 

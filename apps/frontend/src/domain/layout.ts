@@ -102,45 +102,6 @@ export function rectsOverlap(a: RectMm, b: RectMm): boolean {
 }
 
 /**
- * Real physical gap between two rects along whichever axis they face each
- * other on (0 if they overlap on that axis, e.g. stacked directly above one
- * another). Returns null if the rects don't face each other on either axis
- * (e.g. diagonal placement) — there is no single well-defined "gap" then.
- */
-export function gapBetweenMm(a: RectMm, b: RectMm): number | null {
-	const xOverlaps = a.xMm < b.xMm + b.widthMm && b.xMm < a.xMm + a.widthMm;
-	const yOverlaps = a.yMm < b.yMm + b.heightMm && b.yMm < a.yMm + a.heightMm;
-
-	if (xOverlaps && !yOverlaps) {
-		return a.yMm < b.yMm
-			? b.yMm - (a.yMm + a.heightMm)
-			: a.yMm - (b.yMm + b.heightMm);
-	}
-	if (yOverlaps && !xOverlaps) {
-		return a.xMm < b.xMm
-			? b.xMm - (a.xMm + a.widthMm)
-			: a.xMm - (b.xMm + b.widthMm);
-	}
-	if (xOverlaps && yOverlaps) {
-		return 0;
-	}
-	return null;
-}
-
-/**
- * Two screens count as adjacent (for selection-contiguity purposes) if they
- * face each other on one axis and the real gap between them is within a
- * tolerance, rather than requiring pixel-exact touching — dragged positions
- * are never perfectly precise, and a real physical gap between chained large
- * screens is expected (see CONTEXT.md "Text") and should still count as
- * contiguous. 60mm is a placeholder pending a real cable/mounting spec.
- */
-export function areAdjacent(a: RectMm, b: RectMm, toleranceMm = 60): boolean {
-	const gap = gapBetweenMm(a, b);
-	return gap !== null && gap >= 0 && gap <= toleranceMm;
-}
-
-/**
  * Whether placing `movingScreenId` at `candidate` would overlap any other
  * screen's current position — the only constraint layout-edit dragging
  * enforces (see CONTEXT.md "Layout": literal overlap is never physically

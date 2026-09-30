@@ -1,5 +1,10 @@
 import { PITCH_MM_PER_PX } from "../domain/layout";
-import { computeDisplayComposite } from "../domain/mapping";
+import {
+	computeDisplayComposite,
+	layersForGroup,
+	referenceScreenId,
+	selectionGroups,
+} from "../domain/mapping";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
 import type { Content, ScreenLayers } from "../domain/types";
 import type { AppliedRender, WallState } from "./reducer";
@@ -37,24 +42,36 @@ export function resolveScreenRender(
 	state: WallState,
 	screenId: string,
 ): AppliedRender | null {
-	const inSelection = state.selection?.screenIds.includes(screenId) ?? false;
 	const drafts = activeContentDrafts(state);
+	const group =
+		state.selection &&
+		selectionGroups(state.specs, state.selection).find((g) =>
+			g.screenIds.includes(screenId),
+		);
 
-	if (inSelection && drafts.length > 0 && state.selection) {
-		const devicePxPerMm = 1 / PITCH_MM_PER_PX[state.selection.kind];
+	if (state.selection && group && drafts.length > 0) {
+		const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
 		const composite = computeDisplayComposite(
 			{ specs: state.specs, positions: state.layout },
-			state.selection,
+			group,
 			devicePxPerMm,
 		);
 		const slot = composite.slots.find((s) => s.screenId === screenId);
 		if (slot) {
 			return {
 				// The edits folded into what this screen already shows, so a
-				// Hintergrund change keeps its text and vice versa.
-				layers: foldDrafts(
-					state.applied[screenId]?.layers ?? EMPTY_LAYERS,
-					drafts,
+				// Hintergrund change keeps its text and vice versa. A mixed
+				// selection is one picture, so it folds onto one shared base.
+				layers: layersForGroup(
+					foldDrafts(
+						state.applied[
+							state.selection.kind === "mixed"
+								? referenceScreenId(state.specs, state.selection)
+								: screenId
+						]?.layers ?? EMPTY_LAYERS,
+						drafts,
+					),
+					group,
 				),
 				compositeWidthPx: composite.widthPx,
 				compositeHeightPx: composite.heightPx,

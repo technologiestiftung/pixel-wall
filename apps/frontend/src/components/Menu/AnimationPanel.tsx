@@ -1,6 +1,6 @@
 import { TEMPLATES } from "../../domain/content";
 import { NO_ANIMATION_TEMPLATE_ID } from "../../domain/types";
-import type { AnimationContent, ScreenKind } from "../../domain/types";
+import type { AnimationContent, SelectionKind } from "../../domain/types";
 import { SelectedBadge } from "../../render/SelectedBadge";
 import { TemplateIcon } from "../../render/TemplateIcon";
 import { PlacementControls } from "./PlacementControls";
@@ -15,10 +15,10 @@ const MODES: { mode: AnimationContent["mode"]; label: string }[] = [
 interface AnimationPanelProps {
 	content: AnimationContent;
 	onChange: (content: AnimationContent) => void;
-	/** Game of Life is offered only for small (ESP32) selections — it runs
-	 * natively there and has no equivalent on the Pi-driven large screens
-	 * (see CONTEXT.md "Content" — Game of Life). */
-	screenKind: ScreenKind;
+	/** Game of Life is offered only for small-only (ESP32) selections — it
+	 * runs natively there and has no equivalent on the Pi-driven large
+	 * screens (see CONTEXT.md "Content" — Game of Life). */
+	screenKind: SelectionKind;
 }
 
 export function AnimationPanel({

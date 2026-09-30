@@ -1,4 +1,5 @@
 import { defaultContentFor } from "../../domain/content";
+import { referenceScreenId } from "../../domain/mapping";
 import { EMPTY_LAYERS } from "../../domain/types";
 import type {
 	AnimationContent,
@@ -32,8 +33,11 @@ export function Menu() {
 	const dispatch = useWallDispatch();
 	const { handleApply } = useApplyChanges();
 
-	const appliedLayers = selection
-		? (state.applied[selection.screenIds[0]]?.layers ?? EMPTY_LAYERS)
+	const referenceId = selection
+		? referenceScreenId(state.specs, selection)
+		: null;
+	const appliedLayers = referenceId
+		? (state.applied[referenceId]?.layers ?? EMPTY_LAYERS)
 		: EMPTY_LAYERS;
 	const appliedForeground = appliedLayers.foreground;
 
@@ -49,7 +53,9 @@ export function Menu() {
 			case "animation":
 				return (
 					draftAnimation ??
-					(appliedForeground?.type === "animation"
+					(appliedForeground?.type === "animation" &&
+					(appliedForeground.mode !== "gameOfLife" ||
+						selection?.kind === "small")
 						? appliedForeground
 						: defaultContentFor("animation"))
 				);
@@ -69,9 +75,8 @@ export function Menu() {
 	// What the selection is actually about to show — drafts folded over
 	// whatever's already applied (see resolveScreenRender) — so these warnings
 	// track the live preview rather than just this tab's own draft.
-	const previewLayers = selection
-		? (resolveScreenRender(state, selection.screenIds[0])?.layers ??
-			EMPTY_LAYERS)
+	const previewLayers = referenceId
+		? (resolveScreenRender(state, referenceId)?.layers ?? EMPTY_LAYERS)
 		: EMPTY_LAYERS;
 	const previewForeground = previewLayers.foreground;
 	const textInvisibleOnBackground =
