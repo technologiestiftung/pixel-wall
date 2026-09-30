@@ -160,7 +160,20 @@ export interface LibraryUpload extends UploadedMedia {
 	createdAt: string;
 }
 
+/** "mixed" is a selection spanning both kinds — see `selectionGroups` for
+ * how it is split up for rendering and saving. */
+export type SelectionKind = ScreenKind | "mixed";
+
 export interface Selection {
+	kind: SelectionKind;
+	screenIds: string[];
+}
+
+/** The single-kind slice of a selection that is rendered as one unit. */
+export interface SelectionGroup {
 	kind: ScreenKind;
 	screenIds: string[];
+	/** Set when the group is only part of a mixed selection: the canvas then
+	 * spans every screen listed here, not just this group's own. */
+	canvasScreenIds?: string[];
 }

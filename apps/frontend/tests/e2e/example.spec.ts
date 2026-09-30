@@ -106,7 +106,7 @@ test("composite bitmaps render at their true natural size, not shrunk by the bro
 	}
 });
 
-test("shift+click adds an adjacent large screen; a plain click on either replaces the selection", async ({
+test("shift+click adds a large screen; a plain click on either replaces the selection", async ({
 	page,
 }) => {
 	await page.goto("/");
@@ -187,7 +187,7 @@ test("saving goes through a real network round-trip, not just local state", asyn
 	expect(state.screens["03"].content.bitmap).toBe(body.content.bitmap);
 });
 
-test("shift+clicking a screen of the other kind is rejected, not merged", async ({
+test("shift+clicking a screen of the other kind adds it to the selection", async ({
 	page,
 }) => {
 	await page.goto("/");
@@ -195,15 +195,10 @@ test("shift+clicking a screen of the other kind is rejected, not merged", async 
 	await page.getByRole("button", { name: /Bildschirm 1/ }).click();
 	await expect(page.getByText("Bildschirm 1 ausgewählt")).toBeVisible();
 
-	// 04 is large, 01 is small — shift+click can't mix kinds, so this is a
-	// no-op: the small-screen selection is left exactly as it was.
 	await page
 		.getByRole("button", { name: /Bildschirm 4/ })
 		.click({ modifiers: ["Shift"] });
-	await expect(page.getByText("Bildschirm 1 ausgewählt")).toBeVisible();
-	await expect(
-		page.getByRole("button", { name: /Bildschirm 1/ }),
-	).toHaveAttribute("aria-pressed", "true");
+	await expect(page.getByText("Bildschirme 1 und 4 ausgewählt")).toBeVisible();
 });
 
 test("layout edit mode disables selection and shows the drag instructions", async ({

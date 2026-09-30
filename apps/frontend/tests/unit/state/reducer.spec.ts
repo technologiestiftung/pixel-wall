@@ -95,6 +95,45 @@ describe("wallReducer: hydrated", () => {
 		expect(next.applied["04"]?.compositeWidthPx).toBe(32);
 	});
 
+	test("restores a screen's slice of the shared canvas from source, not the backend's crop", () => {
+		// The backend stores only each screen's own 32×32 crop at offset 0, so
+		// without source.canvas every screen would redraw the whole picture.
+		const remote: StateResponse["screens"] = {
+			"02": {
+				window: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
+				content: wireContent(),
+				source: {
+					background: "#FE4441",
+					foreground: null,
+					canvas: {
+						widthPx: 160,
+						heightPx: 110,
+						windows: {
+							"01": { offsetXPx: 125, offsetYPx: 0 },
+							"02": { offsetXPx: 0, offsetYPx: 22 },
+						},
+					},
+				},
+			},
+		};
+
+		const next = wallReducer(initialWallState, {
+			type: "hydrated",
+			specs: SCREEN_SPECS,
+			layout: DEFAULT_LAYOUT,
+			remote,
+		});
+
+		expect(next.applied["02"]).toEqual({
+			layers: { background: "#FE4441", foreground: null },
+			compositeWidthPx: 160,
+			compositeHeightPx: 110,
+			offsetXPx: 0,
+			offsetYPx: 22,
+			bitmap: null,
+		});
+	});
+
 	test("uses scroll.compositeWidthPx, not the filmstrip's widthPx, for Lauftext", () => {
 		const remote: StateResponse["screens"] = {
 			"04": {
@@ -200,7 +239,7 @@ describe("wallReducer: toggle-screen", () => {
 		expect(withSeven.selection).toEqual({ kind: "large", screenIds: ["07"] });
 	});
 
-	test("shift+click adds an adjacent same-kind screen to the selection", () => {
+	test("shift+click adds a screen to the selection", () => {
 		const withFour = wallReducer(initialWallState, {
 			type: "request-intent",
 			intent: { kind: "toggle-screen", screenId: "04", additive: false },
@@ -228,16 +267,43 @@ describe("wallReducer: toggle-screen", () => {
 		expect(backToOne.selection).toEqual({ kind: "large", screenIds: ["04"] });
 	});
 
-	test("shift+click that would mix kinds or break contiguity is a no-op", () => {
+	test("shift+click adds a non-adjacent large screen", () => {
+		const withFive = wallReducer(initialWallState, {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "05", additive: false },
+		});
+		const withBoth = wallReducer(withFive, {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "06", additive: true },
+		});
+		expect(withBoth.selection).toEqual({
+			kind: "large",
+			screenIds: ["05", "06"],
+		});
+	});
+
+	test("shift+click can mix small and large screens", () => {
 		const withSmall = wallReducer(initialWallState, {
 			type: "request-intent",
 			intent: { kind: "toggle-screen", screenId: "01", additive: false },
 		});
-		const attempted = wallReducer(withSmall, {
+		const mixed = wallReducer(withSmall, {
 			type: "request-intent",
 			intent: { kind: "toggle-screen", screenId: "04", additive: true },
 		});
-		expect(attempted.selection).toEqual({ kind: "small", screenIds: ["01"] });
+		expect(mixed.selection).toEqual({
+			kind: "mixed",
+			screenIds: ["01", "04"],
+		});
+
+		const backToLarge = wallReducer(mixed, {
+			type: "request-intent",
+			intent: { kind: "toggle-screen", screenId: "01", additive: true },
+		});
+		expect(backToLarge.selection).toEqual({
+			kind: "large",
+			screenIds: ["04"],
+		});
 	});
 
 	test("a click with an unsaved draft is held back for confirmation", () => {

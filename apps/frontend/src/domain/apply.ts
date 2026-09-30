@@ -1,24 +1,29 @@
 import type { ApplyRequest, ScrollDto } from "../api/types";
 import { LOOP_PAUSE_MS } from "./content";
 import { PITCH_MM_PER_PX, specById } from "./layout";
-import { computeDisplayComposite } from "./mapping";
-import type { Content, LayoutPosition, ScreenSpec, Selection } from "./types";
+import { computeDisplayComposite, layersForGroup } from "./mapping";
+import type {
+	Content,
+	LayoutPosition,
+	ScreenSpec,
+	SelectionGroup,
+} from "./types";
 import { measureTextWidthPx } from "../render/text";
 import { layersToWire } from "../render/layers";
 import type { ScreenLayers } from "./types";
 
 /**
- * Builds the wire payload for POST /api/apply: one device-pixel bitmap for the
- * whole selection (or, for scrolling text, a "filmstrip" as wide as the full
+ * Builds the wire payload for POST /api/apply: one device-pixel bitmap for a
+ * single-kind selection group (or, for scrolling text, a "filmstrip" as wide as the full
  * text) plus each selected screen's window into it. See CONTEXT.md
  * "Rendering split" and docs/wire-format.md for the contract this targets.
  */
 export async function buildApplyRequest(
 	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
-	selection: Selection,
+	selection: SelectionGroup,
 	edit: { layers: ScreenLayers },
 ): Promise<ApplyRequest> {
-	const { layers } = edit;
+	const layers = layersForGroup(edit.layers, selection);
 	// Only the foreground decides the bitmap's shape (a scrolling filmstrip is
 	// wider than the composite); a lone background fills whatever it is given.
 	const content: Content = layers.foreground ?? {
@@ -67,6 +72,18 @@ export async function buildApplyRequest(
 			{ widthPx: bitmapWidthPx, heightPx: bitmapHeightPx },
 			{ scroll },
 		),
-		source: layers,
+		source: {
+			...layers,
+			canvas: {
+				widthPx: composite.widthPx,
+				heightPx: composite.heightPx,
+				windows: Object.fromEntries(
+					composite.slots.map((slot) => [
+						slot.screenId,
+						{ offsetXPx: slot.offsetXPx, offsetYPx: slot.offsetYPx },
+					]),
+				),
+			},
+		},
 	};
 }

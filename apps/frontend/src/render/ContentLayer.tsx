@@ -82,9 +82,7 @@ export function ContentLayer({ render }: ContentLayerProps) {
 	// branch below since a gameOfLife AnimationContent's `templateId` is a
 	// meaningless placeholder value, not a real template to look up.
 	if (foreground?.type === "animation" && foreground.mode === "gameOfLife") {
-		return (
-			<GameOfLifePlaceholder offsetXPx={offsetXPx} offsetYPx={offsetYPx} />
-		);
+		return <GameOfLifePlaceholder />;
 	}
 
 	const timing =
@@ -116,21 +114,15 @@ export function ContentLayer({ render }: ContentLayerProps) {
 }
 
 /** Static stand-in for a screen currently running Game of Life — see the
- * comment above where this is used. Always the whole tile at offset zero:
- * small screens never combine into a shared composite (CONTEXT.md
- * "Selection"), so there is never a crop to apply here. */
-function GameOfLifePlaceholder({
-	offsetXPx,
-	offsetYPx,
-}: {
-	offsetXPx: number;
-	offsetYPx: number;
-}) {
+ * comment above where this is used. Always the whole tile, ignoring the
+ * screen's window: every screen runs its own board rather than a slice of a
+ * shared picture (see CONTEXT.md "Content" — Game of Life). */
+function GameOfLifePlaceholder() {
 	return (
 		<Bitmap
 			src="/visuals/game-of-life-placeholder.svg"
-			offsetXPx={offsetXPx}
-			offsetYPx={offsetYPx}
+			offsetXPx={0}
+			offsetYPx={0}
 		/>
 	);
 }

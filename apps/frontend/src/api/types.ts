@@ -83,6 +83,21 @@ export interface GameOfLifeContentDto {
 
 export type WireContentDto = BitmapContentDto | GameOfLifeContentDto;
 
+/**
+ * Where each screen sat within the canvas its content was rendered for. The
+ * backend crops what it stores down to each screen's own window, so without
+ * this a reloaded editor would redraw the whole picture on every screen.
+ */
+export interface SourceCanvasDto {
+	widthPx: number;
+	heightPx: number;
+	windows: Record<string, { offsetXPx: number; offsetYPx: number }>;
+}
+
+export interface SourceDto extends ScreenLayers {
+	canvas?: SourceCanvasDto;
+}
+
 export interface StateResponse {
 	layout: LayoutPositionDto[];
 	screens: Record<
@@ -90,7 +105,7 @@ export interface StateResponse {
 		{
 			window: ScreenWindowDto;
 			content: WireContentDto;
-			source?: ScreenLayers | null;
+			source?: SourceDto | null;
 		}
 	>;
 	updated_at: string;
@@ -102,7 +117,7 @@ export interface ApplyRequest {
 	content: WireContentDto;
 	/** The editor's layers behind `content`. Stored verbatim by the backend and
 	 * never rendered from — see domain/types.ts ScreenLayers. */
-	source?: ScreenLayers;
+	source?: SourceDto;
 }
 
 export interface ApplyResponse {
