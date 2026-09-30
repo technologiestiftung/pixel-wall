@@ -53,7 +53,7 @@ def add_upload(request: UploadRequest) -> dict[str, Any]:
         entry = UploadModel(
             **request.model_dump(),
             id=upload_id,
-            createdAt=datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            createdAt=datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z"),
         ).model_dump()
         png = base64.b64decode(entry["sheetDataUrl"][len(_DATA_URL_PREFIX):], validate=True)
 
