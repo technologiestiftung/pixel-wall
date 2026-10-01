@@ -232,12 +232,25 @@ def test_a_temperature_change_alone_reapplies(api, forecast, monkeypatch):
 
 def test_layout_follows_alignment_and_padding(api, forecast):
     forecast("clear-day")
-    temperature_apply(api, hAlign="right", vAlign="bottom", paddingPx=0)
+    temperature_apply(api, hAlign="right", vAlign="bottom")
 
     assert shown_image(api).to_rows() == [
         "000001000001",
         "000222000222",
         "000222000222",
+    ]
+
+
+def test_each_axis_has_its_own_padding(api, forecast):
+    """1px in from the right, flush with the top: the 6-wide frame leaves
+    "18°" (3 wide) starting at x=2."""
+    forecast("clear-day")
+    temperature_apply(api, hAlign="right", vAlign="top", paddingXPx=1, paddingYPx=0)
+
+    assert shown_image(api).to_rows() == [
+        "002221002221",
+        "002220002220",
+        "000000000000",
     ]
 
 

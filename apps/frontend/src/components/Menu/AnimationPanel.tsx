@@ -221,11 +221,20 @@ function TemperatureControls({ content, onChange }: TemperatureControlsProps) {
 						onChangeHAlign={(hAlign) => update({ hAlign })}
 						onChangeVAlign={(vAlign) => update({ vAlign })}
 					/>
-					<PaddingField
-						id="temperature-padding"
-						value={style.paddingPx}
-						onChange={(paddingPx) => update({ paddingPx })}
-					/>
+					<div className="flex gap-2.5">
+						<PaddingField
+							id="temperature-padding-x"
+							label="Abstand links/rechts"
+							value={style.paddingXPx}
+							onChange={(paddingXPx) => update({ paddingXPx })}
+						/>
+						<PaddingField
+							id="temperature-padding-y"
+							label="Abstand oben/unten"
+							value={style.paddingYPx}
+							onChange={(paddingYPx) => update({ paddingYPx })}
+						/>
+					</div>
 				</>
 			)}
 		</div>

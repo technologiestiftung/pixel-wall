@@ -152,7 +152,8 @@ export interface TemperatureDto {
 	color: [number, number, number];
 	hAlign: "left" | "center" | "right";
 	vAlign: "top" | "center" | "bottom";
-	paddingPx: number;
+	paddingXPx: number;
+	paddingYPx: number;
 }
 
 /** GET /api/weather — the backend's latest Bright Sky reading. Every field is

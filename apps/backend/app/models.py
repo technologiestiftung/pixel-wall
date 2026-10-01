@@ -238,7 +238,8 @@ class TemperatureModel(BaseModel):
     color: list[int]
     hAlign: Literal["left", "center", "right"] = "center"
     vAlign: Literal["top", "center", "bottom"] = "bottom"
-    paddingPx: int = Field(default=0, ge=0, le=255)
+    paddingXPx: int = Field(default=0, ge=0, le=255)
+    paddingYPx: int = Field(default=0, ge=0, le=255)
 
     @field_validator("color")
     @classmethod

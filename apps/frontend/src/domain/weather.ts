@@ -31,7 +31,8 @@ export const DEFAULT_TEMPERATURE_STYLE: TemperatureStyle = {
 	color: "#FFFFFF",
 	hAlign: "center",
 	vAlign: "bottom",
-	paddingPx: 2,
+	paddingXPx: 2,
+	paddingYPx: 2,
 };
 
 /** Shown until the backend has fetched the weather for the first time. */

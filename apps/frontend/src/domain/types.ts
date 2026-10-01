@@ -84,7 +84,10 @@ export interface TemperatureStyle {
 	color: string;
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
-	paddingPx: number;
+	/** Inset from the left/right edge `hAlign` pushes toward, and from the
+	 * top/bottom edge `vAlign` does. Ignored on a centred axis, as for Text. */
+	paddingXPx: number;
+	paddingYPx: number;
 }
 
 /**

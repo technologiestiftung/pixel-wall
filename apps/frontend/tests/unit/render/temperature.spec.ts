@@ -31,21 +31,31 @@ describe("formatTemperature", () => {
 });
 
 describe("layoutTemperature", () => {
-	test("bottom-centre, inset by the padding vertically only", () => {
+	test("bottom-centre ignores the horizontal padding, keeps the vertical one", () => {
 		// "18°" is 9px wide: (64 - 9) / 2 = 27.5 rounds up, like the backend.
 		expect(
-			layout("18°", { hAlign: "center", vAlign: "bottom", paddingPx: 2 }),
+			layout("18°", {
+				hAlign: "center",
+				vAlign: "bottom",
+				paddingXPx: 5,
+				paddingYPx: 2,
+			}),
 		).toEqual({
 			x: 28,
 			y: 64 - 5 - 2,
 		});
 	});
 
-	test("top-right, inset from both edges", () => {
+	test("top-right, inset by each axis's own padding", () => {
 		expect(
-			layout("-3°", { hAlign: "right", vAlign: "top", paddingPx: 1 }),
+			layout("-3°", {
+				hAlign: "right",
+				vAlign: "top",
+				paddingXPx: 4,
+				paddingYPx: 1,
+			}),
 		).toEqual({
-			x: 64 - 9 - 1,
+			x: 64 - 9 - 4,
 			y: 1,
 		});
 	});

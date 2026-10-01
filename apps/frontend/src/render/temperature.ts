@@ -96,10 +96,10 @@ export function layoutTemperature(
 	const heightPx = glyphs[chars[0]].heightPx;
 	return {
 		x: Math.round(
-			alignOffset(style.hAlign, frame.widthPx, widthPx, style.paddingPx),
+			alignOffset(style.hAlign, frame.widthPx, widthPx, style.paddingXPx),
 		),
 		y: Math.round(
-			alignOffset(style.vAlign, frame.heightPx, heightPx, style.paddingPx),
+			alignOffset(style.vAlign, frame.heightPx, heightPx, style.paddingYPx),
 		),
 	};
 }
@@ -143,6 +143,7 @@ export async function temperatureToWire(
 		color: hexToRgb(style.color),
 		hAlign: style.hAlign,
 		vAlign: style.vAlign,
-		paddingPx: style.paddingPx,
+		paddingXPx: style.paddingXPx,
+		paddingYPx: style.paddingYPx,
 	};
 }

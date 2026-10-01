@@ -149,8 +149,8 @@ def stamp_temperature(
     frame_count = content.frames.frameCount if content.frames else 1
     text_width = sum(glyph.width_px for glyph in glyphs)
     text_height = glyphs[0].height_px
-    origin_x = _align(temperature.hAlign, frame_width, text_width, temperature.paddingPx)
-    origin_y = _align(temperature.vAlign, image.height_px, text_height, temperature.paddingPx)
+    origin_x = _align(temperature.hAlign, frame_width, text_width, temperature.paddingXPx)
+    origin_y = _align(temperature.vAlign, image.height_px, text_height, temperature.paddingYPx)
     index = _palette_index(image, tuple(temperature.color))
 
     for frame in range(frame_count):

@@ -9,6 +9,10 @@ interface NumberFieldProps {
 	onChange: (value: number) => void;
 }
 
+interface PaddingFieldProps extends NumberFieldProps {
+	label?: string;
+}
+
 export function FontSizeField({ id, value, onChange }: NumberFieldProps) {
 	return (
 		<PxField
@@ -22,11 +26,16 @@ export function FontSizeField({ id, value, onChange }: NumberFieldProps) {
 	);
 }
 
-export function PaddingField({ id, value, onChange }: NumberFieldProps) {
+export function PaddingField({
+	id,
+	value,
+	onChange,
+	label = "Abstand zum Rand",
+}: PaddingFieldProps) {
 	return (
 		<PxField
 			id={id}
-			label="Abstand zum Rand"
+			label={label}
 			min={0}
 			max={8}
 			value={value}

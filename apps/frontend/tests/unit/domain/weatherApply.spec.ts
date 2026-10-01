@@ -86,7 +86,8 @@ describe("buildApplyRequest for live weather", () => {
 			color: [254, 68, 65],
 			hAlign: "center",
 			vAlign: "bottom",
-			paddingPx: 2,
+			paddingXPx: 2,
+			paddingYPx: 2,
 		});
 	});
 
