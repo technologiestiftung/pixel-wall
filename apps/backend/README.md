@@ -372,6 +372,28 @@ Returns `{ "appliedAt": "2026-09-16T09:31:00Z" }`.
   `app/config.py` (`BRIGHTNESS`: small 50%, large 100%) and sent to the ESP32
   in the MQTT envelope.
 - Screens outside `screens[]` keep whatever they were showing.
+- **Live weather** adds `"weather": { "variants": { "sunny": {…}, "rainy-6": {…}, … }, "temperature": {…} }`:
+  the same content rendered once per weather icon, plus (optionally) a `mask1`
+  glyph for each of `0123456789-°` with a colour and alignment. See
+  [Live weather](#live-weather).
+
+### Live weather
+
+`app/weather.py` fetches [Bright Sky](https://brightsky.dev/docs/#/operations/getCurrentWeather)
+(DWD data, no API key) every 10 minutes for `LEDWALL_WEATHER_LAT`/`LEDWALL_WEATHER_LON`
+(default: CityLAB Berlin, which resolves to the Berlin-Tempelhof station).
+When the icon or the rounded temperature changes, it re-applies the matching
+variant, with the temperature stamped into every frame from the editor's
+glyphs, to every screen still showing weather. That writes the state file and publishes to MQTT exactly
+as `POST /api/apply` would, so neither panel driver knows anything about
+weather.
+
+The variants live in `weather.json` next to the state file
+(`LEDWALL_WEATHER_FILE`), not in the state file itself, because `pi_display.py`
+re-reads the state file several times a second. Any later apply to a screen
+takes it out of its weather group. `GET /api/weather` returns the latest
+reading (all fields `null` until the first fetch succeeds), and `GET /api/health`
+reports `weather.last_error`. Set `LEDWALL_WEATHER_ENABLED=0` to stop fetching.
 
 ### Validation
 

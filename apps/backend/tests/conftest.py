@@ -19,6 +19,8 @@ def api(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "PASSWORD", None)
     monkeypatch.setattr(config, "AUTH_ENABLED", False)
     monkeypatch.setattr(config, "MQTT_ENABLED", False)
+    monkeypatch.setattr(config, "WEATHER_ENABLED", False)
+    monkeypatch.setattr(config, "WEATHER_FILE", tmp_path / "weather.json")
     lease.reset()
 
     with TestClient(app) as client:

@@ -8,6 +8,7 @@ Phase B, "Where the slicing happens".
 """
 
 import base64
+from typing import Optional
 
 from .mask import (
     Mask,
@@ -18,7 +19,16 @@ from .mask import (
     pal4_stride_for,
     stride_for,
 )
-from .models import ContentModel, FramesModel, ScreenKind, ScreenWindow
+from . import config
+from .models import (
+    ApplyTarget,
+    ContentModel,
+    FramesModel,
+    ScreenKind,
+    ScreenStateModel,
+    ScreenWindow,
+    WallState,
+)
 from .wire import Frames, Scroll, ScreenFrame, Window
 
 #: Scrolling content and an animated Animation/Bild template's frame strip are
@@ -172,3 +182,23 @@ def frame_for_screen(
         background=tuple(content.background) if content.background is not None else None,
         brightness=brightness,
     )
+
+
+def apply_to_screens(
+    state: WallState,
+    kind: ScreenKind,
+    targets: list[ApplyTarget],
+    content: ContentModel,
+    source: Optional[dict],
+) -> dict[str, ScreenFrame]:
+    """Writes `content` into `state` for each target screen, and returns the
+    MQTT frame each of them should now be sent."""
+    brightness = config.BRIGHTNESS[kind]
+    frames = {}
+    for target in targets:
+        sliced, window = slice_for_screen(content, target.window, kind)
+        state.screens[target.screenId] = ScreenStateModel(
+            window=window, content=sliced, source=source
+        )
+        frames[target.screenId] = frame_for_screen(sliced, window, brightness)
+    return frames

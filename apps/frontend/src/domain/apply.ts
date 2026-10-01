@@ -3,6 +3,7 @@ import { LOOP_PAUSE_MS } from "./content";
 import { PITCH_MM_PER_PX, specById } from "./layout";
 import { computeDisplayComposite, layersForGroup } from "./mapping";
 import type {
+	AnimationContent,
 	Content,
 	LayoutPosition,
 	ScreenSpec,
@@ -10,6 +11,9 @@ import type {
 } from "./types";
 import { measureTextWidthPx } from "../render/text";
 import { layersToWire } from "../render/layers";
+import { temperatureToWire } from "../render/temperature";
+import { asWeatherUpload, loadWeatherMedia } from "../render/weatherMedia";
+import { DEFAULT_WEATHER_VARIANT, WEATHER_VARIANTS } from "./weather";
 import type { ScreenLayers } from "./types";
 
 /**
@@ -53,6 +57,12 @@ export async function buildApplyRequest(
 		};
 	}
 
+	const size = { widthPx: bitmapWidthPx, heightPx: bitmapHeightPx };
+	const weather =
+		content.type === "animation" && content.mode === "weather"
+			? await weatherVariantsToWire(layers, content, size)
+			: undefined;
+
 	return {
 		selectionKind: selection.kind,
 		screens: composite.slots.map((slot) => {
@@ -67,11 +77,10 @@ export async function buildApplyRequest(
 				},
 			};
 		}),
-		content: await layersToWire(
-			layers,
-			{ widthPx: bitmapWidthPx, heightPx: bitmapHeightPx },
-			{ scroll },
-		),
+		content:
+			weather?.variants[DEFAULT_WEATHER_VARIANT] ??
+			(await layersToWire(layers, size, { scroll })),
+		...(weather ? { weather } : {}),
 		source: {
 			...layers,
 			canvas: {
@@ -85,5 +94,30 @@ export async function buildApplyRequest(
 				),
 			},
 		},
+	};
+}
+
+/** Live weather renders every icon, not just today's: the backend switches
+ * between them on its own long after this request (see ApplyRequest.weather). */
+async function weatherVariantsToWire(
+	layers: ScreenLayers,
+	content: AnimationContent,
+	size: { widthPx: number; heightPx: number },
+): Promise<NonNullable<ApplyRequest["weather"]>> {
+	const entries = await Promise.all(
+		WEATHER_VARIANTS.map(async (variant) => {
+			const media = await loadWeatherMedia(variant);
+			const wire = await layersToWire(
+				{ ...layers, foreground: asWeatherUpload(content, media) },
+				size,
+			);
+			return [variant, wire] as const;
+		}),
+	);
+	return {
+		variants: Object.fromEntries(entries),
+		...(content.temperature
+			? { temperature: await temperatureToWire(content.temperature) }
+			: {}),
 	};
 }

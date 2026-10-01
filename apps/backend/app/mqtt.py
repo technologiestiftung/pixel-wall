@@ -3,7 +3,7 @@ import threading
 from typing import Any, Optional
 
 from . import config
-from .wire import topic_for
+from .wire import ScreenFrame, encode_frame, topic_for
 
 logger = logging.getLogger(__name__)
 
@@ -105,3 +105,12 @@ class MqttPublisher:
 
 
 publisher = MqttPublisher()
+
+
+def publish_frames(frames: dict[str, ScreenFrame]) -> None:
+    for screen_id, frame in frames.items():
+        if not publisher.publish_screen(screen_id, encode_frame(frame)):
+            logger.warning(
+                "screen %s written but MQTT publish failed; state file is still authoritative",
+                screen_id,
+            )

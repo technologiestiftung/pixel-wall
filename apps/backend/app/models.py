@@ -11,7 +11,7 @@ from pydantic import (
 )
 
 from . import config
-from .mask import MaskFormatError, decode_block
+from .mask import MaskFormatError, Palette4, decode_block
 from .screens import DEFAULT_LAYOUT, SCREEN_IDS
 
 ScreenKind = Literal["small", "large"]
@@ -201,6 +201,84 @@ class ApplyTarget(BaseModel):
         return value
 
 
+#: One per icon under apps/frontend/public/weather/ — app/weather.py maps
+#: Bright Sky's icon names onto these.
+WeatherVariant = Literal[
+    "sunny",
+    "night",
+    "cloudy-day-1",
+    "cloudy-night-3",
+    "cloudy",
+    "fog",
+    "rainy-6",
+    "rainy-7",
+    "snowy-5",
+    "snowy-6",
+    "thunder",
+]
+
+
+#: Every character a temperature reading can need, e.g. "-3°".
+TEMPERATURE_GLYPHS = "0123456789-°"
+
+
+class TemperatureModel(BaseModel):
+    """How to draw the current temperature over a weather variant.
+
+    The editor renders each of TEMPERATURE_GLYPHS once, in the user's chosen
+    font and size, as a `mask1` block (all the same height), and the backend
+    lines up whichever ones the current reading needs — so the wall's text
+    is in the editor's own fonts without the backend ever rendering text.
+    app/weather.py `stamp_temperature` and the frontend's
+    render/temperature.ts must lay a reading out identically."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    glyphs: dict[str, str]
+    color: list[int]
+    hAlign: Literal["left", "center", "right"] = "center"
+    vAlign: Literal["top", "center", "bottom"] = "bottom"
+    paddingPx: int = Field(default=0, ge=0, le=255)
+
+    @field_validator("color")
+    @classmethod
+    def _rgb(cls, value: list[int]) -> list[int]:
+        return _validate_rgb(value, "color")
+
+    @field_validator("glyphs")
+    @classmethod
+    def _every_glyph(cls, value: dict[str, str]) -> dict[str, str]:
+        if set(value) != set(TEMPERATURE_GLYPHS):
+            raise ValueError(f"glyphs must be exactly {TEMPERATURE_GLYPHS!r}")
+        heights = set()
+        for char, data in value.items():
+            try:
+                glyph = decode_block(base64.b64decode(data, validate=True))
+            except (binascii.Error, ValueError, MaskFormatError) as error:
+                raise ValueError(f"glyph {char!r} is not a valid bitmap block: {error}") from error
+            if isinstance(glyph, Palette4):
+                raise ValueError(f"glyph {char!r} must be mask1")
+            heights.add(glyph.height_px)
+        if len(heights) != 1:
+            raise ValueError("glyphs must all be the same height")
+        return value
+
+
+class WeatherRequest(BaseModel):
+    """The same weather content rendered once per icon, so the backend can
+    switch between them without the editor — see app/weather.py.
+
+    Not decoded on the way in, unlike ApplyRequest.content: each is a full
+    animation strip, and decoding ten of them in pure Python would hold the
+    request for a long time on the Pi. A variant that fails to decode is
+    caught when it is first shown, and the screen keeps its previous frame."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    variants: dict[WeatherVariant, ContentModel] = Field(min_length=1)
+    temperature: Optional[TemperatureModel] = None
+
+
 class ApplyRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -209,6 +287,9 @@ class ApplyRequest(BaseModel):
     content: ContentModel
     #: Editor-only layer description stored verbatim — see ScreenStateModel.
     source: Optional[dict] = None
+    #: Present only for live weather content. `content` is then just the
+    #: variant to show when the current weather isn't known yet.
+    weather: Optional[WeatherRequest] = None
 
     @field_validator("content")
     @classmethod
@@ -228,6 +309,47 @@ class ApplyRequest(BaseModel):
 
 class ApplyResponse(BaseModel):
     appliedAt: str
+
+
+class WeatherGroup(BaseModel):
+    """One weather apply, kept so it can be re-applied with another variant.
+    `screens` shrinks as later applies take screens over."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    selectionKind: ScreenKind
+    screens: list[ApplyTarget]
+    source: Optional[dict] = None
+    variants: dict[WeatherVariant, ContentModel]
+    temperature: Optional[TemperatureModel] = None
+    #: What the screens show now: the variant, and the whole degrees drawn
+    #: over it. None until the weather (or temperature) is known.
+    active: Optional[WeatherVariant] = None
+    activeTemperature: Optional[int] = None
+
+
+class WeatherStore(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    groups: list[WeatherGroup] = Field(default_factory=list)
+
+
+class WeatherResponse(BaseModel):
+    """The latest Bright Sky reading. Every field is None until the first
+    fetch succeeds."""
+
+    variant: Optional[WeatherVariant] = None
+    icon: Optional[str] = None
+    condition: Optional[str] = None
+    temperature: Optional[float] = None
+    observedAt: Optional[str] = None
+    station: Optional[str] = None
+
+
+class WeatherStatus(BaseModel):
+    enabled: bool
+    observedAt: Optional[str] = None
+    last_error: Optional[str] = None
 
 
 class MqttStatus(BaseModel):
@@ -261,6 +383,7 @@ class HealthResponse(BaseModel):
     updated_at: Optional[str] = None
     auth: AuthStatus
     mqtt: MqttStatus
+    weather: WeatherStatus
 
 
 class UploadRequest(BaseModel):

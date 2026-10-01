@@ -3,16 +3,26 @@ import { LOOP_PAUSE_MS } from "../domain/content";
 import type {
 	AnimationContent,
 	ScreenLayers,
+	TemperatureStyle,
 	TextContent,
+	UploadedMedia,
 } from "../domain/types";
+import { DEFAULT_WEATHER_VARIANT } from "../domain/weather";
 import type { AppliedRender } from "../state/reducer";
+import { useCurrentWeather } from "../state/useCurrentWeather";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { useFontsVersion } from "./fonts";
 import { rasterizeContent } from "./rasterize";
+import {
+	drawTemperature,
+	formatTemperature,
+	renderTemperatureGlyphs,
+} from "./temperature";
 import { measureTextWidthPx } from "./text";
 import { useTemplateImagesVersion } from "./templateImages";
 import { useAnimationFrameIndex } from "./useAnimationFrameIndex";
 import { useMarqueeOffset } from "./useMarqueeOffset";
+import { asWeatherUpload, loadWeatherMedia } from "./weatherMedia";
 
 interface ContentLayerProps {
 	render: AppliedRender;
@@ -83,6 +93,19 @@ export function ContentLayer({ render }: ContentLayerProps) {
 	// meaningless placeholder value, not a real template to look up.
 	if (foreground?.type === "animation" && foreground.mode === "gameOfLife") {
 		return <GameOfLifePlaceholder />;
+	}
+
+	if (foreground?.type === "animation" && foreground.mode === "weather") {
+		return (
+			<WeatherBitmap
+				content={foreground}
+				backgroundHex={layers.background}
+				compositeWidthPx={compositeWidthPx}
+				compositeHeightPx={compositeHeightPx}
+				offsetXPx={offsetXPx}
+				offsetYPx={offsetYPx}
+			/>
+		);
 	}
 
 	const timing =
@@ -268,6 +291,103 @@ function ScrollingBitmap({
 			</div>
 		</div>
 	);
+}
+
+/** Live weather previews whichever icon the backend says the wall is
+ * showing right now, drawn exactly like an uploaded animation. */
+function WeatherBitmap({
+	content,
+	...placement
+}: {
+	content: AnimationContent;
+	backgroundHex: string | null;
+	compositeWidthPx: number;
+	compositeHeightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	const weather = useCurrentWeather();
+	const variant = weather?.variant ?? DEFAULT_WEATHER_VARIANT;
+	const [media, setMedia] = useState<UploadedMedia | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		loadWeatherMedia(variant)
+			.then((loaded) => {
+				if (!cancelled) {
+					setMedia(loaded);
+				}
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, [variant]);
+
+	if (media === null) {
+		return null;
+	}
+	return (
+		<>
+			<AnimatedBitmap
+				content={asWeatherUpload(content, media)}
+				frameCount={media.frameCount}
+				frameDurationMs={media.frameDurationMs}
+				{...placement}
+			/>
+			{content.temperature && typeof weather?.temperature === "number" && (
+				<TemperatureOverlay
+					style={content.temperature}
+					text={formatTemperature(weather.temperature)}
+					widthPx={placement.compositeWidthPx}
+					heightPx={placement.compositeHeightPx}
+					offsetXPx={placement.offsetXPx}
+					offsetYPx={placement.offsetYPx}
+				/>
+			)}
+		</>
+	);
+}
+
+/** Drawn from the same pre-rendered glyphs the backend stamps onto the
+ * wall's frames, so the preview shows exactly what the panels will. */
+function TemperatureOverlay({
+	style,
+	text,
+	widthPx,
+	heightPx,
+	offsetXPx,
+	offsetYPx,
+}: {
+	style: TemperatureStyle;
+	text: string;
+	widthPx: number;
+	heightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	const [src, setSrc] = useState<string | null>(null);
+	useEffect(() => {
+		let cancelled = false;
+		renderTemperatureGlyphs(style).then((glyphs) => {
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.max(1, Math.round(widthPx));
+			canvas.height = Math.max(1, Math.round(heightPx));
+			const ctx = canvas.getContext("2d");
+			if (cancelled || !ctx) {
+				return;
+			}
+			drawTemperature(ctx, { text, glyphs, style });
+			setSrc(canvas.toDataURL("image/png"));
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [JSON.stringify(style), text, widthPx, heightPx]);
+
+	if (src === null) {
+		return null;
+	}
+	return <Bitmap src={src} offsetXPx={offsetXPx} offsetYPx={offsetYPx} />;
 }
 
 /**

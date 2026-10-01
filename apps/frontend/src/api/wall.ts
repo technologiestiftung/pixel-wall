@@ -9,6 +9,7 @@ import type {
 	LayoutResponse,
 	ScreensResponse,
 	StateResponse,
+	WeatherDto,
 } from "./types";
 
 /**
@@ -87,4 +88,8 @@ export function deleteUpload(request: Requester, id: string): Promise<void> {
 	return request(`/api/uploads/${encodeURIComponent(id)}`, {
 		method: "DELETE",
 	});
+}
+
+export function getWeather(request: Requester): Promise<WeatherDto> {
+	return request<WeatherDto>("/api/weather");
 }

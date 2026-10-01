@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
 from .auth import BasicAuthMiddleware
 from .control import SESSION_HEADER, ControlLeaseMiddleware, lease as control_lease
+from .mask import MaskFormatError
 from .models import (
     ApplyRequest,
     ApplyResponse,
@@ -25,9 +26,11 @@ from .models import (
     UploadRequest,
     UploadSummary,
     WallState,
+    WeatherResponse,
+    WeatherStatus,
 )
-from .mqtt import publisher
-from .wire import encode_frame
+from .mqtt import publish_frames, publisher
+from .weather import live_weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("ledwall.backend")
@@ -40,7 +43,9 @@ async def lifespan(app: FastAPI):
             "LEDWALL_PASSWORD is not set: the API is reachable by anyone on the LAN"
         )
     publisher.start()
+    live_weather.start()
     yield
+    live_weather.stop()
     publisher.stop()
 
 
@@ -64,14 +69,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", SESSION_HEADER],
 )
-
-
-def _publish(screen_id: str, frame) -> None:
-    if not publisher.publish_screen(screen_id, encode_frame(frame)):
-        logger.warning(
-            "screen %s written but MQTT publish failed; state file is still authoritative",
-            screen_id,
-        )
 
 
 def _require_matching_kind(payload: ApplyRequest) -> None:
@@ -117,6 +114,11 @@ def health() -> HealthResponse:
             topic_prefix=config.MQTT_TOPIC_PREFIX,
             last_error=publisher.last_error,
         ),
+        weather=WeatherStatus(
+            enabled=config.WEATHER_ENABLED,
+            observedAt=live_weather.reading.observed_at if live_weather.reading else None,
+            last_error=live_weather.last_error,
+        ),
     )
 
 
@@ -139,9 +141,10 @@ def get_layout() -> LayoutResponse:
 
 @app.put("/api/layout", response_model=LayoutResponse, tags=["wall"])
 def put_layout(payload: LayoutRequest) -> LayoutResponse:
-    current = WallState.model_validate(state_store.read_state())
-    current.layout = payload.positions
-    written = _write(current)
+    with state_store.edit_lock:
+        current = WallState.model_validate(state_store.read_state())
+        current.layout = payload.positions
+        written = _write(current)
     return LayoutResponse(positions=written["layout"])
 
 
@@ -157,30 +160,39 @@ def post_apply(payload: ApplyRequest) -> ApplyResponse:
     Screens outside the selection keep whatever they were showing — CONTEXT.md
     "Apply changes" requires that already-applied screens are left untouched.
     """
-    current = WallState.model_validate(state_store.read_state())
     _require_matching_kind(payload)
     _require_game_of_life_only_on_small(payload)
 
-    kind_brightness = config.BRIGHTNESS[payload.selectionKind]
+    with state_store.edit_lock:
+        current = WallState.model_validate(state_store.read_state())
+        content, variant, degrees = live_weather.content_for(payload)
+        try:
+            frames = compose.apply_to_screens(
+                current, payload.selectionKind, payload.screens, content, payload.source
+            )
+        except (ValueError, MaskFormatError) as error:
+            raise HTTPException(
+                status_code=422, detail=f"weather variant {variant} could not be shown: {error}"
+            )
+        written = _write(current)
+        try:
+            live_weather.record_apply(payload, variant, degrees)
+        except OSError as error:
+            logger.error("weather file write failed: %s", error)
+            raise HTTPException(
+                status_code=500, detail=f"could not write weather file: {error}"
+            )
 
-    frames = {}
-    for target in payload.screens:
-        content, window = compose.slice_for_screen(
-            payload.content, target.window, payload.selectionKind
-        )
-        current.screens[target.screenId] = ScreenStateModel(
-            window=window, content=content, source=payload.source
-        )
-        frames[target.screenId] = compose.frame_for_screen(
-            content, window, kind_brightness
-        )
-
-    written = _write(current)
-
-    for screen_id, frame in frames.items():
-        _publish(screen_id, frame)
+    publish_frames(frames)
 
     return ApplyResponse(appliedAt=written["updated_at"])
+
+
+@app.get("/api/weather", response_model=WeatherResponse, tags=["wall"])
+def get_weather() -> WeatherResponse:
+    """The reading weather screens are currently showing — see app/weather.py."""
+    reading = live_weather.reading
+    return reading.to_response() if reading else WeatherResponse()
 
 
 @app.get("/api/uploads", response_model=UploadLibrary, tags=["uploads"])

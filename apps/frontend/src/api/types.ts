@@ -1,4 +1,5 @@
 import type { ScreenKind, ScreenLayers, ScreenSpec } from "../domain/types";
+import type { WeatherVariant } from "../domain/weather";
 
 export interface LayoutPositionDto {
 	screenId: string;
@@ -118,6 +119,13 @@ export interface ApplyRequest {
 	/** The editor's layers behind `content`. Stored verbatim by the backend and
 	 * never rendered from — see domain/types.ts ScreenLayers. */
 	source?: SourceDto;
+	/** Live weather only: `content` rendered once per icon, so the backend can
+	 * switch between them as the weather changes (apps/backend/app/weather.py).
+	 * `content` is then just the one shown until the weather is known. */
+	weather?: {
+		variants: Partial<Record<WeatherVariant, WireContentDto>>;
+		temperature?: TemperatureDto;
+	};
 }
 
 export interface ApplyResponse {
@@ -132,4 +140,28 @@ export interface ControlResponse {
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };
+}
+
+/**
+ * Every character a temperature can need, pre-rendered as `mask1` blocks so
+ * the backend can draw any reading without rendering text itself — see
+ * render/temperature.ts, whose layout apps/backend/app/weather.py repeats.
+ */
+export interface TemperatureDto {
+	glyphs: Record<string, string>;
+	color: [number, number, number];
+	hAlign: "left" | "center" | "right";
+	vAlign: "top" | "center" | "bottom";
+	paddingPx: number;
+}
+
+/** GET /api/weather — the backend's latest Bright Sky reading. Every field is
+ * null until its first fetch succeeds. */
+export interface WeatherDto {
+	variant: WeatherVariant | null;
+	icon: string | null;
+	condition: string | null;
+	temperature: number | null;
+	observedAt: string | null;
+	station: string | null;
 }

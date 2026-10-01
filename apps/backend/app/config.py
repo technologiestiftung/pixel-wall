@@ -36,6 +36,15 @@ MQTT_USERNAME = os.environ.get("LEDWALL_MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("LEDWALL_MQTT_PASSWORD") or None
 MQTT_ENABLED = os.environ.get("LEDWALL_MQTT_ENABLED", "1") != "0"
 
+#: Live weather (see app/weather.py). The location defaults to CityLAB Berlin;
+#: Bright Sky picks the nearest DWD station to it.
+WEATHER_ENABLED = os.environ.get("LEDWALL_WEATHER_ENABLED", "1") != "0"
+WEATHER_FILE = Path(os.environ.get("LEDWALL_WEATHER_FILE", STATE_FILE.with_name("weather.json")))
+WEATHER_LAT = float(os.environ.get("LEDWALL_WEATHER_LAT", "52.4836"))
+WEATHER_LON = float(os.environ.get("LEDWALL_WEATHER_LON", "13.3885"))
+WEATHER_INTERVAL_S = float(os.environ.get("LEDWALL_WEATHER_INTERVAL_S", "600"))
+WEATHER_URL = os.environ.get("LEDWALL_WEATHER_URL", "https://api.brightsky.dev/current_weather")
+
 #: Fixed per hardware kind; there is no user control for it.
 BRIGHTNESS = {"small": 50, "large": 100}
 
