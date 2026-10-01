@@ -221,19 +221,29 @@ function TemperatureControls({ content, onChange }: TemperatureControlsProps) {
 						onChangeHAlign={(hAlign) => update({ hAlign })}
 						onChangeVAlign={(vAlign) => update({ vAlign })}
 					/>
-					<div className="flex gap-2.5">
-						<PaddingField
-							id="temperature-padding-x"
-							label="Abstand links/rechts"
-							value={style.paddingXPx}
-							onChange={(paddingXPx) => update({ paddingXPx })}
-						/>
-						<PaddingField
-							id="temperature-padding-y"
-							label="Abstand oben/unten"
-							value={style.paddingYPx}
-							onChange={(paddingYPx) => update({ paddingYPx })}
-						/>
+					<div className="flex flex-col gap-2">
+						<div className="flex gap-2.5">
+							<PaddingField
+								id="temperature-padding-x"
+								label="Abstand links/rechts"
+								value={style.paddingXPx}
+								onChange={(paddingXPx) => update({ paddingXPx })}
+								disabled={style.hAlign === "center"}
+							/>
+							<PaddingField
+								id="temperature-padding-y"
+								label="Abstand oben/unten"
+								value={style.paddingYPx}
+								onChange={(paddingYPx) => update({ paddingYPx })}
+								disabled={style.vAlign === "center"}
+							/>
+						</div>
+						{(style.hAlign === "center" || style.vAlign === "center") && (
+							<p className="text-[12px] text-[#767671]">
+								Bei mittiger Position gibt es keinen Rand, zu dem ein Abstand
+								gelten könnte.
+							</p>
+						)}
 					</div>
 				</>
 			)}
