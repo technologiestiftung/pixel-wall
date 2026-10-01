@@ -1,8 +1,8 @@
 import { LOOP_PAUSE_MS } from "../../domain/content";
 import type { TextContent } from "../../domain/types";
-import { ChevronDownIcon } from "../../render/TabIcons";
 import { AlignmentPicker } from "./AlignmentPicker";
 import { ColorPicker } from "./ColorPicker";
+import { FontField, FontSizeField, PaddingField } from "./TextStyleFields";
 
 interface TextPanelProps {
 	content: TextContent;
@@ -47,27 +47,11 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				/>
 			</div>
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="font-size">
-					Textgröße
-				</label>
-				<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
-					<input
-						id="font-size"
-						type="number"
-						min={8}
-						max={64}
-						value={content.fontSizePx}
-						onChange={(e) =>
-							onChange({ ...content, fontSizePx: Number(e.target.value) })
-						}
-						className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
-					/>
-					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
-						px
-					</span>
-				</div>
-			</div>
+			<FontSizeField
+				id="font-size"
+				value={content.fontSizePx}
+				onChange={(fontSizePx) => onChange({ ...content, fontSizePx })}
+			/>
 
 			<ColorPicker
 				hex={content.color}
@@ -75,46 +59,12 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				label="Textfarbe wählen"
 			/>
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="font-family">
-					Schriftart
-				</label>
-				<div className="flex w-full gap-2.5">
-					<div className="relative flex-1">
-						<select
-							id="font-family"
-							value={content.fontFamily}
-							onChange={(e) =>
-								onChange({ ...content, fontFamily: e.target.value })
-							}
-							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
-						>
-							<option value="Host Grotesk, ui-monospace, monospace">
-								Host Grotesk
-							</option>
-							<option value="Pixelify Sans, ui-monospace, monospace">
-								Pixelify Sans
-							</option>
-							<option value="ui-monospace, monospace">Monospace</option>
-						</select>
-						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
-					</div>
-					<div className="relative flex-1">
-						<select
-							aria-label="Schriftschnitt"
-							value={content.fontWeight}
-							onChange={(e) =>
-								onChange({ ...content, fontWeight: e.target.value })
-							}
-							className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
-						>
-							<option value="400">Regular</option>
-							<option value="700">Bold</option>
-						</select>
-						<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
-					</div>
-				</div>
-			</div>
+			<FontField
+				id="font-family"
+				fontFamily={content.fontFamily}
+				fontWeight={content.fontWeight}
+				onChange={(font) => onChange({ ...content, ...font })}
+			/>
 
 			{content.mode === "static" ? (
 				<AlignmentPicker
@@ -130,27 +80,11 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				/>
 			)}
 
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="padding">
-					Abstand zum Rand
-				</label>
-				<div className="flex w-[98px] items-center rounded-[7px] border border-[#dededa]">
-					<input
-						id="padding"
-						type="number"
-						min={0}
-						max={8}
-						value={content.paddingPx ?? 0}
-						onChange={(e) =>
-							onChange({ ...content, paddingPx: Number(e.target.value) })
-						}
-						className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
-					/>
-					<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
-						px
-					</span>
-				</div>
-			</div>
+			<PaddingField
+				id="padding"
+				value={content.paddingPx ?? 0}
+				onChange={(paddingPx) => onChange({ ...content, paddingPx })}
+			/>
 
 			{content.mode === "scrolling" && (
 				<>

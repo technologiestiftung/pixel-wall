@@ -58,16 +58,36 @@ export interface AnimationContent {
 	 * so it can live inside the Animation/Bild tab without widening
 	 * `ContentType` (TabBar, the per-tab draft slots, `withEdit`, ...)
 	 * everywhere that's matched exhaustively. */
-	mode: "template" | "gameOfLife" | "upload";
+	mode: "template" | "gameOfLife" | "upload" | "weather";
 	/** Meaningless when `mode` is "gameOfLife" — the board is native,
-	 * full-canvas, and never scaled or aligned. */
+	 * full-canvas, and never scaled or aligned. Also meaningless for
+	 * "weather", which shows the icon for the current weather instead (see
+	 * domain/weather.ts) but is scaled and aligned like any upload. */
 	templateId: string;
 	scalePercent: number;
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
+	/** Draws the current temperature over a "weather" foreground; absent
+	 * shows the icon alone. */
+	temperature?: TemperatureStyle;
 	/** The user's own image or animation when `mode` is "upload". Carried
 	 * inline so it survives a reload through the backend's opaque `source`. */
 	upload?: UploadedMedia;
+}
+
+/** How live weather draws the temperature — the same styling Text offers,
+ * minus everything about the text itself. */
+export interface TemperatureStyle {
+	fontSizePx: number;
+	fontFamily: string;
+	fontWeight: string;
+	color: string;
+	hAlign: HorizontalAlign;
+	vAlign: VerticalAlign;
+	/** Inset from the left/right edge `hAlign` pushes toward, and from the
+	 * top/bottom edge `vAlign` does. Ignored on a centred axis, as for Text. */
+	paddingXPx: number;
+	paddingYPx: number;
 }
 
 /**

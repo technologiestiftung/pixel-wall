@@ -110,10 +110,10 @@ const DEFAULT_TEXT: TextContent = {
 export const ANIMATION_FPS = 16;
 
 /** Whether an Animation/Bild foreground moves — an animated template, a
- * multi-frame upload, or Game of Life. Moving content isn't offered across a
+ * multi-frame upload, live weather, or Game of Life. Moving content isn't offered across a
  * mixed selection; still images are (see CONTEXT.md "Selection"). */
 export function isMovingAnimation(content: AnimationContent): boolean {
-	if (content.mode === "gameOfLife") {
+	if (content.mode === "gameOfLife" || content.mode === "weather") {
 		return true;
 	}
 	if (content.mode === "upload") {

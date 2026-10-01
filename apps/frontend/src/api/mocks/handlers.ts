@@ -55,6 +55,17 @@ export const handlers = [
 		}),
 	),
 
+	http.get(`${API_BASE}/weather`, () =>
+		HttpResponse.json({
+			variant: "cloudy-day-1",
+			icon: "partly-cloudy-day",
+			condition: "dry",
+			temperature: 17.9,
+			observedAt: new Date().toISOString(),
+			station: "Berlin-Tempelhof",
+		}),
+	),
+
 	http.get(`${API_BASE}/uploads`, () => HttpResponse.json({ uploads })),
 
 	http.post(`${API_BASE}/uploads`, async ({ request }) => {

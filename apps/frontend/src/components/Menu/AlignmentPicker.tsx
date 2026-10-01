@@ -58,6 +58,7 @@ interface AlignmentPickerProps {
 	vAlign: VerticalAlign;
 	onChangeHAlign?: (value: HorizontalAlign) => void;
 	onChangeVAlign: (value: VerticalAlign) => void;
+	label?: string;
 }
 
 /** Where content sits within its (possibly multi-screen) composite —
@@ -68,10 +69,11 @@ export function AlignmentPicker({
 	vAlign,
 	onChangeHAlign,
 	onChangeVAlign,
+	label = "Position",
 }: AlignmentPickerProps) {
 	return (
 		<div className="flex flex-col gap-2">
-			<span className="text-[12px] text-[#767671]">Position</span>
+			<span className="text-[12px] text-[#767671]">{label}</span>
 			<div className="flex flex-col gap-1.5">
 				{hAlign && onChangeHAlign && (
 					<div className="flex w-full gap-1.5">

@@ -3,7 +3,7 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Lock
+from threading import Lock, RLock
 from typing import Any
 
 from . import config
@@ -12,6 +12,9 @@ from pydantic import ValidationError
 from .models import WallState
 
 _write_lock = Lock()
+#: Held across a read-modify-write of the state file, which the API and the
+#: weather refresh (app/weather.py) both do from their own threads.
+edit_lock = RLock()
 
 
 def _now() -> str:
