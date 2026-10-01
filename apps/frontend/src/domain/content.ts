@@ -109,6 +109,19 @@ const DEFAULT_TEXT: TextContent = {
  * docs/wire-format.md "frames" and docs/adr/0002-phase-animated-templates-by-hardware-kind.md. */
 export const ANIMATION_FPS = 16;
 
+/** Whether an Animation/Bild foreground moves — an animated template, a
+ * multi-frame upload, or Game of Life. Moving content isn't offered across a
+ * mixed selection; still images are (see CONTEXT.md "Selection"). */
+export function isMovingAnimation(content: AnimationContent): boolean {
+	if (content.mode === "gameOfLife") {
+		return true;
+	}
+	if (content.mode === "upload") {
+		return (content.upload?.frameCount ?? 1) > 1;
+	}
+	return TEMPLATES.find((t) => t.id === content.templateId)?.animated === true;
+}
+
 const DEFAULT_ANIMATION: AnimationContent = {
 	type: "animation",
 	mode: "template",

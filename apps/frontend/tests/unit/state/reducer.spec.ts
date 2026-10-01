@@ -2,6 +2,7 @@
 import { describe, expect, test } from "vitest";
 import { SCREEN_SPECS, DEFAULT_LAYOUT } from "../../../src/domain/layout";
 import { initialWallState, wallReducer } from "../../../src/state/reducer";
+import { needsUnsavedConfirmation } from "../../../src/state/selectors";
 import type { StateResponse, WireContentDto } from "../../../src/api/types";
 import { createMask, encodeMaskBase64, setBit } from "../../../src/domain/mask";
 
@@ -421,5 +422,47 @@ describe("wallReducer: set-active-tab", () => {
 		});
 		expect(afterTyping.draftText).not.toBeNull();
 		expect(afterTyping.draftAnimation).toBeNull();
+	});
+});
+
+describe("wallReducer: navigating while a save is in flight", () => {
+	function savingFour() {
+		const withDraft = wallReducer(selectFour(), {
+			type: "set-draft-content",
+			content: { type: "color", hex: "#FE4441" },
+		});
+		return wallReducer(withDraft, { type: "apply-pending" });
+	}
+	const clickSeven = {
+		type: "request-intent" as const,
+		intent: { kind: "toggle-screen" as const, screenId: "07", additive: false },
+	};
+
+	test("waits for the save instead of asking, then carries the click out", () => {
+		const waiting = wallReducer(savingFour(), clickSeven);
+		expect(needsUnsavedConfirmation(waiting)).toBe(false);
+		expect(waiting.selection).toEqual({ kind: "large", screenIds: ["04"] });
+
+		const saved = wallReducer(waiting, {
+			type: "apply-success",
+			selection: { kind: "large", screenIds: ["04"] },
+			layers: { background: "#FE4441", foreground: null },
+			specs: SCREEN_SPECS,
+			layout: DEFAULT_LAYOUT,
+		});
+		expect(saved.pendingIntent).toBeNull();
+		expect(saved.selection).toEqual({ kind: "large", screenIds: ["07"] });
+		expect(saved.applied["04"]?.layers.background).toBe("#FE4441");
+	});
+
+	test("asks once the save has failed, with the draft still there to retry", () => {
+		const waiting = wallReducer(savingFour(), clickSeven);
+		const failed = wallReducer(waiting, {
+			type: "apply-error",
+			message: "Änderungen konnten nicht übertragen werden.",
+		});
+		expect(needsUnsavedConfirmation(failed)).toBe(true);
+		expect(failed.selection).toEqual({ kind: "large", screenIds: ["04"] });
+		expect(failed.draftColor).not.toBeNull();
 	});
 });

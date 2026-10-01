@@ -93,8 +93,9 @@ export interface WallState {
 	/** "Layout bearbeiten" — dragging screens around is a distinct mode from
 	 * everyday content editing (see CONTEXT.md "Layout"). */
 	layoutEditMode: boolean;
-	/** An intent held back pending confirmation, because carrying it out would
-	 * discard unsaved changes. Null whenever no dialog is open. */
+	/** An intent held back because carrying it out would discard unsaved
+	 * changes — waiting either for the user to confirm in the dialog, or for
+	 * a save already in flight to land (see `request-intent`). */
 	pendingIntent: NavigationIntent | null;
 	/** See `Generation`. */
 	generation: Generation;
@@ -152,6 +153,12 @@ export type WallAction =
 export function wallReducer(state: WallState, action: WallAction): WallState {
 	switch (action.type) {
 		case "request-intent":
+			// A save in flight is already keeping the draft, so the intent just
+			// waits for it: apply-success carries it out, and apply-error
+			// leaves it for the dialog to confirm.
+			if (state.applyStatus === "pending") {
+				return { ...state, pendingIntent: action.intent };
+			}
 			// Nothing to lose means no dialog: selecting screens has to stay a
 			// free action while the panel is untouched, or every click would
 			// cost a confirmation.
@@ -208,14 +215,20 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 						(screenGeneration[slot.screenId] ?? 0) + 1;
 				}
 			}
-			return {
+			const saved = {
 				...settled(state),
 				applied,
 				generation: {
 					...state.generation,
 					screens: screenGeneration,
 				},
+				pendingIntent: null,
 			};
+			// Whatever the user asked for while this save was in flight has
+			// nothing left to lose now.
+			return state.pendingIntent
+				? applyIntent(saved, state.pendingIntent)
+				: saved;
 		}
 
 		case "hydrated":

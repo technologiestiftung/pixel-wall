@@ -39,7 +39,7 @@ export function useApplyChanges() {
 	/** Returns whether the save actually succeeded, so callers that need to
 	 * sequence further action afterwards (e.g. switching tabs) can wait for it. */
 	async function handleApply(): Promise<boolean> {
-		if (!selection || !hasContentDraft(state)) {
+		if (busy || !selection || !hasContentDraft(state)) {
 			return false;
 		}
 

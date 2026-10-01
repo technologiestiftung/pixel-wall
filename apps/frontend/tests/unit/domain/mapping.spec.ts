@@ -92,6 +92,54 @@ describe("layersForGroup", () => {
 		);
 	});
 
+	describe("across a mixed selection", () => {
+		const animationOf = (templateId: string) => ({
+			background: "#FE4441",
+			foreground: {
+				type: "animation" as const,
+				mode: "template" as const,
+				templateId,
+				scalePercent: 100,
+				hAlign: "center" as const,
+				vAlign: "center" as const,
+			},
+		});
+		const mixedGroups = [
+			{
+				kind: "large" as const,
+				screenIds: ["04"],
+				canvasScreenIds: ["01", "04"],
+			},
+			{
+				kind: "small" as const,
+				screenIds: ["01"],
+				canvasScreenIds: ["01", "04"],
+			},
+		];
+
+		test("drops a moving animation, keeping the background", () => {
+			for (const group of mixedGroups) {
+				expect(
+					layersForGroup(animationOf("pfeil-rund-animiert"), group),
+				).toEqual({ background: "#FE4441", foreground: null });
+			}
+		});
+
+		test("keeps a still image", () => {
+			const still = animationOf("logo");
+			for (const group of mixedGroups) {
+				expect(layersForGroup(still, group)).toBe(still);
+			}
+		});
+
+		test("leaves single-kind selections' animations alone", () => {
+			const moving = animationOf("pfeil-rund-animiert");
+			expect(layersForGroup(moving, { kind: "large", screenIds: ["04"] })).toBe(
+				moving,
+			);
+		});
+	});
+
 	test("rescales text to the small pitch within a mixed canvas", () => {
 		const scaled = layersForGroup(layers, {
 			kind: "small",

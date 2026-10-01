@@ -1,4 +1,4 @@
-import { defaultContentFor } from "../../domain/content";
+import { defaultContentFor, isMovingAnimation } from "../../domain/content";
 import { referenceScreenId } from "../../domain/mapping";
 import { EMPTY_LAYERS } from "../../domain/types";
 import type {
@@ -6,9 +6,15 @@ import type {
 	ColorContent,
 	Content,
 	ContentType,
+	ScreenLayers,
+	Selection,
 	TextContent,
 } from "../../domain/types";
-import { resolveScreenRender } from "../../state/selectors";
+import type { WallState } from "../../state/reducer";
+import {
+	needsUnsavedConfirmation,
+	resolveScreenRender,
+} from "../../state/selectors";
 import { useApplyChanges } from "../../state/useApplyChanges";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { AnimationPanel } from "./AnimationPanel";
@@ -28,10 +34,10 @@ export function Menu() {
 		draftAnimation,
 		draftColor,
 		layoutEditMode,
-		pendingIntent,
 	} = state;
 	const dispatch = useWallDispatch();
 	const { handleApply } = useApplyChanges();
+	const showUnsavedDialog = needsUnsavedConfirmation(state);
 
 	const referenceId = selection
 		? referenceScreenId(state.specs, selection)
@@ -54,8 +60,7 @@ export function Menu() {
 				return (
 					draftAnimation ??
 					(appliedForeground?.type === "animation" &&
-					(appliedForeground.mode !== "gameOfLife" ||
-						selection?.kind === "small")
+					offeredFor(appliedForeground, selection)
 						? appliedForeground
 						: defaultContentFor("animation"))
 				);
@@ -79,6 +84,7 @@ export function Menu() {
 		? (resolveScreenRender(state, referenceId)?.layers ?? EMPTY_LAYERS)
 		: EMPTY_LAYERS;
 	const previewForeground = previewLayers.foreground;
+	const animationDroppedOnSave = dropsAnimationOnSave(state, appliedForeground);
 	const textInvisibleOnBackground =
 		previewForeground?.type === "text" &&
 		previewLayers.background !== null &&
@@ -125,8 +131,9 @@ export function Menu() {
 					Ziehe die Bildschirme in der Vorschau an ihre gewünschte Position.
 					Überlappungen sind nicht möglich.
 				</p>
-				{pendingIntent !== null && (
+				{showUnsavedDialog && (
 					<UnsavedChangesDialog
+						error={state.applyError}
 						onSave={handleSaveAndContinue}
 						onDiscard={handleDiscardAndContinue}
 						onCancel={handleCancelIntent}
@@ -149,6 +156,12 @@ export function Menu() {
 
 				{selection ? (
 					<>
+						{animationDroppedOnSave && (
+							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
+								Beim Speichern wird die Animation entfernt — Animationen sind
+								nur für große oder nur für kleine Screens möglich.
+							</div>
+						)}
 						{textInvisibleOnBackground && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
 								Textfarbe und Hintergrundfarbe sind identisch — der Text wird
@@ -199,13 +212,42 @@ export function Menu() {
 				<EditActions />
 			</div>
 
-			{pendingIntent !== null && (
+			{showUnsavedDialog && (
 				<UnsavedChangesDialog
+					error={state.applyError}
 					onSave={handleSaveAndContinue}
 					onDiscard={handleDiscardAndContinue}
 					onCancel={handleCancelIntent}
 				/>
 			)}
 		</aside>
+	);
+}
+
+/** Whether the Animation/Bild tab can show this content for the selection:
+ * Game of Life only on small screens, and nothing moving across a mixed
+ * selection (see domain/mapping.ts layersForGroup). */
+function offeredFor(
+	content: AnimationContent,
+	selection: Selection | null,
+): boolean {
+	if (content.mode === "gameOfLife") {
+		return selection?.kind === "small";
+	}
+	return selection?.kind !== "mixed" || !isMovingAnimation(content);
+}
+
+/** Saving a Hintergrund change across a mixed selection drops the moving
+ * animation the selection currently shows, since it can't span both kinds. */
+function dropsAnimationOnSave(
+	state: WallState,
+	appliedForeground: ScreenLayers["foreground"],
+): boolean {
+	return (
+		state.selection?.kind === "mixed" &&
+		state.draftColor !== null &&
+		state.draftText === null &&
+		appliedForeground?.type === "animation" &&
+		isMovingAnimation(appliedForeground)
 	);
 }

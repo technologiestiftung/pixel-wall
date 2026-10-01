@@ -1,6 +1,8 @@
 import { useEffect, type MouseEvent as ReactMouseEvent } from "react";
 
 interface UnsavedChangesDialogProps {
+	/** Why the last save failed, so a retry from here isn't a blind one. */
+	error: string | null;
 	onSave: () => void;
 	onDiscard: () => void;
 	onCancel: () => void;
@@ -10,6 +12,7 @@ interface UnsavedChangesDialogProps {
  * draft — selecting other screens, clearing the selection, entering layout
  * mode. See state/reducer.ts `NavigationIntent`. */
 export function UnsavedChangesDialog({
+	error,
 	onSave,
 	onDiscard,
 	onCancel,
@@ -75,6 +78,11 @@ export function UnsavedChangesDialog({
 					Für diesen Inhalt gibt es ungespeicherte Änderungen. Möchtest du sie
 					speichern oder verwerfen?
 				</p>
+				{error && (
+					<p role="alert" className="mt-3 text-[13px] text-red-700">
+						{error}
+					</p>
+				)}
 				<div className="mt-5 flex justify-end gap-2">
 					<button
 						type="button"

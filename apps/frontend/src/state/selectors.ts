@@ -113,3 +113,10 @@ export function draftHasChanges(state: WallState): boolean {
 		);
 	});
 }
+
+/** Whether the unsaved-changes dialog should ask about a held-back intent.
+ * While a save is in flight the intent is just waiting for it to land (see
+ * the reducer's request-intent), so there is nothing to ask. */
+export function needsUnsavedConfirmation(state: WallState): boolean {
+	return state.pendingIntent !== null && state.applyStatus !== "pending";
+}

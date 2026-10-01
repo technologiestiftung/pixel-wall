@@ -16,6 +16,8 @@ import { PlacementControls } from "./PlacementControls";
 interface UploadPickerProps {
 	content: AnimationContent;
 	onChange: (content: AnimationContent) => void;
+	/** Only still images can be picked — see AnimationPanel. */
+	stillOnly: boolean;
 }
 
 /**
@@ -25,7 +27,11 @@ interface UploadPickerProps {
  * is showing is copied into its own content, so deleting an entry here never
  * changes the wall.
  */
-export function UploadPicker({ content, onChange }: UploadPickerProps) {
+export function UploadPicker({
+	content,
+	onChange,
+	stillOnly,
+}: UploadPickerProps) {
 	const { uploads, loadError, add, remove } = useUploadLibrary();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [decoding, setDecoding] = useState(false);
@@ -53,6 +59,21 @@ export function UploadPicker({ content, onChange }: UploadPickerProps) {
 					: "Die Datei konnte nicht gelesen werden.",
 			);
 			setDecoding(false);
+			return;
+		}
+		if (stillOnly && media.frameCount > 1) {
+			setError(
+				"Animationen sind nur für große oder nur für kleine Screens möglich. Die Datei wurde in der Bibliothek gespeichert.",
+			);
+			try {
+				await add(media);
+			} catch {
+				setError(
+					"Animationen sind nur für große oder nur für kleine Screens möglich.",
+				);
+			} finally {
+				setDecoding(false);
+			}
 			return;
 		}
 		try {
@@ -155,16 +176,18 @@ export function UploadPicker({ content, onChange }: UploadPickerProps) {
 						<UploadTile media={content.upload} selected onSelect={() => {}} />
 					)}
 
-					{uploads?.map((upload) => (
-						<UploadTile
-							key={upload.id}
-							media={upload}
-							selected={upload.id === selectedId}
-							deleting={upload.id === deletingId}
-							onSelect={() => select(withoutCreatedAt(upload))}
-							onDelete={() => void handleDelete(upload)}
-						/>
-					))}
+					{uploads
+						?.filter((upload) => !stillOnly || upload.frameCount <= 1)
+						.map((upload) => (
+							<UploadTile
+								key={upload.id}
+								media={upload}
+								selected={upload.id === selectedId}
+								deleting={upload.id === deletingId}
+								onSelect={() => select(withoutCreatedAt(upload))}
+								onDelete={() => void handleDelete(upload)}
+							/>
+						))}
 				</div>
 
 				{uploads === null && (

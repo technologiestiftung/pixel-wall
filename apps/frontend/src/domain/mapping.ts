@@ -1,3 +1,4 @@
+import { isMovingAnimation } from "./content";
 import { PITCH_MM_PER_PX, rectFor, specById } from "./layout";
 import type {
 	LayoutPosition,
@@ -67,16 +68,27 @@ export function referenceScreenId(
 }
 
 /**
- * Text size, padding and scroll speed are in device pixels. Within a mixed
- * selection they are specified in large-screen pixels, so a small-screen
- * group rescales them to cover the same physical size at its coarser pitch.
+ * What a group actually renders of the selection's layers. Moving
+ * Animation/Bild content isn't offered across a mixed selection (see
+ * CONTEXT.md "Selection"), so an animation carried over from the reference
+ * screen is dropped rather than spread onto the other kind; still images are
+ * kept. Text size, padding and scroll speed are in
+ * device pixels; within a mixed selection they are specified in large-screen
+ * pixels, so a small-screen group rescales them to cover the same physical
+ * size at its coarser pitch.
  */
 export function layersForGroup(
 	layers: ScreenLayers,
 	group: SelectionGroup,
 ): ScreenLayers {
 	const { foreground } = layers;
-	if (!group.canvasScreenIds || foreground?.type !== "text") {
+	if (!group.canvasScreenIds) {
+		return layers;
+	}
+	if (foreground?.type === "animation" && isMovingAnimation(foreground)) {
+		return { ...layers, foreground: null };
+	}
+	if (foreground?.type !== "text") {
 		return layers;
 	}
 	const factor = PITCH_MM_PER_PX.large / PITCH_MM_PER_PX[group.kind];

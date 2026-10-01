@@ -17,7 +17,8 @@ interface AnimationPanelProps {
 	onChange: (content: AnimationContent) => void;
 	/** Game of Life is offered only for small-only (ESP32) selections — it
 	 * runs natively there and has no equivalent on the Pi-driven large
-	 * screens (see CONTEXT.md "Content" — Game of Life). */
+	 * screens (see CONTEXT.md "Content" — Game of Life). A mixed selection
+	 * only offers still images (see domain/mapping.ts layersForGroup). */
 	screenKind: SelectionKind;
 }
 
@@ -29,6 +30,7 @@ export function AnimationPanel({
 	const modes = MODES.filter(
 		({ mode }) => mode !== "gameOfLife" || screenKind === "small",
 	);
+	const stillOnly = screenKind === "mixed";
 
 	return (
 		<div className="flex w-full flex-col gap-5">
@@ -58,12 +60,26 @@ export function AnimationPanel({
 				})}
 			</div>
 
+			{stillOnly && (
+				<p className="text-[12px] text-[#767671]">
+					Animationen sind nur für große oder nur für kleine Screens möglich —
+					hier stehen nur Bilder zur Auswahl.
+				</p>
+			)}
 			{content.mode === "gameOfLife" && <GameOfLifeExplainer />}
 			{content.mode === "template" && (
-				<AnimationTemplatePicker content={content} onChange={onChange} />
+				<AnimationTemplatePicker
+					content={content}
+					onChange={onChange}
+					stillOnly={stillOnly}
+				/>
 			)}
 			{content.mode === "upload" && (
-				<UploadPicker content={content} onChange={onChange} />
+				<UploadPicker
+					content={content}
+					onChange={onChange}
+					stillOnly={stillOnly}
+				/>
 			)}
 		</div>
 	);
@@ -94,12 +110,17 @@ function GameOfLifeExplainer() {
 interface AnimationTemplatePickerProps {
 	content: AnimationContent;
 	onChange: (content: AnimationContent) => void;
+	stillOnly: boolean;
 }
 
 function AnimationTemplatePicker({
 	content,
 	onChange,
+	stillOnly,
 }: AnimationTemplatePickerProps) {
+	const templates = stillOnly
+		? TEMPLATES.filter((template) => !template.animated)
+		: TEMPLATES;
 	return (
 		<>
 			<div className="flex flex-col gap-2.5">
@@ -150,7 +171,7 @@ function AnimationTemplatePicker({
 							)}
 						</div>
 					</button>
-					{TEMPLATES.map((template) => {
+					{templates.map((template) => {
 						const selected = content.templateId === template.id;
 						return (
 							<button
