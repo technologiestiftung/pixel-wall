@@ -11,6 +11,7 @@ interface NumberFieldProps {
 
 interface PaddingFieldProps extends NumberFieldProps {
 	label?: string;
+	disabled?: boolean;
 }
 
 export function FontSizeField({ id, value, onChange }: NumberFieldProps) {
@@ -31,6 +32,7 @@ export function PaddingField({
 	value,
 	onChange,
 	label = "Abstand zum Rand",
+	disabled = false,
 }: PaddingFieldProps) {
 	return (
 		<PxField
@@ -40,6 +42,7 @@ export function PaddingField({
 			max={8}
 			value={value}
 			onChange={onChange}
+			disabled={disabled}
 		/>
 	);
 }
@@ -51,9 +54,15 @@ function PxField({
 	max,
 	value,
 	onChange,
-}: NumberFieldProps & { label: string; min: number; max: number }) {
+	disabled = false,
+}: NumberFieldProps & {
+	label: string;
+	min: number;
+	max: number;
+	disabled?: boolean;
+}) {
 	return (
-		<div className="flex flex-col gap-2">
+		<div className={`flex flex-col gap-2 ${disabled ? "opacity-40" : ""}`}>
 			<label className="text-[12px] text-[#767671]" htmlFor={id}>
 				{label}
 			</label>
@@ -64,8 +73,9 @@ function PxField({
 					min={min}
 					max={max}
 					value={value}
+					disabled={disabled}
 					onChange={(e) => onChange(Number(e.target.value))}
-					className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b]"
+					className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b] disabled:cursor-not-allowed disabled:bg-transparent"
 				/>
 				<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">
 					px
