@@ -65,6 +65,29 @@ allow_anonymous true
 EOF
 sudo systemctl restart mosquitto
 
+step "Applying Pi boot settings for the matrix"
+BOOT=/boot/firmware
+reboot_needed=0
+
+if ! grep -qsx 'blacklist snd_bcm2835' /etc/modprobe.d/blacklist-rgb-matrix.conf; then
+  sudo install -m 644 "$BACKEND/pi-config/blacklist-rgb-matrix.conf" /etc/modprobe.d/
+  reboot_needed=1
+fi
+
+if ! grep -q '^dtparam=audio=off' "$BOOT/config.txt"; then
+  sudo sed -i 's/^dtparam=audio=on/dtparam=audio=off/' "$BOOT/config.txt"
+  grep -q '^dtparam=audio=off' "$BOOT/config.txt" \
+    || echo 'dtparam=audio=off' | sudo tee -a "$BOOT/config.txt" >/dev/null
+  reboot_needed=1
+fi
+
+if ! grep -qw 'isolcpus=3' "$BOOT/cmdline.txt"; then
+  # A broken cmdline.txt stops the Pi booting; keep the original to restore from.
+  sudo cp "$BOOT/cmdline.txt" "$BOOT/cmdline.txt.bak"
+  sudo sed -i '1 s/$/ isolcpus=3/' "$BOOT/cmdline.txt"
+  reboot_needed=1
+fi
+
 step "Installing systemd units"
 for u in ledwall-backend ledwall-display; do
   sed -e "s|/home/pi/ledwall|$REPO|g" -e "s|^User=pi$|User=$SVC_USER|" \
@@ -85,3 +108,8 @@ Done. If this was the first run, log out and back in so $SVC_USER picks up the
 ledwall group for interactive shells. Health check:
   curl -su :<password> http://localhost:5000/api/health | python3 -m json.tool
 EOF
+
+if (( reboot_needed )); then
+  echo
+  echo "Boot settings changed: run 'sudo reboot' for them to take effect."
+fi

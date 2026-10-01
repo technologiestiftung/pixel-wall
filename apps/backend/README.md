@@ -486,8 +486,16 @@ the seam case, where two screens of one composite must pan in step.
 
 ### Matrix config
 
-`rows=64`, `cols=64`, `gpio_slowdown=4`, `drop_privileges=False`, and the
-geometry has to match how the panels are physically chained.
+`rows=64`, `cols=64`, `drop_privileges=False`, and the geometry has to match
+how the panels are physically chained.
+
+The panel tuning (`pwm_bits`, `pwm_lsb_nanoseconds`, `gpio_slowdown`,
+`pwm_dither_bits`) is read from `LEDWALL_*` environment variables. The values
+that drive the wall are the `Environment=` lines in
+[systemd/ledwall-display.service](./systemd/ledwall-display.service), which is
+the same file as `/etc/systemd/system/ledwall-display.service` on the Pi apart
+from the rewritten paths. Change them there, reinstall the unit, and keep the
+defaults in `pi_display.py` in step.
 
 This wall is two bonnet outputs with two panels each, which is two parallel
 chains of two — a single 128x128 canvas:
@@ -543,6 +551,39 @@ as root, outside the backend venv:
 
 ```bash
 sudo pip3 install --break-system-packages Pillow
+```
+
+### Pi boot settings
+
+`rpi-rgb-led-matrix` also depends on three OS settings outside the repo's
+units. `setup-pi.sh` applies them, skipping any already in place, and tells you
+when a reboot is needed for them to take effect. To apply them by hand:
+
+- **Onboard audio off.** The `snd_bcm2835` module uses the same PWM hardware as
+  the matrix's hardware pulsing on GPIO18. Copy
+  [pi-config/blacklist-rgb-matrix.conf](./pi-config/blacklist-rgb-matrix.conf)
+  to `/etc/modprobe.d/`, and set `dtparam=audio=off` in
+  `/boot/firmware/config.txt`.
+- **One CPU core reserved for the matrix.** Append `isolcpus=3` to the single
+  line in `/boot/firmware/cmdline.txt`. Do not replace that file with a copy
+  from another Pi: it carries the root partition's `PARTUUID`, and a wrong one
+  stops the Pi booting.
+
+```bash
+sudo cp pi-config/blacklist-rgb-matrix.conf /etc/modprobe.d/
+sudo sed -i 's/^dtparam=audio=on/dtparam=audio=off/' /boot/firmware/config.txt
+grep -q '^dtparam=audio=off' /boot/firmware/config.txt \
+  || echo 'dtparam=audio=off' | sudo tee -a /boot/firmware/config.txt >/dev/null
+grep -q isolcpus=3 /boot/firmware/cmdline.txt \
+  || sudo sed -i '1 s/$/ isolcpus=3/' /boot/firmware/cmdline.txt
+sudo reboot
+```
+
+Check after the reboot:
+
+```bash
+lsmod | grep snd_bcm2835           # no output
+grep -o isolcpus=3 /proc/cmdline   # isolcpus=3
 ```
 
 ## MQTT
