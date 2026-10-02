@@ -35,3 +35,23 @@ export function rgbToHex(rgb: Rgb): string {
 		.join("")
 		.toUpperCase()}`;
 }
+
+/** WCAG's threshold for large text — the wall's glyphs are always large
+ * relative to the panel, so the stricter 4.5:1 body-text bar doesn't apply. */
+export const MIN_TEXT_CONTRAST = 3;
+
+function relativeLuminance(hex: string): number {
+	const [r, g, b] = hexToRgb(hex).map((channel) => {
+		const c = channel / CHANNEL_MAX;
+		return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+	});
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG contrast ratio, from 1 (identical) to 21 (black on white). */
+export function contrastRatio(a: string, b: string): number {
+	const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort(
+		(x, y) => y - x,
+	);
+	return (lighter + 0.05) / (darker + 0.05);
+}

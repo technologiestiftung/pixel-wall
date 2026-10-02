@@ -1,4 +1,9 @@
-import { defaultContentFor, isMovingAnimation } from "../../domain/content";
+import { contrastRatio, MIN_TEXT_CONTRAST } from "../../domain/color";
+import {
+	DEFAULT_BACKGROUND_HEX,
+	defaultContentFor,
+	isMovingAnimation,
+} from "../../domain/content";
 import { referenceScreenId } from "../../domain/mapping";
 import { EMPTY_LAYERS } from "../../domain/types";
 import type {
@@ -85,10 +90,19 @@ export function Menu() {
 		: EMPTY_LAYERS;
 	const previewForeground = previewLayers.foreground;
 	const animationDroppedOnSave = dropsAnimationOnSave(state, appliedForeground);
-	const textInvisibleOnBackground =
-		previewForeground?.type === "text" &&
-		previewLayers.background !== null &&
-		previewLayers.background === previewForeground.color;
+	const previewTextColor =
+		previewForeground?.type === "text"
+			? previewForeground.color
+			: previewForeground?.type === "animation" &&
+					previewForeground.mode === "weather"
+				? previewForeground.temperature?.color
+				: undefined;
+	const textLowContrast =
+		previewTextColor !== undefined &&
+		contrastRatio(
+			previewTextColor,
+			previewLayers.background ?? DEFAULT_BACKGROUND_HEX,
+		) < MIN_TEXT_CONTRAST;
 
 	// Selecting other screens, clearing the selection, and entering layout
 	// mode all drop the current draft(s), so the reducer holds them back as a
@@ -162,10 +176,10 @@ export function Menu() {
 								nur für große oder nur für kleine Screens möglich.
 							</div>
 						)}
-						{textInvisibleOnBackground && (
+						{textLowContrast && (
 							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
-								Textfarbe und Hintergrundfarbe sind identisch — der Text wird
-								nicht sichtbar sein.
+								Textfarbe und Hintergrundfarbe haben zu wenig Kontrast — der
+								Text ist schlecht lesbar.
 							</div>
 						)}
 						{/* No aria-labelledby here: it would give this wrapper the

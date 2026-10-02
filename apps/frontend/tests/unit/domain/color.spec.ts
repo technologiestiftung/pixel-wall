@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
 	clampChannel,
+	contrastRatio,
 	hexToRgb,
+	MIN_TEXT_CONTRAST,
 	rgbToHex,
 	type Rgb,
 } from "../../../src/domain/color";
@@ -70,5 +72,27 @@ describe("round trip", () => {
 		for (const rgb of cases) {
 			expect(hexToRgb(rgbToHex(rgb))).toEqual(rgb);
 		}
+	});
+});
+
+describe("contrastRatio", () => {
+	it("spans 1 for identical colours to 21 for black on white", () => {
+		expect(contrastRatio("#FE4441", "#FE4441")).toBe(1);
+		expect(contrastRatio("#000000", "#FFFFFF")).toBeCloseTo(21);
+	});
+
+	it("is symmetric", () => {
+		expect(contrastRatio("#1E3791", "#FEF177")).toBe(
+			contrastRatio("#FEF177", "#1E3791"),
+		);
+	});
+
+	it("flags low-contrast palette pairs", () => {
+		expect(contrastRatio("#FEF177", "#FFFFFF")).toBeLessThan(
+			MIN_TEXT_CONTRAST,
+		);
+		expect(contrastRatio("#FFFFFF", "#1E3791")).toBeGreaterThan(
+			MIN_TEXT_CONTRAST,
+		);
 	});
 });
