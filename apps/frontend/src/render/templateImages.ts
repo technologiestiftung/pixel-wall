@@ -34,8 +34,62 @@ if (typeof Image !== "undefined") {
 
 export function getTemplateImage(
 	templateId: string,
+	lineColor?: string,
 ): HTMLImageElement | undefined {
+	if (lineColor) {
+		return recoloredTemplate(templateId, lineColor)?.img;
+	}
 	return cache.get(templateId) ?? cache.get(TEMPLATES[0].id);
+}
+
+/** Line-art templates are authored in white or near-white strokes (and
+ * fills for small details like arrowheads); this swaps them for the chosen
+ * colour. */
+export function recolorLines(svgText: string, color: string): string {
+	return svgText.replace(
+		/(stroke|fill)="(white|#fff|#ffffff|#fafaf2)"/gi,
+		`$1="${color}"`,
+	);
+}
+
+/** Recoloured copies of line-art templates, built on demand from the SVG
+ * source. `ready` settles once the copy has decoded — an image whose `src`
+ * isn't set yet reports `complete`, so waitForImage alone can't tell. */
+const recoloredCache = new Map<
+	string,
+	{ img: HTMLImageElement; ready: Promise<HTMLImageElement | undefined> }
+>();
+const MAX_RECOLORED = 16;
+
+function recoloredTemplate(templateId: string, lineColor: string) {
+	if (typeof Image === "undefined") {
+		return undefined;
+	}
+	const template = TEMPLATES.find((t) => t.id === templateId);
+	if (!template) {
+		return undefined;
+	}
+	const key = `${templateId}|${lineColor}`;
+	let entry = recoloredCache.get(key);
+	if (!entry) {
+		const img = new Image();
+		img.onload = notify;
+		const ready = fetch(`/visuals/${template.file}`)
+			.then((response) => response.text())
+			.then((text) => {
+				img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+					recolorLines(text, lineColor),
+				)}`;
+				return waitForImage(img);
+			})
+			.catch(() => undefined);
+		entry = { img, ready };
+		recoloredCache.set(key, entry);
+		if (recoloredCache.size > MAX_RECOLORED) {
+			recoloredCache.delete(recoloredCache.keys().next().value as string);
+		}
+	}
+	return entry;
 }
 
 /** Upload sprite sheets are data URLs decoded on demand rather than at
@@ -74,7 +128,14 @@ export function getUploadImage(
  */
 export function waitForTemplateImage(
 	templateId: string,
+	lineColor?: string,
 ): Promise<HTMLImageElement | undefined> {
+	if (lineColor) {
+		return (
+			recoloredTemplate(templateId, lineColor)?.ready ??
+			Promise.resolve(undefined)
+		);
+	}
 	return waitForImage(getTemplateImage(templateId));
 }
 

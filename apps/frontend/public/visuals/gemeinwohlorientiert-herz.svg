@@ -1,0 +1,77 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes kf_Herz_path-trim_0 {
+  0% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  1.25% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  32.5% {
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  72.5% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  95% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  100% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+}
+#Herz {
+  stroke-dashoffset: 0;
+  animation: kf_Herz_path-trim_0 8s linear infinite;
+}
+@keyframes kf_Linien_Mitte_path-trim_0 {
+  0% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  32.5% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  47.5% {
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  62.5% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  72.5% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  100% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+}
+#Linien_Mitte {
+  stroke-dashoffset: 0;
+  animation: kf_Linien_Mitte_path-trim_0 8s linear infinite;
+}
+</style>
+<g id="gemeinwohlorientiert_____Herz_zeichnen__Loop_8s_" clip-path="url(#clip0_159_91)">
+<path id="Herz" transform="translate(43.81 60.0059)" d="M92.45 55.2941C100.87 46.8741 106.18 39.8241 106.18 29.2041C106.18 13.0741 93.11 0.0040841 76.98 0.0040841C68.69 0.0040841 60.8 3.52409 55.26 9.68409C54.04 10.8241 52.14 10.8241 50.92 9.68409C40.14 -2.31591 21.68 -3.29592 9.68 7.48408C3.52 13.0241 0 20.9141 0 29.1941C0 41.4041 7.96 50.4341 15.93 58.3941L45.32 86.8641C49.31 91.1541 56.03 91.4041 60.33 87.4041C60.42 87.3141 60.52 87.2241 60.61 87.1341C65 82.7341 65 75.6041 60.6 71.2141C64.78 75.8341 71.91 76.1941 76.53 72.0141C81.15 67.8341 81.51 60.7041 77.33 56.0841C77.08 55.8041 76.81 55.5341 76.53 55.2841C80.93 59.6841 88.07 59.6841 92.48 55.2841" pathLength="1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 1"/>
+<path id="Linien_Mitte" transform="translate(80.9975 69.7)" d="M55.2925 45.59C59.4425 41.44 59.4425 34.72 55.2925 30.58L45.3025 20.59C40.3025 15.59 32.2025 15.59 27.2025 20.59L18.1225 29.67C13.9725 33.82 7.2525 33.82 3.1125 29.67C-1.0375 25.52 -1.0375 18.8 3.1125 14.66L18.1025 0" pathLength="1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 1"/>
+</g>
+<defs>
+<clipPath id="clip0_159_91">
+<rect width="200" height="200" fill="white"/>
+</clipPath>
+</defs>
+</svg>

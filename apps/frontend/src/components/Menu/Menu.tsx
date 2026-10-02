@@ -1,4 +1,9 @@
-import { defaultContentFor, isMovingAnimation } from "../../domain/content";
+import { contrastRatio, MIN_LINE_CONTRAST } from "../../domain/color";
+import {
+	defaultContentFor,
+	displayedLineColor,
+	isMovingAnimation,
+} from "../../domain/content";
 import { referenceScreenId } from "../../domain/mapping";
 import { EMPTY_LAYERS } from "../../domain/types";
 import type {
@@ -83,12 +88,7 @@ export function Menu() {
 	const previewLayers = referenceId
 		? (resolveScreenRender(state, referenceId)?.layers ?? EMPTY_LAYERS)
 		: EMPTY_LAYERS;
-	const previewForeground = previewLayers.foreground;
 	const animationDroppedOnSave = dropsAnimationOnSave(state, appliedForeground);
-	const textInvisibleOnBackground =
-		previewForeground?.type === "text" &&
-		previewLayers.background !== null &&
-		previewLayers.background === previewForeground.color;
 
 	// Selecting other screens, clearing the selection, and entering layout
 	// mode all drop the current draft(s), so the reducer holds them back as a
@@ -162,12 +162,7 @@ export function Menu() {
 								nur für große oder nur für kleine Screens möglich.
 							</div>
 						)}
-						{textInvisibleOnBackground && (
-							<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
-								Textfarbe und Hintergrundfarbe sind identisch — der Text wird
-								nicht sichtbar sein.
-							</div>
-						)}
+						<ColorWarnings layers={previewLayers} />
 						{/* No aria-labelledby here: it would give this wrapper the
 						same accessible name as the tab's own form field (e.g.
 						"Text"), which makes them indistinguishable to label-based
@@ -249,5 +244,37 @@ function dropsAnimationOnSave(
 		state.draftText === null &&
 		appliedForeground?.type === "animation" &&
 		isMovingAnimation(appliedForeground)
+	);
+}
+
+/** Warns when the foreground would be hard to see on the background. No
+ * background is an unlit, black screen. */
+function ColorWarnings({ layers }: { layers: ScreenLayers }) {
+	const { foreground, background } = layers;
+	const textInvisible =
+		foreground?.type === "text" &&
+		background !== null &&
+		background === foreground.color;
+	const lineColor =
+		foreground?.type === "animation" ? displayedLineColor(foreground) : null;
+	const lowLineContrast =
+		lineColor !== null &&
+		contrastRatio(lineColor, background ?? "#000000") < MIN_LINE_CONTRAST;
+
+	return (
+		<>
+			{textInvisible && (
+				<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
+					Textfarbe und Hintergrundfarbe sind identisch — der Text wird nicht
+					sichtbar sein.
+				</div>
+			)}
+			{lowLineContrast && (
+				<div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] text-amber-800">
+					Linienfarbe und Hintergrundfarbe haben zu wenig Kontrast — die Linien
+					werden schlecht sichtbar sein.
+				</div>
+			)}
+		</>
 	);
 }

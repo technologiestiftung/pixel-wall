@@ -16,12 +16,13 @@ export interface Template {
 	 * never sampled, just drawn once like Farbe/static text. */
 	animated?: boolean;
 	/** The template's own authored loop length, in ms — the CSS animation's
-	 * `animation-duration`. Only meaningful when `animated` is true. Both
-	 * current animated templates are hand-authored at a 4s loop (Figma Smart
-	 * Animate's export default); a future template with a different duration
-	 * would need its own value here, since this can't be derived generically
-	 * without re-parsing the SVG's `<style>` block ahead of time. */
+	 * `animation-duration` (or SMIL `dur`). Only meaningful when `animated` is
+	 * true. Kept here rather than derived, since it can't be read without
+	 * fetching and parsing the SVG ahead of time. */
 	loopMs?: number;
+	/** True when the artwork is drawn only in white (or near-white) lines, so
+	 * the editor offers a line colour for it (AnimationContent.lineColor). */
+	lineArt?: boolean;
 }
 
 /** Fixed built-in template library (user uploads are a separate mode — see
@@ -29,7 +30,7 @@ export interface Template {
  * SVGs under `public/visuals/` — see CONTEXT.md "Content". This is the
  * closed set approved for Bild/Animation; nothing else ships. */
 export const TEMPLATES: Template[] = [
-	{ id: "logo", file: "CLB-Logo.svg" },
+	{ id: "logo", file: "CLB-Logo.svg", lineArt: true },
 	{
 		id: "raute-animiert",
 		file: "CLB-Raute-animiert-1.svg",
@@ -47,15 +48,97 @@ export const TEMPLATES: Template[] = [
 		file: "CLB-arrow-round-animated.svg",
 		animated: true,
 		loopMs: 4000,
+		lineArt: true,
 	},
-	{ id: "smiley", file: "CLB-smiley.svg" },
+	{ id: "smiley", file: "CLB-smiley.svg", lineArt: true },
 	{
 		id: "smiley-animiert",
 		file: "CLB-smiley-animiert.svg",
 		animated: true,
 		loopMs: 6000,
+		lineArt: true,
+	},
+	{
+		id: "raute-pixel-aufbau",
+		file: "CLB-Raute-pixel-aufbau.svg",
+		animated: true,
+		loopMs: 8000,
+	},
+	{
+		id: "raute-lego-aufbau",
+		file: "CLB-Raute-lego-aufbau.svg",
+		animated: true,
+		loopMs: 7000,
+	},
+	{
+		id: "interdisziplinaer",
+		file: "interdisziplinaer-formen-tauschen.svg",
+		animated: true,
+		loopMs: 9000,
+		lineArt: true,
+	},
+	{
+		id: "gemeinwohlorientiert",
+		file: "gemeinwohlorientiert-herz.svg",
+		animated: true,
+		loopMs: 8000,
+		lineArt: true,
+	},
+	{
+		id: "co-kreativ",
+		file: "co-kreativ-baelle.svg",
+		animated: true,
+		loopMs: 7000,
+		lineArt: true,
+	},
+	{
+		id: "quadrat-kreis",
+		file: "quadrat-kreis-morph.svg",
+		animated: true,
+		loopMs: 5000,
+		lineArt: true,
+	},
+	{
+		id: "spirale-welle",
+		file: "spirale-welle-sequenz.svg",
+		animated: true,
+		loopMs: 15000,
+		lineArt: true,
+	},
+	{
+		id: "welle",
+		file: "welle-zeichnen.svg",
+		animated: true,
+		loopMs: 7500,
+		lineArt: true,
+	},
+	{
+		id: "spirale",
+		file: "spirale-zeichnen.svg",
+		animated: true,
+		loopMs: 7500,
+		lineArt: true,
 	},
 ];
+
+/** The chosen line colour, or undefined when the template isn't line art or
+ * keeps its own white. */
+export function lineColorFor(content: AnimationContent): string | undefined {
+	return isLineArt(content) ? content.lineColor : undefined;
+}
+
+/** The colour a line-art template's lines are drawn in, or null when the
+ * foreground isn't a line-art template. */
+export function displayedLineColor(content: AnimationContent): string | null {
+	return isLineArt(content) ? (content.lineColor ?? "#FFFFFF") : null;
+}
+
+function isLineArt(content: AnimationContent): boolean {
+	return (
+		content.mode === "template" &&
+		TEMPLATES.some((t) => t.id === content.templateId && t.lineArt)
+	);
+}
 
 export interface PaletteColor {
 	name: string;

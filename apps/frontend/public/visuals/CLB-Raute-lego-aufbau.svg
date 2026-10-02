@@ -1,0 +1,197 @@
+<svg width="640" height="640" viewBox="0 0 640 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes kf_Vector_transform_0 {
+  0% {
+    transform: translateX(275px) translateY(163px) translateY(-140px);
+  }
+  12.86% {
+    animation-timing-function: ease-in;
+    transform: translateX(275px) translateY(163px) translateY(-140px);
+  }
+  21.43% {
+    animation-timing-function: ease-out;
+    transform: translateX(275px) translateY(163px) translateY(0px);
+  }
+  22.86% {
+    animation-timing-function: ease-out;
+    transform: translateX(275px) translateY(163px) translateY(10px);
+  }
+  24.29% {
+    transform: translateX(275px) translateY(163px) translateY(0px);
+  }
+  68.57% {
+    animation-timing-function: ease-in;
+    transform: translateX(275px) translateY(163px) translateY(0px);
+  }
+  77.14% {
+    transform: translateX(275px) translateY(163px) translateY(-140px);
+  }
+  100% {
+    transform: translateX(275px) translateY(163px) translateY(-140px);
+  }
+}
+@keyframes kf_Vector_opacity_0 {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  12.86% {
+    animation-timing-function: ease-in;
+    opacity: 0;
+  }
+  21.43% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  68.57% {
+    animation-timing-function: ease-in;
+    opacity: 1;
+  }
+  77.14% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#Vector {
+  transform-origin: 0 0;
+  animation:
+    kf_Vector_transform_0 7s linear infinite,
+    kf_Vector_opacity_0 7s linear infinite;
+}
+@keyframes kf_Vector_2_transform_0 {
+  0% {
+    transform: translateX(145px) translateY(80px) translateY(-140px);
+  }
+  22.86% {
+    animation-timing-function: ease-in;
+    transform: translateX(145px) translateY(80px) translateY(-140px);
+  }
+  31.43% {
+    animation-timing-function: ease-out;
+    transform: translateX(145px) translateY(80px) translateY(0px);
+  }
+  32.86% {
+    animation-timing-function: ease-out;
+    transform: translateX(145px) translateY(80px) translateY(10px);
+  }
+  34.29% {
+    transform: translateX(145px) translateY(80px) translateY(0px);
+  }
+  64.29% {
+    animation-timing-function: ease-in;
+    transform: translateX(145px) translateY(80px) translateY(0px);
+  }
+  72.86% {
+    transform: translateX(145px) translateY(80px) translateY(-140px);
+  }
+  100% {
+    transform: translateX(145px) translateY(80px) translateY(-140px);
+  }
+}
+@keyframes kf_Vector_2_opacity_0 {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  22.86% {
+    animation-timing-function: ease-in;
+    opacity: 0;
+  }
+  31.43% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  64.29% {
+    animation-timing-function: ease-in;
+    opacity: 1;
+  }
+  72.86% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#Vector_2 {
+  transform-origin: 0 0;
+  animation:
+    kf_Vector_2_transform_0 7s linear infinite,
+    kf_Vector_2_opacity_0 7s linear infinite;
+}
+@keyframes kf_Vector_3_transform_0 {
+  0% {
+    transform: translateX(135px) translateY(229px) translateY(-140px);
+  }
+  2.86% {
+    animation-timing-function: ease-in;
+    transform: translateX(135px) translateY(229px) translateY(-140px);
+  }
+  11.43% {
+    animation-timing-function: ease-out;
+    transform: translateX(135px) translateY(229px) translateY(0px);
+  }
+  12.86% {
+    animation-timing-function: ease-out;
+    transform: translateX(135px) translateY(229px) translateY(10px);
+  }
+  14.29% {
+    transform: translateX(135px) translateY(229px) translateY(0px);
+  }
+  72.86% {
+    animation-timing-function: ease-in;
+    transform: translateX(135px) translateY(229px) translateY(0px);
+  }
+  81.43% {
+    transform: translateX(135px) translateY(229px) translateY(-140px);
+  }
+  100% {
+    transform: translateX(135px) translateY(229px) translateY(-140px);
+  }
+}
+@keyframes kf_Vector_3_opacity_0 {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  2.86% {
+    animation-timing-function: ease-in;
+    opacity: 0;
+  }
+  11.43% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  72.86% {
+    animation-timing-function: ease-in;
+    opacity: 1;
+  }
+  81.43% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#Vector_3 {
+  transform-origin: 0 0;
+  animation:
+    kf_Vector_3_transform_0 7s linear infinite,
+    kf_Vector_3_opacity_0 7s linear infinite;
+}
+</style>
+<g id="CLB-Raute_____Lego-Aufbau__Loop_7s_" clip-path="url(#clip0_159_147)">
+<path id="Vector" transform="translate(275 163)" d="M230 264.667V0L0 132.333V397L230 264.667Z" fill="#1E3791"/>
+<path id="Vector_2" transform="translate(145 80)" d="M0 132L229.328 0L344 66L114.672 198L0 132Z" fill="#FE4441"/>
+<path id="Vector_3" transform="translate(135 229)" d="M0 0L114 66.2V331L0 264.8V0Z" fill="#FFCFD6"/>
+</g>
+<defs>
+<clipPath id="clip0_159_147">
+<rect width="640" height="640" fill="white"/>
+</clipPath>
+</defs>
+</svg>
