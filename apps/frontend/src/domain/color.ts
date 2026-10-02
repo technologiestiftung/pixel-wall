@@ -55,3 +55,6 @@ export function contrastRatio(a: string, b: string): number {
 	);
 	return (lighter + 0.05) / (darker + 0.05);
 }
+
+/** WCAG's minimum for graphics and lines (1.4.11 Non-text Contrast). */
+export const MIN_LINE_CONTRAST = 3;

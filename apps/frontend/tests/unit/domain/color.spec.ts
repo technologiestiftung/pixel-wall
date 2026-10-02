@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	clampChannel,
 	contrastRatio,
+	MIN_LINE_CONTRAST,
 	hexToRgb,
 	MIN_TEXT_CONTRAST,
 	rgbToHex,
@@ -91,6 +92,16 @@ describe("contrastRatio", () => {
 		expect(contrastRatio("#FEF177", "#FFFFFF")).toBeLessThan(MIN_TEXT_CONTRAST);
 		expect(contrastRatio("#FFFFFF", "#1E3791")).toBeGreaterThan(
 			MIN_TEXT_CONTRAST,
+		);
+	});
+
+	it("flags white lines on Rosa as too low", () => {
+		expect(contrastRatio("#FFFFFF", "#FFCFD6")).toBeLessThan(MIN_LINE_CONTRAST);
+	});
+
+	it("accepts white lines on Blau", () => {
+		expect(contrastRatio("#FFFFFF", "#1E3791")).toBeGreaterThan(
+			MIN_LINE_CONTRAST,
 		);
 	});
 });

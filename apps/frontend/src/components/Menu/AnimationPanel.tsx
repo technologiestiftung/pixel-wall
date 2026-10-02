@@ -318,6 +318,15 @@ function AnimationTemplatePicker({
 				</div>
 			</div>
 
+			{TEMPLATES.find((template) => template.id === content.templateId)
+				?.lineArt && (
+				<ColorPicker
+					label="Linienfarbe"
+					hex={content.lineColor ?? "#FFFFFF"}
+					onChange={(lineColor) => onChange({ ...content, lineColor })}
+				/>
+			)}
+
 			<PlacementControls content={content} onChange={onChange} />
 		</>
 	);

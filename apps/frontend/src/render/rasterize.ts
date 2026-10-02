@@ -5,6 +5,7 @@ import type {
 	UploadedMedia,
 	VerticalAlign,
 } from "../domain/types";
+import { lineColorFor } from "../domain/content";
 import { getTemplateImage, getUploadImage } from "./templateImages";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
@@ -124,10 +125,10 @@ function isImageReady(
  */
 function drawTemplateIcon(
 	ctx: CanvasRenderingContext2D,
-	templateId: string,
+	content: AnimationContent,
 	box: { x: number; y: number; size: number },
 ) {
-	const img = getTemplateImage(templateId);
+	const img = getTemplateImage(content.templateId, lineColorFor(content));
 	if (!isImageReady(img)) {
 		return;
 	}
@@ -241,7 +242,7 @@ export function drawContentToCanvas(
 	if (content.type === "animation") {
 		drawTemplateIcon(
 			ctx,
-			content.templateId,
+			content,
 			templateBox(content, { widthPx: canvas.width, heightPx: canvas.height }),
 		);
 		return canvas;
