@@ -9,6 +9,7 @@ import {
 	setBit,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
+import { lineColorFor } from "../domain/content";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
@@ -120,7 +121,7 @@ async function contentToPal4Wire(
 				await waitForUploadImage(content.upload.sheetDataUrl);
 			}
 		} else {
-			await waitForTemplateImage(content.templateId);
+			await waitForTemplateImage(content.templateId, lineColorFor(content));
 		}
 	}
 	if (content.type === "text" && hasCanvasSupport()) {

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
 	clampChannel,
+	contrastRatio,
+	MIN_LINE_CONTRAST,
 	hexToRgb,
 	rgbToHex,
 	type Rgb,
@@ -70,5 +72,22 @@ describe("round trip", () => {
 		for (const rgb of cases) {
 			expect(hexToRgb(rgbToHex(rgb))).toEqual(rgb);
 		}
+	});
+});
+
+describe("contrastRatio", () => {
+	it("is 21 for black on white and 1 for identical colours", () => {
+		expect(contrastRatio("#000000", "#FFFFFF")).toBeCloseTo(21);
+		expect(contrastRatio("#FE4441", "#FE4441")).toBe(1);
+	});
+
+	it("flags white lines on Rosa as too low", () => {
+		expect(contrastRatio("#FFFFFF", "#FFCFD6")).toBeLessThan(MIN_LINE_CONTRAST);
+	});
+
+	it("accepts white lines on Blau", () => {
+		expect(contrastRatio("#FFFFFF", "#1E3791")).toBeGreaterThan(
+			MIN_LINE_CONTRAST,
+		);
 	});
 });
