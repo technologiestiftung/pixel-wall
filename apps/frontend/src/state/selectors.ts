@@ -6,8 +6,17 @@ import {
 	selectionGroups,
 } from "../domain/mapping";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
-import type { Content, ScreenLayers } from "../domain/types";
+import type { Content, ScreenLayers, SelectionGroup } from "../domain/types";
 import type { AppliedRender, WallState } from "./reducer";
+
+type DraftFields = Pick<
+	WallState,
+	"draftText" | "draftAnimation" | "draftColor"
+>;
+
+/** Everything the preview's per-screen renders depend on. */
+export type RenderInputs = DraftFields &
+	Pick<WallState, "specs" | "layout" | "selection" | "applied">;
 
 /**
  * The in-progress content edits currently drafted, in the order they should
@@ -16,13 +25,13 @@ import type { AppliedRender, WallState } from "./reducer";
  * together — at most one of draftText/draftAnimation is ever set, though
  * (see `WallState`).
  */
-export function activeContentDrafts(state: WallState): Content[] {
+export function activeContentDrafts(state: DraftFields): Content[] {
 	return [state.draftColor, state.draftText ?? state.draftAnimation].filter(
 		(content): content is Content => content !== null,
 	);
 }
 
-export function hasContentDraft(state: WallState): boolean {
+export function hasContentDraft(state: DraftFields): boolean {
 	return activeContentDrafts(state).length > 0;
 }
 
@@ -30,59 +39,117 @@ function foldDrafts(layers: ScreenLayers, drafts: Content[]): ScreenLayers {
 	return drafts.reduce(withEdit, layers);
 }
 
+/** The edits folded into what the selection already shows — this is what
+ * keeps a Hintergrund change from flattening the text on top of it. One
+ * screen stands for the rest: a selection is edited as one unit, so they
+ * all end up with the same layers anyway. */
+export function selectionEditedLayers(state: WallState): ScreenLayers {
+	if (!state.selection) {
+		return EMPTY_LAYERS;
+	}
+	return foldDrafts(
+		state.applied[referenceScreenId(state.specs, state.selection)]?.layers ??
+			EMPTY_LAYERS,
+		activeContentDrafts(state),
+	);
+}
+
+/**
+ * What each screen of one selected group shows with the draft(s) folded in.
+ * Composite geometry is computed in real device pixels (not preview display
+ * px) — see domain/layout.ts displayScaleForKind and render/ContentLayer.tsx
+ * for how that gets magnified for the on-screen preview.
+ */
+function draftRendersForGroup(
+	state: RenderInputs,
+	group: SelectionGroup,
+	drafts: Content[],
+): Map<string, AppliedRender> {
+	const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
+	const composite = computeDisplayComposite(
+		{ specs: state.specs, positions: state.layout },
+		group,
+		devicePxPerMm,
+	);
+	// A mixed selection is one picture, so it folds onto one shared base.
+	const sharedBaseId =
+		state.selection?.kind === "mixed"
+			? referenceScreenId(state.specs, state.selection)
+			: null;
+	const renders = new Map<string, AppliedRender>();
+	for (const slot of composite.slots) {
+		renders.set(slot.screenId, {
+			// The edits folded into what this screen already shows, so a
+			// Hintergrund change keeps its text and vice versa.
+			layers: layersForGroup(
+				foldDrafts(
+					state.applied[sharedBaseId ?? slot.screenId]?.layers ?? EMPTY_LAYERS,
+					drafts,
+				),
+				group,
+			),
+			compositeWidthPx: composite.widthPx,
+			compositeHeightPx: composite.heightPx,
+			offsetXPx: slot.offsetXPx,
+			offsetYPx: slot.offsetYPx,
+			bitmap: null,
+		});
+	}
+	return renders;
+}
+
 /**
  * Resolves what a single screen should currently render: the live draft(s)
  * (if this screen is part of the selection being edited), otherwise
- * whatever was last applied to it, otherwise nothing. Composite geometry
- * is computed in real device pixels (not preview display px) — see
- * domain/layout.ts displayScaleForKind and render/ContentLayer.tsx for how
- * that gets magnified for the on-screen preview.
+ * whatever was last applied to it, otherwise nothing.
  */
 export function resolveScreenRender(
-	state: WallState,
+	state: RenderInputs,
 	screenId: string,
 ): AppliedRender | null {
 	const drafts = activeContentDrafts(state);
-	const group =
-		state.selection &&
-		selectionGroups(state.specs, state.selection).find((g) =>
+	if (state.selection && drafts.length > 0) {
+		const group = selectionGroups(state.specs, state.selection).find((g) =>
 			g.screenIds.includes(screenId),
 		);
-
-	if (state.selection && group && drafts.length > 0) {
-		const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
-		const composite = computeDisplayComposite(
-			{ specs: state.specs, positions: state.layout },
-			group,
-			devicePxPerMm,
-		);
-		const slot = composite.slots.find((s) => s.screenId === screenId);
-		if (slot) {
-			return {
-				// The edits folded into what this screen already shows, so a
-				// Hintergrund change keeps its text and vice versa. A mixed
-				// selection is one picture, so it folds onto one shared base.
-				layers: layersForGroup(
-					foldDrafts(
-						state.applied[
-							state.selection.kind === "mixed"
-								? referenceScreenId(state.specs, state.selection)
-								: screenId
-						]?.layers ?? EMPTY_LAYERS,
-						drafts,
-					),
-					group,
-				),
-				compositeWidthPx: composite.widthPx,
-				compositeHeightPx: composite.heightPx,
-				offsetXPx: slot.offsetXPx,
-				offsetYPx: slot.offsetYPx,
-				bitmap: null,
-			};
+		const render =
+			group && draftRendersForGroup(state, group, drafts).get(screenId);
+		if (render) {
+			return render;
 		}
 	}
-
 	return state.applied[screenId] ?? null;
+}
+
+/**
+ * `resolveScreenRender` for every screen on the wall at once, so the
+ * selection's groups and composites are computed once rather than per tile.
+ * Screens outside the selection keep the very same `applied` object, which
+ * lets memoized tiles skip re-rendering while a draft is edited.
+ */
+export function resolveScreenRenders(
+	state: RenderInputs,
+): Map<string, AppliedRender | null> {
+	const renders = new Map<string, AppliedRender | null>(
+		state.layout.map(({ screenId }) => [
+			screenId,
+			state.applied[screenId] ?? null,
+		]),
+	);
+	const drafts = activeContentDrafts(state);
+	if (!state.selection || drafts.length === 0) {
+		return renders;
+	}
+	for (const group of selectionGroups(state.specs, state.selection)) {
+		for (const [screenId, render] of draftRendersForGroup(
+			state,
+			group,
+			drafts,
+		)) {
+			renders.set(screenId, render);
+		}
+	}
+	return renders;
 }
 
 /**

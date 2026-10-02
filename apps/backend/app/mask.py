@@ -5,6 +5,7 @@
 in the frontend and the C++ decoder on the ESP32 in agreement.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Union
 
@@ -18,6 +19,12 @@ PAL4_MAX_COLORS = 16
 
 ENCODING_RAW = 0x00
 ENCODING_RLE = 0x01
+
+_HIGH_NIBBLE = bytes(byte >> 4 for byte in range(256))
+_LOW_NIBBLE = bytes(byte & 0x0F for byte in range(256))
+_TO_HIGH_NIBBLE = bytes((byte & 0x0F) << 4 for byte in range(256))
+_BIT_RUN = re.compile(r"0+|1+")
+_NIBBLE_RUN = re.compile(rb"(.)\1*", re.DOTALL)
 
 
 class MaskFormatError(ValueError):
@@ -45,6 +52,18 @@ class Mask:
 
     def get(self, x: int, y: int) -> bool:
         return bool(self.bits[y * self.stride + (x >> 3)] & (0x80 >> (x & 7)))
+
+    def row_value(self, y: int) -> int:
+        """Row `y` as a `width_px`-bit integer, leftmost pixel most significant."""
+        start = y * self.stride
+        row = int.from_bytes(self.bits[start : start + self.stride], "big")
+        return row >> (self.stride * 8 - self.width_px)
+
+    def set_row_value(self, y: int, value: int) -> None:
+        start = y * self.stride
+        self.bits[start : start + self.stride] = (
+            value << (self.stride * 8 - self.width_px)
+        ).to_bytes(self.stride, "big")
 
     def set(self, x: int, y: int, on: bool = True) -> None:
         index = y * self.stride + (x >> 3)
@@ -77,14 +96,15 @@ class Mask:
         """The sub-mask a single screen displays. Reads outside the source are clear,
         so a window may legitimately overhang (a scaled template is cropped, not fitted)."""
         out = Mask.blank(width_px, height_px)
+        shift = self.width_px - offset_x - width_px
+        keep = (1 << width_px) - 1
         for y in range(height_px):
             source_y = offset_y + y
             if not 0 <= source_y < self.height_px:
                 continue
-            for x in range(width_px):
-                source_x = offset_x + x
-                if 0 <= source_x < self.width_px and self.get(source_x, source_y):
-                    out.set(x, y)
+            row = self.row_value(source_y)
+            row = row >> shift if shift >= 0 else row << -shift
+            out.set_row_value(y, row & keep)
         return out
 
 
@@ -114,32 +134,45 @@ def _leb128(value: int) -> bytes:
             return bytes(out)
 
 
+def _read_leb128(body: bytes, cursor: int, label: str) -> tuple[int, int]:
+    value = 0
+    shift = 0
+    while True:
+        if cursor >= len(body):
+            raise MaskFormatError(f"truncated varint in {label} RLE body")
+        byte = body[cursor]
+        cursor += 1
+        value |= (byte & 0x7F) << shift
+        if not byte & 0x80:
+            return value, cursor
+        shift += 7
+
+
 def _rle_body(mask: Mask) -> bytes:
     total_bits = len(mask.bits) * 8
-    runs: list[int] = []
-    expected = 0
-    index = 0
-
-    while index < total_bits:
-        run = 0
-        while index < total_bits:
-            byte = mask.bits[index >> 3]
-            # Whole-byte fast path: text masks are overwhelmingly runs of clear
-            # bytes, and a wide Lauftext filmstrip is slow to walk bit by bit.
-            if index & 7 == 0 and byte in (0x00, 0xFF):
-                if (0 if byte == 0x00 else 1) != expected:
-                    break
-                run += 8
-                index += 8
-                continue
-            if (byte >> (7 - (index & 7))) & 1 != expected:
-                break
-            run += 1
-            index += 1
-        runs.append(run)
-        expected ^= 1
-
+    if not total_bits:
+        return b""
+    # As a "0"/"1" string the runs fall out of a regex, which a wide Lauftext
+    # filmstrip needs: walking it bit by bit in Python is slow on the Pi.
+    stream = format(int.from_bytes(mask.bits, "big"), f"0{total_bits}b")
+    runs = [len(run) for run in _BIT_RUN.findall(stream)]
+    if stream[0] == "1":
+        runs.insert(0, 0)
     return b"".join(_leb128(run) for run in runs)
+
+
+def _set_bits(bits: bytearray, start: int, end: int) -> None:
+    """Sets bits [start, end), MSB first. Whole bytes in between are assigned,
+    not ORed, so this is only for filling a buffer that is still clear there."""
+    first, last = start >> 3, (end - 1) >> 3
+    head = 0xFF >> (start & 7)
+    tail = (0xFF << (7 - ((end - 1) & 7))) & 0xFF
+    if first == last:
+        bits[first] |= head & tail
+        return
+    bits[first] |= head
+    bits[first + 1 : last] = b"\xff" * (last - first - 1)
+    bits[last] |= tail
 
 
 def encode(mask: Mask) -> bytes:
@@ -180,23 +213,11 @@ def decode(block: bytes) -> Mask:
     cursor = 0
 
     while cursor < len(body):
-        run = 0
-        shift = 0
-        while True:
-            if cursor >= len(body):
-                raise MaskFormatError("truncated varint in mask RLE body")
-            byte = body[cursor]
-            cursor += 1
-            run |= (byte & 0x7F) << shift
-            if not byte & 0x80:
-                break
-            shift += 7
-
+        run, cursor = _read_leb128(body, cursor, "mask")
         if bit_index + run > total_bits:
             raise MaskFormatError("mask RLE runs overflow the declared size")
-        if value:
-            for i in range(bit_index, bit_index + run):
-                mask.bits[i >> 3] |= 0x80 >> (i & 7)
+        if value and run:
+            _set_bits(mask.bits, bit_index, bit_index + run)
         bit_index += run
         value ^= 1
 
@@ -207,6 +228,23 @@ def decode(block: bytes) -> Mask:
 
 def pal4_stride_for(width_px: int) -> int:
     return (width_px + 1) // 2
+
+
+def _unpack_nibbles(packed: bytes) -> bytearray:
+    nibbles = bytearray(len(packed) * 2)
+    nibbles[0::2] = packed.translate(_HIGH_NIBBLE)
+    nibbles[1::2] = packed.translate(_LOW_NIBBLE)
+    return nibbles
+
+
+def _strip_row_padding(nibbles: bytearray, width_px: int, height_px: int) -> bytearray:
+    """Drops the index-0 padding nibble an odd-width pal4 row ends with."""
+    row = pal4_stride_for(width_px) * 2
+    if row == width_px:
+        return nibbles
+    return bytearray(
+        b"".join(nibbles[y * row : y * row + width_px] for y in range(height_px))
+    )
 
 
 @dataclass
@@ -247,27 +285,36 @@ class Palette4:
 
     def packed_rows(self) -> bytearray:
         """Packed rows including the index-0 padding nibble on odd widths."""
-        packed = bytearray(self.stride * self.height_px)
-        for y in range(self.height_px):
-            for x in range(self.width_px):
-                value = self.indices[y * self.width_px + x] & 0x0F
-                target = y * self.stride + (x >> 1)
-                packed[target] |= value << 4 if x % 2 == 0 else value
-        return packed
-
+        width = self.width_px
+        nibbles = bytes(self.indices)
+        if width % 2:
+            nibbles = b"".join(
+                nibbles[y * width : (y + 1) * width] + b"\x00" for y in range(self.height_px)
+            )
+        high = nibbles[0::2].translate(_TO_HIGH_NIBBLE)
+        low = nibbles[1::2].translate(_LOW_NIBBLE)
+        # The two halves never share a bit, so ORing them as two big integers
+        # packs every byte at once.
+        packed = int.from_bytes(high, "big") | int.from_bytes(low, "big")
+        return bytearray(packed.to_bytes(len(high), "big"))
 
     def window(self, offset_x: int, offset_y: int, width_px: int, height_px: int) -> "Palette4":
         """The sub-image a single screen displays. Reads outside the source fall back
         to palette index 0, so a window may legitimately overhang."""
         out = Palette4(width_px, height_px, list(self.palette), bytearray(width_px * height_px))
+        first_x = max(0, offset_x)
+        last_x = min(self.width_px, offset_x + width_px)
+        if first_x >= last_x:
+            return out
         for y in range(height_px):
             source_y = offset_y + y
             if not 0 <= source_y < self.height_px:
                 continue
-            for x in range(width_px):
-                source_x = offset_x + x
-                if 0 <= source_x < self.width_px:
-                    out.indices[y * width_px + x] = self.indices[source_y * self.width_px + source_x]
+            source = source_y * self.width_px
+            target = y * width_px - offset_x
+            out.indices[target + first_x : target + last_x] = self.indices[
+                source + first_x : source + last_x
+            ]
         return out
 
 
@@ -292,21 +339,10 @@ def _pal4_header(encoding: int, image: Palette4) -> bytes:
 def _pal4_rle_body(packed: bytearray) -> bytes:
     """Runs over the padded nibble stream; each run is an explicit index byte plus
     a varint length, since 16 values cannot simply alternate."""
-
-    def nibble_at(i: int) -> int:
-        return (packed[i >> 1] >> 4) & 0x0F if i % 2 == 0 else packed[i >> 1] & 0x0F
-
-    total = len(packed) * 2
     body = bytearray()
-    index = 0
-    while index < total:
-        value = nibble_at(index)
-        run = 0
-        while index < total and nibble_at(index) == value:
-            run += 1
-            index += 1
-        body.append(value)
-        body += _leb128(run)
+    for run in _NIBBLE_RUN.finditer(_unpack_nibbles(packed)):
+        body.append(run.group(1)[0])
+        body += _leb128(run.end() - run.start())
     return bytes(body)
 
 
@@ -346,16 +382,16 @@ def decode_pal4(block: bytes) -> Palette4:
         for i in range(PAL4_HEADER_BYTES, palette_end, 3)
     ]
 
-    stride = pal4_stride_for(width_px)
-    packed = bytearray(stride * height_px)
-    body = block[palette_end:]
+    packed_bytes = pal4_stride_for(width_px) * height_px
+    body = bytes(block[palette_end:])
 
     if encoding == ENCODING_RAW:
-        if len(body) != len(packed):
-            raise MaskFormatError(f"pal4 raw body is {len(body)} bytes, expected {len(packed)}")
-        packed[:] = body
+        if len(body) != packed_bytes:
+            raise MaskFormatError(f"pal4 raw body is {len(body)} bytes, expected {packed_bytes}")
+        nibbles = _unpack_nibbles(body)
     elif encoding == ENCODING_RLE:
-        total = len(packed) * 2
+        total = packed_bytes * 2
+        nibbles = bytearray(total)
         nibble = 0
         cursor = 0
         while cursor < len(body):
@@ -363,33 +399,24 @@ def decode_pal4(block: bytes) -> Palette4:
             cursor += 1
             if value > 0x0F:
                 raise MaskFormatError(f"pal4 run value {value} is not a nibble")
-            run = 0
-            shift = 0
-            while True:
-                if cursor >= len(body):
-                    raise MaskFormatError("truncated varint in pal4 RLE body")
-                byte = body[cursor]
-                cursor += 1
-                run |= (byte & 0x7F) << shift
-                if not byte & 0x80:
-                    break
-                shift += 7
+            run, cursor = _read_leb128(body, cursor, "pal4")
             if nibble + run > total:
                 raise MaskFormatError("pal4 RLE runs overflow the declared size")
-            for i in range(nibble, nibble + run):
-                packed[i >> 1] |= value << 4 if i % 2 == 0 else value
+            if value:
+                nibbles[nibble : nibble + run] = bytes([value]) * run
             nibble += run
         if nibble != total:
             raise MaskFormatError(f"pal4 RLE covers {nibble} nibbles, expected {total}")
     else:
         raise MaskFormatError(f"unknown pal4 encoding: {encoding}")
 
-    indices = bytearray(width_px * height_px)
-    for y in range(height_px):
-        for x in range(width_px):
-            source = packed[y * stride + (x >> 1)]
-            indices[y * width_px + x] = (source >> 4) & 0x0F if x % 2 == 0 else source & 0x0F
-    return Palette4(width_px, height_px, palette, indices)
+    return Palette4(
+        width_px, height_px, palette, _strip_row_padding(nibbles, width_px, height_px)
+    )
+
+
+def encode_block(image: Union[Mask, Palette4]) -> bytes:
+    return encode_pal4(image) if isinstance(image, Palette4) else encode(image)
 
 
 def decode_block(block: bytes) -> Union[Mask, Palette4]:

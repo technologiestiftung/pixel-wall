@@ -18,7 +18,6 @@ from .models import (
     LayoutRequest,
     LayoutResponse,
     MqttStatus,
-    ScreenStateModel,
     ScreensResponse,
     StateResponse,
     UploadLibrary,

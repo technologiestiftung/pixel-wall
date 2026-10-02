@@ -14,6 +14,10 @@ import { alignOffset, hasCanvasSupport } from "./rasterize";
 /** Must match TEMPERATURE_GLYPHS in apps/backend/app/models.py. */
 export const TEMPERATURE_GLYPHS = "0123456789-°";
 
+/** Shown in the preview until the backend has a reading, so the temperature's
+ * size and position can be set up before then. The wall itself shows nothing. */
+export const TEMPERATURE_PLACEHOLDER = "--°";
+
 export type TemperatureGlyphs = Record<string, Mask>;
 
 /** One reading ready to draw: its text, and the glyphs and style to draw it in. */
@@ -54,15 +58,17 @@ export function renderTemperatureGlyphs(
 function drawGlyphs(style: TemperatureStyle, font: string): TemperatureGlyphs {
 	const heightPx = Math.ceil(style.fontSizePx * 1.2);
 	const glyphs: TemperatureGlyphs = {};
+	const measure = hasCanvasSupport()
+		? document.createElement("canvas").getContext("2d")
+		: null;
+	if (measure) {
+		measure.font = font;
+	}
 	for (const char of TEMPERATURE_GLYPHS) {
-		const measure = hasCanvasSupport()
-			? document.createElement("canvas").getContext("2d")
-			: null;
 		if (!measure) {
 			glyphs[char] = createMask(Math.ceil(style.fontSizePx * 0.6), heightPx);
 			continue;
 		}
-		measure.font = font;
 		const widthPx = Math.max(1, Math.ceil(measure.measureText(char).width));
 
 		const canvas = document.createElement("canvas");

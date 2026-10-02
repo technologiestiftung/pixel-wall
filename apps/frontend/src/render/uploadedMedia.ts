@@ -1,13 +1,14 @@
 import { ANIMATION_FPS } from "../domain/content";
 import type { UploadedMedia } from "../domain/types";
 import { decodeAnimatedSvg } from "./animatedSvg";
+import { createCanvas } from "./rasterize";
 
 /** The largest composite is a few 64px panels across, so anything bigger is
  * wasted bytes in the stored `source` and the apply request. */
 const MAX_EDGE_PX = 128;
 /** 8s at ANIMATION_FPS — the same length as the longest built-in template,
  * which keeps a 128px-wide strip inside the backend's bitmap width limit. */
-export const MAX_UPLOAD_FRAMES = 128;
+const MAX_UPLOAD_FRAMES = 128;
 const DEFAULT_FRAME_DURATION_MS = 100;
 
 export const ACCEPTED_UPLOAD_TYPES =
@@ -159,9 +160,10 @@ function downscale(
 	height: number,
 ): HTMLCanvasElement {
 	const scale = Math.min(1, MAX_EDGE_PX / Math.max(width, height));
-	const canvas = document.createElement("canvas");
-	canvas.width = Math.max(1, Math.round(width * scale));
-	canvas.height = Math.max(1, Math.round(height * scale));
+	const canvas = createCanvas({
+		widthPx: width * scale,
+		heightPx: height * scale,
+	});
 	const ctx = canvas.getContext("2d");
 	if (ctx) {
 		ctx.imageSmoothingQuality = "high";

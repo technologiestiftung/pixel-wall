@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from app import wire
-from app.mask import Mask, encode
+from app.mask import Mask
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES_JSON = ROOT / "docs" / "wire-format-fixtures.json"

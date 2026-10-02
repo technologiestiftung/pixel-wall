@@ -105,7 +105,7 @@ export function drawUploadFrame(
 	ctx.restore();
 }
 
-export function isImageReady(
+function isImageReady(
 	img: HTMLImageElement | undefined,
 ): img is HTMLImageElement {
 	return img !== undefined && img.complete && img.naturalWidth > 0;
@@ -128,7 +128,7 @@ function drawTemplateIcon(
 	box: { x: number; y: number; size: number },
 ) {
 	const img = getTemplateImage(templateId);
-	if (!img || !img.complete || img.naturalWidth === 0) {
+	if (!isImageReady(img)) {
 		return;
 	}
 	const scale = box.size / Math.max(img.naturalWidth, img.naturalHeight);
@@ -139,13 +139,27 @@ function drawTemplateIcon(
 	ctx.restore();
 }
 
+let canvasSupport: boolean | undefined;
+
 /** True when a real 2D canvas context is actually available — false under
  * jsdom without the optional `canvas` npm package. jsdom's `Image` exists
  * but never actually decodes anything in that case either (setting `.src`
  * never fires `load` or `error`), so render/wire.ts uses this to skip
  * waiting on a template image that would otherwise hang forever. */
 export function hasCanvasSupport(): boolean {
-	return document.createElement("canvas").getContext("2d") !== null;
+	canvasSupport ??= document.createElement("canvas").getContext("2d") !== null;
+	return canvasSupport;
+}
+
+/** A canvas of at least 1×1 whole device pixels, however fractional `size` is. */
+export function createCanvas(size: {
+	widthPx: number;
+	heightPx: number;
+}): HTMLCanvasElement {
+	const canvas = document.createElement("canvas");
+	canvas.width = Math.max(1, Math.round(size.widthPx));
+	canvas.height = Math.max(1, Math.round(size.heightPx));
+	return canvas;
 }
 
 /**
@@ -183,9 +197,7 @@ export function drawContentToCanvas(
 	options: { monochrome?: boolean; background?: string | null } = {},
 ): HTMLCanvasElement | null {
 	const { monochrome = false, background = null } = options;
-	const canvas = document.createElement("canvas");
-	canvas.width = Math.max(1, Math.round(canvasSize.widthPx));
-	canvas.height = Math.max(1, Math.round(canvasSize.heightPx));
+	const canvas = createCanvas(canvasSize);
 	const ctx = canvas.getContext("2d");
 	if (!ctx) {
 		return null;

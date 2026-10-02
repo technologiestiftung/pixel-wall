@@ -1,7 +1,7 @@
 export type Rgb = [number, number, number];
 
-export const CHANNEL_MIN = 0;
-export const CHANNEL_MAX = 255;
+const CHANNEL_MIN = 0;
+const CHANNEL_MAX = 255;
 
 export function clampChannel(value: number): number {
 	if (Number.isNaN(value)) {

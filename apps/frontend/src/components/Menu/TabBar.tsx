@@ -30,8 +30,7 @@ interface TabBarProps {
 }
 
 /** A connected segmented control rather than separate pill buttons, with the
- * roving-tabindex + arrow-key navigation the `role="tab"` pattern expects
- * (previously missing — a real, if minor, a11y gap). */
+ * roving-tabindex + arrow-key navigation the `role="tab"` pattern expects. */
 export function TabBar({ active, onChange }: TabBarProps) {
 	const buttonRefs = useRef<Partial<Record<ContentType, HTMLButtonElement>>>(
 		{},

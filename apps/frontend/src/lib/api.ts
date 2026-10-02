@@ -19,7 +19,7 @@ export class ApiError extends Error {
 }
 
 /** The API has no username, so the Basic credentials are ":<password>". */
-export function authHeader(password: string): string {
+function authHeader(password: string): string {
 	return `Basic ${btoa(`:${password}`)}`;
 }
 

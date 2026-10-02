@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { putLayout } from "../../api/wall";
 import { useAuth } from "../../auth/AuthContext";
 import {
@@ -8,7 +8,7 @@ import {
 	wouldOverlapAny,
 } from "../../domain/layout";
 import type { LayoutPosition } from "../../domain/types";
-import { resolveScreenRender } from "../../state/selectors";
+import { resolveScreenRenders } from "../../state/selectors";
 import { useWallDispatch, useWallState } from "../../state/WallProvider";
 import { ScreenTile } from "./ScreenTile";
 
@@ -29,12 +29,23 @@ interface DragState {
 }
 
 export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
-	const state = useWallState();
-	const { specs, layout, selection, layoutEditMode } = state;
+	const {
+		specs,
+		layout,
+		selection,
+		applied,
+		draftText,
+		draftAnimation,
+		draftColor,
+		layoutEditMode,
+	} = useWallState();
 	const dispatch = useWallDispatch();
 	const { request } = useAuth();
 	const { widthMm, heightMm } = boundingBoxMm(specs, layout);
 	const [drag, setDrag] = useState<DragState | null>(null);
+	// Mirrors `drag` so the drag handlers can stay stable across moves
+	// (ScreenTile is memoized) while still reading the latest drag.
+	const dragRef = useRef<DragState | null>(null);
 
 	const fitScale = Math.min(
 		containerWidthPx / widthMm,
@@ -45,75 +56,111 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 			? Math.min(MM_TO_PX, fitScale)
 			: MM_TO_PX;
 
-	function handleDragStart(
-		screenId: string,
-		clientXPx: number,
-		clientYPx: number,
-	) {
-		const position = layout.find((p) => p.screenId === screenId);
-		if (!position) {
-			return;
-		}
-		setDrag({
-			screenId,
-			startClientXPx: clientXPx,
-			startClientYPx: clientYPx,
-			startXmm: position.xMm,
-			startYmm: position.yMm,
-			currentXmm: position.xMm,
-			currentYmm: position.yMm,
-		});
+	const renders = useMemo(
+		() =>
+			resolveScreenRenders({
+				specs,
+				layout,
+				selection,
+				applied,
+				draftText,
+				draftAnimation,
+				draftColor,
+			}),
+		[specs, layout, selection, applied, draftText, draftAnimation, draftColor],
+	);
+
+	function updateDrag(next: DragState | null) {
+		dragRef.current = next;
+		setDrag(next);
 	}
 
-	function handleDragMove(clientXPx: number, clientYPx: number) {
-		if (!drag) {
-			return;
-		}
-		const candidate = {
-			xMm: Math.max(
-				0,
-				drag.startXmm + (clientXPx - drag.startClientXPx) / mmToPx,
-			),
-			yMm: Math.max(
-				0,
-				drag.startYmm + (clientYPx - drag.startClientYPx) / mmToPx,
-			),
-		};
-		// Sticky: a candidate that would overlap is simply ignored, so the
-		// tile stays at its last valid spot rather than jumping around.
-		if (
-			!wouldOverlapAny({ specs, positions: layout }, drag.screenId, candidate)
-		) {
-			setDrag({
-				...drag,
-				currentXmm: candidate.xMm,
-				currentYmm: candidate.yMm,
+	const handleToggle = useCallback(
+		(screenId: string, additive: boolean) =>
+			dispatch({
+				type: "request-intent",
+				intent: { kind: "toggle-screen", screenId, additive },
+			}),
+		[dispatch],
+	);
+
+	const handleDragStart = useCallback(
+		(screenId: string, clientXPx: number, clientYPx: number) => {
+			const position = layout.find((p) => p.screenId === screenId);
+			if (!position) {
+				return;
+			}
+			updateDrag({
+				screenId,
+				startClientXPx: clientXPx,
+				startClientYPx: clientYPx,
+				startXmm: position.xMm,
+				startYmm: position.yMm,
+				currentXmm: position.xMm,
+				currentYmm: position.yMm,
 			});
-		}
-	}
+		},
+		[layout],
+	);
 
-	function handleDragEnd() {
-		if (!drag) {
+	const handleDragMove = useCallback(
+		(clientXPx: number, clientYPx: number) => {
+			const current = dragRef.current;
+			if (!current) {
+				return;
+			}
+			const candidate = {
+				xMm: Math.max(
+					0,
+					current.startXmm + (clientXPx - current.startClientXPx) / mmToPx,
+				),
+				yMm: Math.max(
+					0,
+					current.startYmm + (clientYPx - current.startClientYPx) / mmToPx,
+				),
+			};
+			// Sticky: a candidate that would overlap is simply ignored, so the
+			// tile stays at its last valid spot rather than jumping around.
+			if (
+				!wouldOverlapAny(
+					{ specs, positions: layout },
+					current.screenId,
+					candidate,
+				)
+			) {
+				updateDrag({
+					...current,
+					currentXmm: candidate.xMm,
+					currentYmm: candidate.yMm,
+				});
+			}
+		},
+		[mmToPx, specs, layout],
+	);
+
+	const handleDragEnd = useCallback(() => {
+		const current = dragRef.current;
+		if (!current) {
 			return;
 		}
 		dispatch({
 			type: "move-screen",
-			screenId: drag.screenId,
-			xMm: drag.currentXmm,
-			yMm: drag.currentYmm,
+			screenId: current.screenId,
+			xMm: current.currentXmm,
+			yMm: current.currentYmm,
 		});
 		const nextLayout: LayoutPosition[] = layout.map((p) =>
-			p.screenId === drag.screenId
-				? { ...p, xMm: drag.currentXmm, yMm: drag.currentYmm }
+			p.screenId === current.screenId
+				? { ...p, xMm: current.currentXmm, yMm: current.currentYmm }
 				: p,
 		);
-		setDrag(null);
+		updateDrag(null);
 		putLayout(request, nextLayout).catch(() => {
 			// Layout persistence failing silently just means the next poll
 			// (see useWallSync) won't reflect this move for other clients —
 			// the local arrangement itself isn't lost.
 		});
-	}
+	}, [dispatch, layout, request]);
 
 	return (
 		<div
@@ -133,18 +180,11 @@ export function Stage({ containerWidthPx, containerHeightPx }: StageProps) {
 						position={displayPosition}
 						mmToPx={mmToPx}
 						selected={selection?.screenIds.includes(spec.id) ?? false}
-						render={resolveScreenRender(state, spec.id)}
+						render={renders.get(spec.id) ?? null}
 						draggable={layoutEditMode}
 						dragging={isDragging}
-						onToggle={(screenId, additive) =>
-							dispatch({
-								type: "request-intent",
-								intent: { kind: "toggle-screen", screenId, additive },
-							})
-						}
-						onDragStart={(clientXPx, clientYPx) =>
-							handleDragStart(spec.id, clientXPx, clientYPx)
-						}
+						onToggle={handleToggle}
+						onDragStart={handleDragStart}
 						onDragMove={handleDragMove}
 						onDragEnd={handleDragEnd}
 					/>

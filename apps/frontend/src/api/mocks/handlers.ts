@@ -18,7 +18,7 @@ let uploads: LibraryUpload[] = [];
 // Must match the origin the app actually calls: a bare "/api" only matches the
 // dev server's own origin, so requests to VITE_API_URL passed straight through
 // to the real wall even with mocks enabled.
-export const API_BASE = `${API_URL}/api`;
+const API_BASE = `${API_URL}/api`;
 
 function blankMask(widthPx: number, heightPx: number): string {
 	return encodeMaskBase64(createMask(widthPx, heightPx));
