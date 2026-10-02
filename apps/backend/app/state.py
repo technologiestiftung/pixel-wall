@@ -6,9 +6,9 @@ from pathlib import Path
 from threading import Lock, RLock
 from typing import Any
 
-from . import config
 from pydantic import ValidationError
 
+from . import config
 from .models import WallState
 
 _write_lock = Lock()

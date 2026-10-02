@@ -1,5 +1,6 @@
 import { ANIMATION_FPS, TEMPLATES } from "../domain/content";
 import {
+	createCanvas,
 	drawUploadFrame,
 	hasCanvasSupport,
 	templateBox,
@@ -106,14 +107,13 @@ export async function renderAnimationFrameStrip(
 		const box = templateBox(content, canvasSize);
 		const scale = box.size / viewBoxWidth;
 
-		const strip = document.createElement("canvas");
-		strip.width = Math.max(1, Math.round(canvasSize.widthPx * frameCount));
-		strip.height = Math.max(1, Math.round(canvasSize.heightPx));
+		const strip = createStripCanvas(canvasSize, frameCount);
 		const ctx = strip.getContext("2d");
 		if (!ctx) {
 			return null;
 		}
 
+		const shapes = paths.flatMap((path) => toPathShape(path) ?? []);
 		for (let frame = 0; frame < frameCount; frame++) {
 			const frameTimeMs =
 				durationMs > 0 ? (frame / frameCount) * durationMs : 0;
@@ -121,18 +121,12 @@ export async function renderAnimationFrameStrip(
 				animation.currentTime = frameTimeMs;
 			});
 
-			const slotX = frame * canvasSize.widthPx;
-
-			if (background) {
-				ctx.fillStyle = background;
-				ctx.fillRect(slotX, 0, canvasSize.widthPx, canvasSize.heightPx);
-			}
-
+			const slotX = fillSlot(ctx, frame, { canvasSize, background });
 			ctx.save();
 			ctx.translate(slotX + box.x, box.y);
 			ctx.scale(scale, scale);
-			for (const path of paths) {
-				drawAnimatedPath(ctx, path);
+			for (const shape of shapes) {
+				drawAnimatedPath(ctx, shape);
 			}
 			ctx.restore();
 		}
@@ -143,44 +137,93 @@ export async function renderAnimationFrameStrip(
 	}
 }
 
-function drawAnimatedPath(ctx: CanvasRenderingContext2D, path: SVGPathElement) {
+/** A `<path>`'s static attributes, read once per strip rather than per frame —
+ * only its animated `transform` changes between frames. */
+interface PathShape {
+	element: SVGPathElement;
+	shape: Path2D;
+	fill: string | null;
+	stroke: string | null;
+	lineWidth: number;
+	lineJoin: string | null;
+	lineCap: string | null;
+}
+
+function toPathShape(path: SVGPathElement): PathShape | null {
 	const d = path.getAttribute("d");
 	if (!d) {
-		return;
+		return null;
 	}
-	const shape = new Path2D(d);
+	const fill = path.getAttribute("fill");
+	const stroke = path.getAttribute("stroke");
+	return {
+		element: path,
+		shape: new Path2D(d),
+		fill: fill && fill !== "none" ? fill : null,
+		stroke: stroke && stroke !== "none" ? stroke : null,
+		lineWidth: Number(path.getAttribute("stroke-width") ?? "1"),
+		lineJoin: path.getAttribute("stroke-linejoin"),
+		lineCap: path.getAttribute("stroke-linecap"),
+	};
+}
 
+function drawAnimatedPath(ctx: CanvasRenderingContext2D, path: PathShape) {
 	ctx.save();
 	// The element's own presentation `transform` attribute is what CSS
 	// overrides once an `animation` applies — reading computed style here is
 	// what actually reflects the current keyframe-interpolated value (see
 	// docs above on transform-origin).
-	const transformValue = getComputedStyle(path).transform;
+	const transformValue = getComputedStyle(path.element).transform;
 	if (transformValue && transformValue !== "none") {
 		const matrix = new DOMMatrix(transformValue);
 		ctx.transform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
 	}
 
-	const fill = path.getAttribute("fill");
-	if (fill && fill !== "none") {
-		ctx.fillStyle = fill;
-		ctx.fill(shape);
+	if (path.fill) {
+		ctx.fillStyle = path.fill;
+		ctx.fill(path.shape);
 	}
-	const stroke = path.getAttribute("stroke");
-	if (stroke && stroke !== "none") {
-		ctx.strokeStyle = stroke;
-		ctx.lineWidth = Number(path.getAttribute("stroke-width") ?? "1");
-		const lineJoin = path.getAttribute("stroke-linejoin");
-		if (lineJoin) {
-			ctx.lineJoin = lineJoin as CanvasRenderingContext2D["lineJoin"];
+	if (path.stroke) {
+		ctx.strokeStyle = path.stroke;
+		ctx.lineWidth = path.lineWidth;
+		if (path.lineJoin) {
+			ctx.lineJoin = path.lineJoin as CanvasRenderingContext2D["lineJoin"];
 		}
-		const lineCap = path.getAttribute("stroke-linecap");
-		if (lineCap) {
-			ctx.lineCap = lineCap as CanvasRenderingContext2D["lineCap"];
+		if (path.lineCap) {
+			ctx.lineCap = path.lineCap as CanvasRenderingContext2D["lineCap"];
 		}
-		ctx.stroke(shape);
+		ctx.stroke(path.shape);
 	}
 	ctx.restore();
+}
+
+function createStripCanvas(
+	canvasSize: { widthPx: number; heightPx: number },
+	frameCount: number,
+): HTMLCanvasElement {
+	return createCanvas({
+		widthPx: canvasSize.widthPx * frameCount,
+		heightPx: canvasSize.heightPx,
+	});
+}
+
+/** Paints `frame`'s slot of a strip with the background, if any, and returns
+ * the slot's left edge. */
+function fillSlot(
+	ctx: CanvasRenderingContext2D,
+	frame: number,
+	options: {
+		canvasSize: { widthPx: number; heightPx: number };
+		background?: string | null;
+	},
+): number {
+	const { canvasSize, background } = options;
+	const slotX = frame * canvasSize.widthPx;
+	if (background) {
+		ctx.fillStyle = background;
+		ctx.fillRect(slotX, 0, canvasSize.widthPx, canvasSize.heightPx);
+	}
+	return slotX;
 }
 
 /** Computes a sane frame count from a template's authored loop length and a
@@ -236,9 +279,7 @@ async function renderUploadFrameStrip(
 		return null;
 	}
 
-	const strip = document.createElement("canvas");
-	strip.width = Math.max(1, Math.round(canvasSize.widthPx * frameCount));
-	strip.height = Math.max(1, Math.round(canvasSize.heightPx));
+	const strip = createStripCanvas(canvasSize, frameCount);
 	const ctx = strip.getContext("2d");
 	if (!ctx) {
 		return null;
@@ -246,11 +287,7 @@ async function renderUploadFrameStrip(
 
 	const box = uploadBox(content, media, canvasSize);
 	for (let frame = 0; frame < frameCount; frame++) {
-		const slotX = frame * canvasSize.widthPx;
-		if (background) {
-			ctx.fillStyle = background;
-			ctx.fillRect(slotX, 0, canvasSize.widthPx, canvasSize.heightPx);
-		}
+		const slotX = fillSlot(ctx, frame, { canvasSize, background });
 		drawUploadFrame(ctx, sheet, media, frame % media.frameCount, {
 			...box,
 			x: slotX + box.x,

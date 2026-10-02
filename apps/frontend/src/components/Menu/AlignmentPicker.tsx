@@ -9,11 +9,13 @@ import {
 } from "../../render/AlignIcons";
 import type { HorizontalAlign, VerticalAlign } from "../../domain/types";
 
-const H_OPTIONS: {
-	value: HorizontalAlign;
+interface AlignOption<T> {
+	value: T;
 	label: string;
 	icon: (className: string) => ReactElement;
-}[] = [
+}
+
+const H_OPTIONS: AlignOption<HorizontalAlign>[] = [
 	{
 		value: "left",
 		label: "Links",
@@ -31,11 +33,7 @@ const H_OPTIONS: {
 	},
 ];
 
-const V_OPTIONS: {
-	value: VerticalAlign;
-	label: string;
-	icon: (className: string) => ReactElement;
-}[] = [
+const V_OPTIONS: AlignOption<VerticalAlign>[] = [
 	{
 		value: "top",
 		label: "Oben",
@@ -76,46 +74,50 @@ export function AlignmentPicker({
 			<span className="text-[12px] text-[#767671]">{label}</span>
 			<div className="flex flex-col gap-1.5">
 				{hAlign && onChangeHAlign && (
-					<div className="flex w-full gap-1.5">
-						{H_OPTIONS.map((option) => (
-							<button
-								key={option.value}
-								type="button"
-								onClick={() => onChangeHAlign(option.value)}
-								aria-label={option.label}
-								aria-pressed={hAlign === option.value}
-								title={option.label}
-								className={`flex flex-1 items-center justify-center rounded-[7px] border py-1.5 ${
-									hAlign === option.value
-										? "border-[#20201b] bg-[#20201b] text-white"
-										: "border-[#e4e4e0] text-[#6b6b66]"
-								}`}
-							>
-								{option.icon("shrink-0")}
-							</button>
-						))}
-					</div>
+					<AlignRow
+						options={H_OPTIONS}
+						value={hAlign}
+						onChange={onChangeHAlign}
+					/>
 				)}
-				<div className="flex w-full gap-1.5">
-					{V_OPTIONS.map((option) => (
-						<button
-							key={option.value}
-							type="button"
-							onClick={() => onChangeVAlign(option.value)}
-							aria-label={option.label}
-							aria-pressed={vAlign === option.value}
-							title={option.label}
-							className={`flex flex-1 items-center justify-center rounded-[7px] border py-1.5 ${
-								vAlign === option.value
-									? "border-[#20201b] bg-[#20201b] text-white"
-									: "border-[#e4e4e0] text-[#6b6b66]"
-							}`}
-						>
-							{option.icon("shrink-0")}
-						</button>
-					))}
-				</div>
+				<AlignRow
+					options={V_OPTIONS}
+					value={vAlign}
+					onChange={onChangeVAlign}
+				/>
 			</div>
+		</div>
+	);
+}
+
+function AlignRow<T extends string>({
+	options,
+	value,
+	onChange,
+}: {
+	options: AlignOption<T>[];
+	value: T;
+	onChange: (next: T) => void;
+}) {
+	return (
+		<div className="flex w-full gap-1.5">
+			{options.map((option) => (
+				<button
+					key={option.value}
+					type="button"
+					onClick={() => onChange(option.value)}
+					aria-label={option.label}
+					aria-pressed={value === option.value}
+					title={option.label}
+					className={`flex flex-1 items-center justify-center rounded-[7px] border py-1.5 ${
+						value === option.value
+							? "border-[#20201b] bg-[#20201b] text-white"
+							: "border-[#e4e4e0] text-[#6b6b66]"
+					}`}
+				>
+					{option.icon("shrink-0")}
+				</button>
+			))}
 		</div>
 	);
 }

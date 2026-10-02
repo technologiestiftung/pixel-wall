@@ -10,15 +10,7 @@ Phase B, "Where the slicing happens".
 import base64
 from typing import Optional
 
-from .mask import (
-    Mask,
-    Palette4,
-    decode_block,
-    encode,
-    encode_pal4,
-    pal4_stride_for,
-    stride_for,
-)
+from .mask import Mask, Palette4, decode_block, encode_block, pal4_stride_for, stride_for
 from . import config
 from .models import (
     ApplyTarget,
@@ -45,8 +37,16 @@ def _is_sliceable(content: ContentModel) -> bool:
     )
 
 
-def _encode(image) -> bytes:
-    return encode_pal4(image) if isinstance(image, Palette4) else encode(image)
+def _encoded_data(image) -> str:
+    return base64.b64encode(encode_block(image)).decode()
+
+
+def _origin(width: int, height: int) -> ScreenWindow:
+    return ScreenWindow(offsetXPx=0, offsetYPx=0, widthPx=width, heightPx=height)
+
+
+def _wire_window(window: ScreenWindow) -> Window:
+    return Window(window.offsetXPx, window.offsetYPx, window.widthPx, window.heightPx)
 
 
 #: Mirrors MAX_PIXELS_BYTES in apps/esp32/pixel_wall_esp32/wire_decode.h —
@@ -71,33 +71,35 @@ def _fit_frames_for_small_screen(
     bytes_per_frame = (pal4_stride_for(width) if is_pal4 else stride_for(width)) * height
     count = max(1, min(source_count, ESP32_MAX_PIXELS_BYTES // bytes_per_frame))
 
-    if is_pal4:
-        strip = Palette4(
-            width * count, height, list(image.palette), bytearray(width * count * height)
+    frames = [
+        image.window(
+            (index * source_count // count) * frame_width + window.offsetXPx,
+            window.offsetYPx,
+            width,
+            height,
         )
+        for index in range(count)
+    ]
+
+    if is_pal4:
+        indices = b"".join(
+            frame.indices[y * width : (y + 1) * width] for y in range(height) for frame in frames
+        )
+        strip = Palette4(width * count, height, list(image.palette), bytearray(indices))
     else:
         strip = Mask.blank(width * count, height)
-
-    for index in range(count):
-        source_index = index * source_count // count
-        frame = image.window(
-            source_index * frame_width + window.offsetXPx, window.offsetYPx, width, height
-        )
         for y in range(height):
-            for x in range(width):
-                if is_pal4:
-                    strip.indices[y * strip.width_px + index * width + x] = frame.indices[
-                        y * width + x
-                    ]
-                elif frame.get(x, y):
-                    strip.set(index * width + x, y)
+            row = 0
+            for frame in frames:
+                row = (row << width) | frame.row_value(y)
+            strip.set_row_value(y, row)
 
     loop_ms = source_count * content.frames.frameDurationMs
     fitted = content.model_copy(
         update={
             "widthPx": strip.width_px,
             "heightPx": height,
-            "data": base64.b64encode(_encode(strip)).decode(),
+            "data": _encoded_data(strip),
             "frames": FramesModel(
                 frameCount=count,
                 frameDurationMs=loop_ms / count,
@@ -105,8 +107,7 @@ def _fit_frames_for_small_screen(
             ),
         }
     )
-    origin = ScreenWindow(offsetXPx=0, offsetYPx=0, widthPx=width, heightPx=height)
-    return fitted, origin
+    return fitted, _origin(width, height)
 
 
 def slice_for_screen(
@@ -127,16 +128,10 @@ def slice_for_screen(
         widthPx=window.widthPx,
         heightPx=window.heightPx,
         color=content.color,
-        data=base64.b64encode(_encode(cropped)).decode(),
+        data=_encoded_data(cropped),
         scroll=None,
     )
-    origin = ScreenWindow(
-        offsetXPx=0,
-        offsetYPx=0,
-        widthPx=window.widthPx,
-        heightPx=window.heightPx,
-    )
-    return sliced, origin
+    return sliced, _origin(window.widthPx, window.heightPx)
 
 
 def frame_for_screen(
@@ -146,9 +141,7 @@ def frame_for_screen(
     if content.format == "gameOfLife":
         return ScreenFrame(
             color=(255, 255, 255),
-            window=Window(
-                window.offsetXPx, window.offsetYPx, window.widthPx, window.heightPx
-            ),
+            window=_wire_window(window),
             mask=None,
             brightness=brightness,
             game_of_life=True,
@@ -173,9 +166,7 @@ def frame_for_screen(
 
     return ScreenFrame(
         color=tuple(content.color or (255, 255, 255)),
-        window=Window(
-            window.offsetXPx, window.offsetYPx, window.widthPx, window.heightPx
-        ),
+        window=_wire_window(window),
         mask=decode_block(content.block()),
         scroll=scroll,
         frames=frames,

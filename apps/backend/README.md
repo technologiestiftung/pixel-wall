@@ -648,17 +648,21 @@ mosquitto_sub -h localhost -t 'ledwall/screen/+' -F '%t %l bytes'
 
 ## Local development
 
-Away from the Pi, point the state file somewhere writable and turn MQTT off:
+Away from the Pi, run `npm run dev:api` from the repo root. It points the
+state file at `/tmp`, turns MQTT off and serves on port 5001:
 
 ```bash
 LEDWALL_STATE_FILE=/tmp/ledwall-state.json LEDWALL_MQTT_ENABLED=0 \
-  .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 5000
+  .venv/bin/uvicorn app.main:app --reload --host 127.0.0.1 --port 5001
 ```
 
-On macOS, port 5000 is taken by the AirPlay Receiver (it shows up as
-`ControlCenter` in `lsof -nP -iTCP:5000`), and uvicorn will fail to bind while
-requests appear to succeed against the wrong server. Use another port locally,
-or turn the receiver off in System Settings → General → AirDrop & Handoff.
+Avoid port 5000 locally on macOS. The AirPlay Receiver holds it (it shows up as
+`ControlCenter` in `lsof -nP -iTCP:5000`), so uvicorn fails to bind while
+requests appear to succeed against the wrong server. Alternatively, turn the
+receiver off in System Settings → General → AirDrop & Handoff.
+
+Run the tests with `npm run test:backend` from the root, or `.venv/bin/python
+-m pytest tests -q` from here (install `requirements-dev.txt` first).
 
 Settings can also go in a `.env` file next to this README (or `app/.env`); it
 is loaded at import time and never overrides a real environment variable. Both

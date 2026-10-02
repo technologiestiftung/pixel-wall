@@ -88,9 +88,7 @@ describe("contrastRatio", () => {
 	});
 
 	it("flags low-contrast palette pairs", () => {
-		expect(contrastRatio("#FEF177", "#FFFFFF")).toBeLessThan(
-			MIN_TEXT_CONTRAST,
-		);
+		expect(contrastRatio("#FEF177", "#FFFFFF")).toBeLessThan(MIN_TEXT_CONTRAST);
 		expect(contrastRatio("#FFFFFF", "#1E3791")).toBeGreaterThan(
 			MIN_TEXT_CONTRAST,
 		);

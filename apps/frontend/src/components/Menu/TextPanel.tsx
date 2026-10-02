@@ -4,6 +4,16 @@ import { AlignmentPicker } from "./AlignmentPicker";
 import { ColorPicker } from "./ColorPicker";
 import { FontField, FontSizeField, PaddingField } from "./TextStyleFields";
 
+const TEXT_MODES: ChoiceOption<TextContent["mode"]>[] = [
+	{ value: "static", label: "Statischer Text" },
+	{ value: "scrolling", label: "Lauftext" },
+];
+
+const DIRECTIONS: ChoiceOption<NonNullable<TextContent["direction"]>>[] = [
+	{ value: "left", label: "Links" },
+	{ value: "right", label: "Rechts" },
+];
+
 interface TextPanelProps {
 	content: TextContent;
 	onChange: (content: TextContent) => void;
@@ -12,27 +22,13 @@ interface TextPanelProps {
 export function TextPanel({ content, onChange }: TextPanelProps) {
 	return (
 		<div className="flex w-full flex-col gap-5">
-			<div className="flex flex-col gap-2">
-				<label className="text-[12px] text-[#767671]" htmlFor="textart">
-					Textart
-				</label>
-				<div id="textart" className="flex w-full gap-1.5">
-					{(["static", "scrolling"] as const).map((mode) => (
-						<button
-							key={mode}
-							type="button"
-							onClick={() => onChange({ ...content, mode })}
-							className={`flex-1 rounded-[7px] border py-2 text-[13px] ${
-								content.mode === mode
-									? "border-[#20201b] bg-[#20201b] font-medium text-white"
-									: "border-[#e4e4e0] text-[#6b6b66]"
-							}`}
-						>
-							{mode === "static" ? "Statischer Text" : "Lauftext"}
-						</button>
-					))}
-				</div>
-			</div>
+			<ChoiceGroup
+				id="textart"
+				label="Textart"
+				options={TEXT_MODES}
+				value={content.mode}
+				onChange={(mode) => onChange({ ...content, mode })}
+			/>
 
 			<div className="flex flex-col gap-2">
 				<label className="text-[12px] text-[#767671]" htmlFor="text-value">
@@ -66,19 +62,12 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 				onChange={(font) => onChange({ ...content, ...font })}
 			/>
 
-			{content.mode === "static" ? (
-				<AlignmentPicker
-					hAlign={content.hAlign}
-					vAlign={content.vAlign}
-					onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
-					onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
-				/>
-			) : (
-				<AlignmentPicker
-					vAlign={content.vAlign}
-					onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
-				/>
-			)}
+			<AlignmentPicker
+				hAlign={content.mode === "static" ? content.hAlign : undefined}
+				vAlign={content.vAlign}
+				onChangeHAlign={(hAlign) => onChange({ ...content, hAlign })}
+				onChangeVAlign={(vAlign) => onChange({ ...content, vAlign })}
+			/>
 
 			<PaddingField
 				id="padding"
@@ -88,27 +77,13 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 
 			{content.mode === "scrolling" && (
 				<>
-					<div className="flex flex-col gap-2">
-						<label className="text-[12px] text-[#767671]" htmlFor="direction">
-							Richtung
-						</label>
-						<div id="direction" className="flex w-full gap-1.5">
-							{(["left", "right"] as const).map((direction) => (
-								<button
-									key={direction}
-									type="button"
-									onClick={() => onChange({ ...content, direction })}
-									className={`flex-1 rounded-[7px] border py-2 text-[13px] ${
-										content.direction === direction
-											? "border-[#20201b] bg-[#20201b] font-medium text-white"
-											: "border-[#e4e4e0] text-[#6b6b66]"
-									}`}
-								>
-									{direction === "left" ? "Links" : "Rechts"}
-								</button>
-							))}
-						</div>
-					</div>
+					<ChoiceGroup
+						id="direction"
+						label="Richtung"
+						options={DIRECTIONS}
+						value={content.direction}
+						onChange={(direction) => onChange({ ...content, direction })}
+					/>
 
 					<div className="flex w-full items-end gap-2.5">
 						<div className="flex flex-col gap-2">
@@ -164,6 +139,49 @@ export function TextPanel({ content, onChange }: TextPanelProps) {
 					</div>
 				</>
 			)}
+		</div>
+	);
+}
+
+interface ChoiceOption<T> {
+	value: T;
+	label: string;
+}
+
+function ChoiceGroup<T extends string>({
+	id,
+	label,
+	options,
+	value,
+	onChange,
+}: {
+	id: string;
+	label: string;
+	options: ChoiceOption<T>[];
+	value: T | undefined;
+	onChange: (next: T) => void;
+}) {
+	return (
+		<div className="flex flex-col gap-2">
+			<label className="text-[12px] text-[#767671]" htmlFor={id}>
+				{label}
+			</label>
+			<div id={id} className="flex w-full gap-1.5">
+				{options.map((option) => (
+					<button
+						key={option.value}
+						type="button"
+						onClick={() => onChange(option.value)}
+						className={`flex-1 rounded-[7px] border py-2 text-[13px] ${
+							value === option.value
+								? "border-[#20201b] bg-[#20201b] font-medium text-white"
+								: "border-[#e4e4e0] text-[#6b6b66]"
+						}`}
+					>
+						{option.label}
+					</button>
+				))}
+			</div>
 		</div>
 	);
 }

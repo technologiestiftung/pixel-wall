@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
 	draftHasChanges,
 	resolveScreenRender,
+	resolveScreenRenders,
 } from "../../../src/state/selectors";
 import { initialWallState } from "../../../src/state/reducer";
 import type { AppliedRender, WallState } from "../../../src/state/reducer";
@@ -127,5 +128,30 @@ describe("resolveScreenRender", () => {
 			background: colorA.hex,
 			foreground: text,
 		});
+	});
+});
+
+describe("resolveScreenRenders", () => {
+	test("matches resolveScreenRender for every screen, keeping unselected screens' applied render as-is", () => {
+		const applied = {
+			"01": showing({ background: colorB.hex }),
+			"04": showing({ foreground: text }),
+			"05": showing({}),
+		};
+		const state = stateWith({
+			selection: { kind: "mixed", screenIds: ["01", "04"] },
+			draftColor: colorA,
+			applied,
+		});
+
+		const renders = resolveScreenRenders(state);
+
+		for (const { screenId } of state.layout) {
+			expect(renders.get(screenId)).toEqual(
+				resolveScreenRender(state, screenId),
+			);
+		}
+		expect(renders.get("05")).toBe(applied["05"]);
+		expect(renders.get("06")).toBeNull();
 	});
 });

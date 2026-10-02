@@ -17,6 +17,7 @@ from .mask import Mask, MaskFormatError, Palette4, decode_block
 from .scroll import Marquee, marquee_offset_px
 
 BLACK = (0, 0, 0)
+_OPAQUE_UNLESS_ZERO = bytes([0]) + bytes([255]) * 255
 
 
 @lru_cache(maxsize=32)
@@ -55,9 +56,7 @@ def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
     indexed = Image.frombytes(
         "P", (decoded.width_px, decoded.height_px), bytes(decoded.indices)
     )
-    flat: list[int] = []
-    for entry in decoded.palette:
-        flat.extend(entry)
+    flat = [channel for entry in decoded.palette for channel in entry]
     flat.extend([0] * (768 - len(flat)))
     indexed.putpalette(flat)
     rgba = indexed.convert("RGBA")
@@ -67,7 +66,7 @@ def _to_image(block: bytes, color: tuple[int, int, int]) -> Image.Image:
     alpha = Image.frombytes(
         "L",
         (decoded.width_px, decoded.height_px),
-        bytes(0 if index == 0 else 255 for index in decoded.indices),
+        bytes(decoded.indices).translate(_OPAQUE_UNLESS_ZERO),
     )
     rgba.putalpha(alpha)
     return rgba

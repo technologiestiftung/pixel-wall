@@ -6,16 +6,15 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
 
 from . import config
 from .mask import MaskFormatError, Palette4, decode_block
-from .screens import DEFAULT_LAYOUT, SCREEN_IDS
+from .screens import DEFAULT_LAYOUT, SCREEN_IDS, ScreenKind
 
-ScreenKind = Literal["small", "large"]
-BitmapFormat = Literal["mask1", "pal4"]
 #: `gameOfLife` carries no bitmap at all — see CONTEXT.md "Content" (Game of
 #: Life) and docs/wire-format.md. Small-screen (ESP32) only.
 ContentFormat = Literal["mask1", "pal4", "gameOfLife"]
@@ -29,6 +28,12 @@ def _validate_rgb(value: Optional[list[int]], field: str) -> Optional[list[int]]
     return value
 
 
+def _validate_screen_id(value: str) -> str:
+    if value not in SCREEN_IDS:
+        raise ValueError(f"unknown screen id: {value}")
+    return value
+
+
 class LayoutPositionModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -36,12 +41,7 @@ class LayoutPositionModel(BaseModel):
     xMm: float
     yMm: float
 
-    @field_validator("screenId")
-    @classmethod
-    def _known_screen(cls, value: str) -> str:
-        if value not in SCREEN_IDS:
-            raise ValueError(f"unknown screen id: {value}")
-        return value
+    _known_screen = field_validator("screenId")(_validate_screen_id)
 
 
 class ScreenWindow(BaseModel):
@@ -110,15 +110,10 @@ class ContentModel(BaseModel):
     #: now, see docs/adr/0001-phase-lauftext-background-by-hardware-kind.md.
     background: Optional[list[int]] = None
 
-    @field_validator("color")
+    @field_validator("color", "background")
     @classmethod
-    def _rgb(cls, value: Optional[list[int]]) -> Optional[list[int]]:
-        return _validate_rgb(value, "color")
-
-    @field_validator("background")
-    @classmethod
-    def _rgb_background(cls, value: Optional[list[int]]) -> Optional[list[int]]:
-        return _validate_rgb(value, "background")
+    def _rgb(cls, value: Optional[list[int]], info: ValidationInfo) -> Optional[list[int]]:
+        return _validate_rgb(value, info.field_name)
 
     @model_validator(mode="after")
     def _format_matches_its_fields(self) -> "ContentModel":
@@ -193,12 +188,7 @@ class ApplyTarget(BaseModel):
     screenId: str
     window: ScreenWindow
 
-    @field_validator("screenId")
-    @classmethod
-    def _known_screen(cls, value: str) -> str:
-        if value not in SCREEN_IDS:
-            raise ValueError(f"unknown screen id: {value}")
-        return value
+    _known_screen = field_validator("screenId")(_validate_screen_id)
 
 
 #: One per icon under apps/frontend/public/weather/ — app/weather.py maps

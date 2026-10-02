@@ -1,6 +1,7 @@
-import type {
-	MouseEvent as ReactMouseEvent,
-	PointerEvent as ReactPointerEvent,
+import {
+	memo,
+	type MouseEvent as ReactMouseEvent,
+	type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
 	displayScaleForKind,
@@ -20,7 +21,7 @@ interface ScreenTileProps {
 	draggable: boolean;
 	dragging: boolean;
 	onToggle: (screenId: string, additive: boolean) => void;
-	onDragStart: (clientXPx: number, clientYPx: number) => void;
+	onDragStart: (screenId: string, clientXPx: number, clientYPx: number) => void;
 	onDragMove: (clientXPx: number, clientYPx: number) => void;
 	onDragEnd: () => void;
 }
@@ -38,7 +39,9 @@ function dragCursorClass(draggable: boolean, dragging: boolean): string {
 	return dragging ? "cursor-grabbing" : "cursor-grab";
 }
 
-export function ScreenTile({
+/** Memoized: typing into the edit panel re-renders the Stage on every
+ * keystroke, but only the selected tiles' renders actually change. */
+export const ScreenTile = memo(function ScreenTile({
 	spec,
 	position,
 	mmToPx,
@@ -60,7 +63,7 @@ export function ScreenTile({
 			return;
 		}
 		e.currentTarget.setPointerCapture(e.pointerId);
-		onDragStart(e.clientX, e.clientY);
+		onDragStart(spec.id, e.clientX, e.clientY);
 	}
 
 	function handlePointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
@@ -147,4 +150,4 @@ export function ScreenTile({
 			</span>
 		</button>
 	);
-}
+});

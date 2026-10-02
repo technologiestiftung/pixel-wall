@@ -4,7 +4,6 @@ import type {
 	ApplyRequest,
 	ApplyResponse,
 	ControlResponse,
-	HealthResponse,
 	LayoutPositionDto,
 	LayoutResponse,
 	ScreensResponse,
@@ -19,10 +18,6 @@ import type {
  * 401 on an apply surfaced as a generic failure.
  */
 export type Requester = <T>(path: string, init?: FetchInit) => Promise<T>;
-
-export function getHealth(request: Requester): Promise<HealthResponse> {
-	return request<HealthResponse>("/api/health");
-}
 
 export function claimControl(
 	request: Requester,

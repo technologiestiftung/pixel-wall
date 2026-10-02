@@ -8,91 +8,143 @@
 
 # Pixel Wall
 
-A wall of 7 physical LED panels — 4 large 64×64 HUB75 panels driven by a
-Raspberry Pi and 3 small 32×32 panels chained off an ESP32 — controlled
-through a web interface. The app lets you arrange the panels' real-world
-layout, select one or more of them, and push text, template
-animations/images, or a background colour to the wall.
+A wall of 7 physical LED panels controlled through a web interface:
+
+- **4 large panels** (64×64, HUB75) driven by a Raspberry Pi
+- **3 small panels** (32×32) chained off an ESP32
+
+In the web interface you arrange the panels' real-world layout, select one or
+more of them, and push text, animations/images, live weather, Game of Life or a
+background colour to the wall.
+
+## How it works
+
+```
+ web interface ──POST /api/apply──▶ backend (FastAPI on the Pi)
+ (renders pixels)                      │                  │
+                              state.json│                  │MQTT, retained
+                                       ▼                  ▼
+                              pi_display.py            ESP32
+                              4× 64×64 panels          3× 32×32 panels
+```
+
+The frontend is the only thing that renders: it rasterises content into
+bitmaps and sends **pixels**, not text. The backend stores them and fans them
+out; neither the Pi display nor the ESP32 knows what a font or template is.
+The display keeps running when the backend is stopped.
 
 ## Repository structure
 
-This is an npm workspaces monorepo:
+An npm workspaces monorepo (only the frontend is an npm workspace; the backend
+is Python and the ESP32 is an Arduino sketch).
 
-| Package                            | Description                                                                               |
-| ---------------------------------- | ----------------------------------------------------------------------------------------- |
-| [`apps/backend`](./apps/backend)   | Python/FastAPI service on the Raspberry Pi: state API, MQTT fan-out, HUB75 display driver |
-| [`apps/frontend`](./apps/frontend) | Vite + React web interface, built as a static bundle and hosted separately                |
-| [`apps/esp32`](./apps/esp32)       | Arduino sketch for the ESP32 driving 3x 32x32 panels over MQTT                            |
+| Path                               | What it is                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| [`apps/frontend`](./apps/frontend) | Vite + React web interface, built as a static bundle and hosted separately      |
+| [`apps/backend`](./apps/backend)   | Python/FastAPI service on the Pi: state API, MQTT fan-out, HUB75 display driver |
+| [`apps/esp32`](./apps/esp32)       | Arduino sketch for the ESP32 driving the 3 small panels over MQTT               |
+| [`docs`](./docs)                   | Wire format, architecture decisions (ADRs), deferred plans, debugging notes     |
 
-Further documentation:
+## Documentation
 
-- [CONTEXT.md](./CONTEXT.md) — domain glossary (screens, layout, selection, content, layers)
-- [HARDWARE.md](./HARDWARE.md) — physical wiring, power, and network architecture
-- [RENDERING.md](./RENDERING.md) — how a selection/content edit becomes pixels on the panels
-- [INTEGRATION-PLAN.md](./INTEGRATION-PLAN.md) — status of the frontend → backend → panels integration
-- [docs/wire-format.md](./docs/wire-format.md) — the wire payload shared by the TypeScript encoder and the Python/C++ decoders
+**Start here**
+
+- [CONTEXT.md](./CONTEXT.md) — domain glossary: screens, layout, selection, content, layers
+- [HARDWARE.md](./HARDWARE.md) — wiring, power and network architecture
+- [RENDERING.md](./RENDERING.md) — how a content edit becomes pixels on the panels
+
+**Per app**
+
+- [apps/frontend/README.md](./apps/frontend/README.md) — frontend setup and authentication
+- [apps/backend/README.md](./apps/backend/README.md) — Pi install, API contract, display driver, MQTT
+- [apps/esp32/README.md](./apps/esp32/README.md) — libraries, flashing, message contract
+
+**Reference**
+
+- [docs/wire-format.md](./docs/wire-format.md) — the payload shared by the TypeScript encoder and the Python/C++ decoders
+- [docs/adr/](./docs/adr) — architecture decision records
+- [INTEGRATION-PLAN.md](./INTEGRATION-PLAN.md) — history and status of the frontend → backend → panels integration
 
 ## Prerequisites
 
-- Node.js as pinned in [.nvmrc](./.nvmrc) for the frontend
-- Python 3.11+ for the backend, on a Raspberry Pi 4 with the HUB75 panels wired up
-- Arduino IDE for the ESP32, if you are flashing that half — see
-  [apps/esp32/README.md](./apps/esp32/README.md)
+- Node.js as pinned in [.nvmrc](./.nvmrc)
+- Python 3.11+ for the backend (production runs on a Raspberry Pi 4)
+- Arduino IDE, only if you flash the ESP32
 
-## Installation
+## Getting started
 
-The two halves install independently — the frontend is Node, the backend is Python
-and only runs on the Pi.
+The frontend and backend install independently:
 
 ```bash
-npm install                                    # frontend
-cd apps/backend && python3 -m venv .venv \
-  && .venv/bin/pip install -r requirements.txt # backend
+npm install
+
+cd apps/backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
 ```
 
-## Usage or Deployment
-
-The backend is deployed onto the Raspberry Pi; see
-[apps/backend/README.md](./apps/backend/README.md). The frontend is built
-to a static bundle and hosted; see
-[apps/frontend/README.md](./apps/frontend/README.md).
-
-## Development
+Then, from the repo root, in two terminals:
 
 ```bash
-npm run dev        # frontend on :5173
-npm run dev:api    # backend on :5001, no MQTT, state in /tmp
+npm run dev:api    # backend on http://127.0.0.1:5001 — no MQTT, state in /tmp
+npm run dev        # frontend on http://localhost:5173
 ```
 
-The backend uses **5001** locally, not the 5000 it uses on the Pi: on macOS the
-AirPlay Receiver holds port 5000 and answers requests without CORS headers,
-which looks exactly like a backend that is down. `apps/frontend/.env` points at
-5001 to match.
+Copy [`apps/frontend/.env.example`](./apps/frontend/.env.example) to
+`apps/frontend/.env` and point `VITE_API_URL` at the backend.
 
-To exercise the login screen, set a password in `apps/backend/app/.env`:
+> **Why port 5001?** On macOS the AirPlay Receiver holds port 5000 and answers
+> requests without CORS headers, which looks exactly like a backend that is
+> down. The Pi itself uses 5000.
+
+To work on the frontend without any backend, set `VITE_USE_MOCKS=1` in
+`apps/frontend/.env` to use the in-memory mock API.
+
+### Password
+
+The backend runs unauthenticated unless a password is set, and the frontend
+then skips its password gate on purpose. To exercise the login screen locally,
+create `apps/backend/app/.env`:
 
 ```
 LEDWALL_PASSWORD=demo123
 ```
 
-With that line empty or absent the backend runs unauthenticated and the
-frontend skips its password gate on purpose.
+All backend settings are listed in
+[`apps/backend/.env.example`](./apps/backend/.env.example). The API contract is
+documented in [apps/backend/README.md](./apps/backend/README.md) and served
+live at `/docs`.
 
-The backend runs off the Pi for development — point `VITE_API_URL` at it, or at
-the real Pi. The API contract is documented in
-[apps/backend/README.md](./apps/backend/README.md) and served live at
-`/docs`.
+## Scripts
 
-## Tests
+All run from the repo root:
 
-```bash
-npm run test:unit
-npm run test:e2e
-npm run test:a11y
-npm run test:backend  # pytest, needs apps/backend/.venv set up (see Installation)
-```
+| Command                | What it does                                                                                 |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `npm run dev`          | Frontend dev server                                                                          |
+| `npm run dev:api`      | Backend dev server (needs `apps/backend/.venv`)                                              |
+| `npm run build`        | Type-check and build the frontend                                                            |
+| `npm run lint`         | ESLint on the frontend                                                                       |
+| `npm run prettier`     | Format everything                                                                            |
+| `npm run test:unit`    | Frontend unit tests (Vitest)                                                                 |
+| `npm run test:backend` | Backend tests (pytest); also compiles and tests the ESP32 decoder if a C++ compiler is found |
+| `npm run test:e2e`     | Frontend end-to-end tests (Playwright)                                                       |
+| `npm run test:a11y`    | Frontend accessibility tests (Playwright + axe)                                              |
 
-CI does not yet run anything against the Python backend.
+CI runs build, Prettier, lint and unit tests for the frontend, and pytest for
+the backend. Both suites check the wire-format codecs against the same
+fixtures in [`docs/wire-format-fixtures.json`](./docs/wire-format-fixtures.json),
+so keep them passing together.
+
+## Deployment
+
+- **Backend** — runs on the Raspberry Pi as two systemd services (API and
+  display driver). `apps/backend/setup-pi.sh` installs or updates everything;
+  see [apps/backend/README.md](./apps/backend/README.md#install).
+- **Frontend** — `npm run build` produces a static bundle in
+  `apps/frontend/dist`, hosted separately from the Pi.
+- **ESP32** — flashed from the Arduino IDE; see
+  [apps/esp32/README.md](./apps/esp32/README.md).
 
 ## Contributing
 
