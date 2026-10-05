@@ -71,13 +71,6 @@ export const TEMPLATES: Template[] = [
 		loopMs: 7000,
 	},
 	{
-		id: "interdisziplinaer",
-		file: "interdisziplinaer-formen-tauschen.svg",
-		animated: true,
-		loopMs: 9000,
-		lineArt: true,
-	},
-	{
 		id: "gemeinwohlorientiert",
 		file: "gemeinwohlorientiert-herz.svg",
 		animated: true,

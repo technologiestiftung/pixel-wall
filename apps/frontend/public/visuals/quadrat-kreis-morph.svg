@@ -2,7 +2,7 @@
 <style>
 </style>
 <g id="Quadrat_____Kreis_____Morph__Loop_5s_" clip-path="url(#clip0_159_22)">
-<rect id="Form" transform="translate(31 31)" width="98" height="98" stroke="white" stroke-width="2">
+<rect id="Form" transform="translate(31 31)" width="98" height="98" stroke="white" stroke-width="6">
 <animate attributeName="rx" values="0; 0; 49; 49; 0; 0" keyTimes="0; 0.15; 0.45; 0.65; 0.95; 1" keySplines="0 0 1 1; 0.42 0 0.58 1; 0 0 1 1; 0.42 0 0.58 1; 0 0 1 1" dur="5s" calcMode="spline" repeatCount="indefinite" />
 
 </rect>
