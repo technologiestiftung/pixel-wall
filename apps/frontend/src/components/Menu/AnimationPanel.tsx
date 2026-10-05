@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { TEMPLATES } from "../../domain/content";
 import {
 	DEFAULT_TEMPERATURE_STYLE,
@@ -272,82 +273,85 @@ function AnimationTemplatePicker({
 					Bild oder Animation wählen
 				</span>
 				<div className="flex flex-wrap items-start gap-x-3 gap-y-3.5">
-					<button
-						type="button"
-						onClick={() =>
+					<TemplateTile
+						label="Ohne"
+						selected={content.templateId === NO_ANIMATION_TEMPLATE_ID}
+						onSelect={() =>
 							onChange({ ...content, templateId: NO_ANIMATION_TEMPLATE_ID })
 						}
-						aria-label="Ohne"
-						title="Ohne"
-						className="flex flex-col items-center gap-1.5"
 					>
-						<div
-							className={`relative flex h-[58px] w-[70px] items-center justify-center rounded-[10px] border bg-[#2a2a27] ${
-								content.templateId === NO_ANIMATION_TEMPLATE_ID
-									? "border-[1.6px] border-[#171717]"
-									: "border-[#dededa]"
-							}`}
+						<svg
+							className="h-[40px] w-[40px]"
+							viewBox="0 0 24 24"
+							fill="none"
+							aria-hidden="true"
 						>
-							<svg
-								className="h-[40px] w-[40px]"
-								viewBox="0 0 24 24"
-								fill="none"
-								aria-hidden="true"
-							>
-								<circle
-									cx="12"
-									cy="12"
-									r="9"
-									stroke="#767671"
-									strokeWidth="1.5"
-								/>
-								<line
-									x1="6"
-									y1="18"
-									x2="18"
-									y2="6"
-									stroke="#767671"
-									strokeWidth="1.5"
-								/>
-							</svg>
-							{content.templateId === NO_ANIMATION_TEMPLATE_ID && (
-								<SelectedBadge className="absolute -right-2 -top-2.5 h-4 w-4" />
-							)}
-						</div>
-					</button>
-					{templates.map((template) => {
-						const selected = content.templateId === template.id;
-						return (
-							<button
-								key={template.id}
-								type="button"
-								onClick={() =>
-									onChange({ ...content, templateId: template.id })
-								}
-								className="flex flex-col items-center gap-1.5"
-							>
-								<div
-									className={`relative flex h-[58px] w-[70px] items-center justify-center rounded-[10px] border bg-[#2a2a27] ${
-										selected
-											? "border-[1.6px] border-[#171717]"
-											: "border-[#dededa]"
-									}`}
-								>
-									<TemplateIcon
-										templateId={template.id}
-										className="h-[40px] w-[40px] object-contain"
-									/>
-									{selected && (
-										<SelectedBadge className="absolute -right-2 -top-2.5 h-4 w-4" />
-									)}
-								</div>
-							</button>
-						);
-					})}
+							<circle
+								cx="12"
+								cy="12"
+								r="9"
+								stroke="#767671"
+								strokeWidth="1.5"
+							/>
+							<line
+								x1="6"
+								y1="18"
+								x2="18"
+								y2="6"
+								stroke="#767671"
+								strokeWidth="1.5"
+							/>
+						</svg>
+					</TemplateTile>
+					{templates.map((template) => (
+						<TemplateTile
+							key={template.id}
+							selected={content.templateId === template.id}
+							onSelect={() => onChange({ ...content, templateId: template.id })}
+						>
+							<TemplateIcon
+								templateId={template.id}
+								className="h-[40px] w-[40px] object-contain"
+							/>
+						</TemplateTile>
+					))}
 				</div>
 			</div>
 
 			<PlacementControls content={content} onChange={onChange} />
 		</>
+	);
+}
+
+function TemplateTile({
+	label,
+	selected,
+	onSelect,
+	children,
+}: {
+	label?: string;
+	selected: boolean;
+	onSelect: () => void;
+	children: ReactNode;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onSelect}
+			aria-label={label}
+			title={label}
+			className="flex flex-col items-center gap-1.5"
+		>
+			<div
+				className={`relative flex h-[58px] w-[70px] items-center justify-center rounded-[10px] border bg-[#2a2a27] ${
+					selected ? "border-[1.6px] border-[#171717]" : "border-[#dededa]"
+				}`}
+			>
+				{children}
+				{selected && (
+					<SelectedBadge className="absolute -right-2 -top-2.5 h-4 w-4" />
+				)}
+			</div>
+		</button>
 	);
 }

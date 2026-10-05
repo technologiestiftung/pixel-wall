@@ -6,15 +6,15 @@ import type {
 	AnimationContent,
 	Content,
 	LayoutPosition,
+	ScreenLayers,
 	ScreenSpec,
 	SelectionGroup,
 } from "./types";
-import { measureTextWidthPx } from "../render/text";
+import { DEFAULT_WEATHER_VARIANT, WEATHER_VARIANTS } from "./weather";
 import { layersToWire } from "../render/layers";
 import { temperatureToWire } from "../render/temperature";
+import { measureTextWidthPx } from "../render/text";
 import { asWeatherUpload, loadWeatherMedia } from "../render/weatherMedia";
-import { DEFAULT_WEATHER_VARIANT, WEATHER_VARIANTS } from "./weather";
-import type { ScreenLayers } from "./types";
 
 /**
  * Builds the wire payload for POST /api/apply: one device-pixel bitmap for a

@@ -7,8 +7,12 @@ import {
 	maskFromImageData,
 	pal4FromImageData,
 	setBit,
+	strideFor,
+	type Mask,
+	type Palette4,
 } from "../domain/mask";
 import { hexToRgb } from "../domain/color";
+import { base64ToBytes } from "../lib/base64";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
@@ -132,25 +136,14 @@ async function contentToPal4Wire(
 		{ widthPx: width, heightPx: height },
 		{ background },
 	);
-	const context = canvas?.getContext("2d") ?? null;
-
-	const image = context
-		? pal4FromImageData(context.getImageData(0, 0, width, height).data, {
-				widthPx: width,
-				heightPx: height,
-			})
-		: {
-				widthPx: width,
-				heightPx: height,
-				palette: [[0, 0, 0]],
-				indices: new Uint8Array(width * height),
-			};
 
 	return {
 		format: "pal4",
 		widthPx: width,
 		heightPx: height,
-		data: encodePal4Base64(image),
+		data: encodePal4Base64(
+			canvasToPal4(canvas, { widthPx: width, heightPx: height }),
+		),
 		...(scroll ? { scroll } : {}),
 	};
 }
@@ -185,29 +178,43 @@ async function animationToFramesWire(
 		{ widthPx: width, heightPx: height },
 		{ frameCount, background },
 	);
-	const context = strip?.getContext("2d") ?? null;
 	const stripWidth = width * frameCount;
-
-	const image = context
-		? pal4FromImageData(context.getImageData(0, 0, stripWidth, height).data, {
-				widthPx: stripWidth,
-				heightPx: height,
-				crisp: true,
-			})
-		: {
-				widthPx: stripWidth,
-				heightPx: height,
-				palette: [[0, 0, 0]],
-				indices: new Uint8Array(stripWidth * height),
-			};
 
 	return {
 		format: "pal4",
 		widthPx: stripWidth,
 		heightPx: height,
-		data: encodePal4Base64(image),
+		data: encodePal4Base64(
+			canvasToPal4(strip, {
+				widthPx: stripWidth,
+				heightPx: height,
+				crisp: true,
+			}),
+		),
 		frames,
 	};
+}
+
+/** Without a canvas (jsdom without the optional `canvas` package) the frame
+ * degrades to blank, mirroring emptyMask below. */
+function canvasToPal4(
+	canvas: HTMLCanvasElement | null,
+	options: { widthPx: number; heightPx: number; crisp?: boolean },
+): Palette4 {
+	const { widthPx, heightPx } = options;
+	const context = canvas?.getContext("2d") ?? null;
+	if (!context) {
+		return {
+			widthPx,
+			heightPx,
+			palette: [[0, 0, 0]],
+			indices: new Uint8Array(widthPx * heightPx),
+		};
+	}
+	return pal4FromImageData(
+		context.getImageData(0, 0, widthPx, heightPx).data,
+		options,
+	);
 }
 
 /** Without a 2D context (jsdom without the optional `canvas` package) a flat
@@ -281,46 +288,48 @@ export function wireToDataUrl(content: WireContentDto): string {
 
 	const decoded = decodeBlock(base64ToBytes(content.data));
 	const image = ctx.createImageData(canvas.width, canvas.height);
-	const [r, g, b] = content.color ?? WHITE;
+	if (decoded.format === "mask1") {
+		paintMask(image, decoded.mask, content.color ?? WHITE);
+	} else {
+		paintPal4(image, decoded.image);
+	}
+	ctx.putImageData(image, 0, 0);
+	return canvas.toDataURL("image/png");
+}
 
-	for (let y = 0; y < canvas.height; y++) {
-		for (let x = 0; x < canvas.width; x++) {
-			const target = (y * canvas.width + x) * 4;
-			if (decoded.format === "mask1") {
-				const stride = Math.ceil(decoded.mask.widthPx / 8);
-				const on =
-					(decoded.mask.bits[y * stride + (x >> 3)] & (0x80 >> (x & 7))) !== 0;
-				if (!on) {
-					continue;
-				}
-				image.data[target] = r;
-				image.data[target + 1] = g;
-				image.data[target + 2] = b;
-				image.data[target + 3] = 255;
+function paintMask(
+	image: ImageData,
+	mask: Mask,
+	[r, g, b]: [number, number, number],
+) {
+	const stride = strideFor(mask.widthPx);
+	for (let y = 0; y < image.height; y++) {
+		for (let x = 0; x < image.width; x++) {
+			if ((mask.bits[y * stride + (x >> 3)] & (0x80 >> (x & 7))) === 0) {
 				continue;
 			}
+			const target = (y * image.width + x) * 4;
+			image.data[target] = r;
+			image.data[target + 1] = g;
+			image.data[target + 2] = b;
+			image.data[target + 3] = 255;
+		}
+	}
+}
 
-			const index = decoded.image.indices[y * decoded.image.widthPx + x];
+function paintPal4(image: ImageData, pal4: Palette4) {
+	for (let y = 0; y < image.height; y++) {
+		for (let x = 0; x < image.width; x++) {
+			const index = pal4.indices[y * pal4.widthPx + x];
 			if (index === 0) {
 				continue;
 			}
-			const entry = decoded.image.palette[index] ?? WHITE;
+			const entry = pal4.palette[index] ?? WHITE;
+			const target = (y * image.width + x) * 4;
 			image.data[target] = entry[0];
 			image.data[target + 1] = entry[1];
 			image.data[target + 2] = entry[2];
 			image.data[target + 3] = 255;
 		}
 	}
-
-	ctx.putImageData(image, 0, 0);
-	return canvas.toDataURL("image/png");
-}
-
-function base64ToBytes(encoded: string): Uint8Array {
-	const binary = atob(encoded);
-	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
-	return bytes;
 }

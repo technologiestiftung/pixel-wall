@@ -131,19 +131,6 @@ const DEFAULT_ANIMATION: AnimationContent = {
 	vAlign: "center",
 };
 
-/** `templateId`/`scalePercent`/`hAlign`/`vAlign` are meaningless in this mode
- * (see AnimationContent) — kept as harmless defaults purely so the object
- * still satisfies the interface, never read by anything downstream once
- * `mode` is "gameOfLife". */
-export const DEFAULT_GAME_OF_LIFE: AnimationContent = {
-	type: "animation",
-	mode: "gameOfLife",
-	templateId: TEMPLATES[0].id,
-	scalePercent: 100,
-	hAlign: "center",
-	vAlign: "center",
-};
-
 const DEFAULT_COLOR: ColorContent = {
 	type: "color",
 	hex: DEFAULT_BACKGROUND_HEX,

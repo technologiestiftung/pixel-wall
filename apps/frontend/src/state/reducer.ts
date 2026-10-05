@@ -71,6 +71,12 @@ export interface Generation {
 
 const EMPTY_GENERATION: Generation = { screens: {}, layout: {} };
 
+const NO_DRAFTS = {
+	draftText: null,
+	draftAnimation: null,
+	draftColor: null,
+} as const satisfies Partial<WallState>;
+
 export interface WallState {
 	specs: ScreenSpec[];
 	layout: LayoutPosition[];
@@ -181,9 +187,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		case "discard-draft":
 			return {
 				...state,
-				draftText: null,
-				draftAnimation: null,
-				draftColor: null,
+				...NO_DRAFTS,
 			};
 
 		case "apply-pending":
@@ -348,9 +352,7 @@ function hydrateScreen(
 function settled(state: WallState): WallState {
 	return {
 		...state,
-		draftText: null,
-		draftAnimation: null,
-		draftColor: null,
+		...NO_DRAFTS,
 		applyStatus: "idle",
 		applyError: null,
 	};
@@ -370,9 +372,7 @@ function resolveIntent(state: WallState, commit: boolean): WallState {
 	return applyIntent(
 		{
 			...cleared,
-			draftText: null,
-			draftAnimation: null,
-			draftColor: null,
+			...NO_DRAFTS,
 		},
 		intent,
 	);
@@ -401,9 +401,7 @@ function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 			return {
 				...state,
 				selection: null,
-				draftText: null,
-				draftAnimation: null,
-				draftColor: null,
+				...NO_DRAFTS,
 			};
 
 		case "toggle-layout-edit-mode":
@@ -411,9 +409,7 @@ function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 				...state,
 				layoutEditMode: !state.layoutEditMode,
 				selection: null,
-				draftText: null,
-				draftAnimation: null,
-				draftColor: null,
+				...NO_DRAFTS,
 			};
 
 		default:
@@ -446,8 +442,6 @@ function toggleScreen(
 			screenIds.length > 0
 				? { kind: selectionKindOf(state.specs, screenIds), screenIds }
 				: null,
-		draftText: null,
-		draftAnimation: null,
-		draftColor: null,
+		...NO_DRAFTS,
 	};
 }

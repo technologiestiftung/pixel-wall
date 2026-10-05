@@ -109,6 +109,14 @@ def whole_degrees(celsius: float) -> int:
     return math.floor(celsius + 0.5)
 
 
+def _degrees_to_show(
+    reading: Reading, temperature: Optional[TemperatureModel], fallback: Optional[int]
+) -> Optional[int]:
+    if temperature is None or reading.temperature is None:
+        return fallback
+    return whole_degrees(reading.temperature)
+
+
 def _align(align: str, container: int, size: int, padding: int) -> int:
     if align in ("left", "top"):
         offset = padding
@@ -153,20 +161,23 @@ def stamp_temperature(
     origin_y = _align(temperature.vAlign, image.height_px, text_height, temperature.paddingYPx)
     index = _palette_index(image, tuple(temperature.color))
 
+    lit: list[int] = []
+    cursor = origin_x
+    for glyph in glyphs:
+        for y in range(glyph.height_px):
+            target_y = origin_y + y
+            if not 0 <= target_y < image.height_px:
+                continue
+            for x in range(glyph.width_px):
+                target_x = cursor + x
+                if 0 <= target_x < frame_width and glyph.get(x, y):
+                    lit.append(target_y * image.width_px + target_x)
+        cursor += glyph.width_px
+
     for frame in range(frame_count):
-        cursor = origin_x
-        for glyph in glyphs:
-            for y in range(glyph.height_px):
-                target_y = origin_y + y
-                if not 0 <= target_y < image.height_px:
-                    continue
-                for x in range(glyph.width_px):
-                    target_x = cursor + x
-                    if 0 <= target_x < frame_width and glyph.get(x, y):
-                        image.indices[
-                            target_y * image.width_px + frame * frame_width + target_x
-                        ] = index
-            cursor += glyph.width_px
+        frame_offset = frame * frame_width
+        for position in lit:
+            image.indices[position + frame_offset] = index
 
     return content.model_copy(
         update={"data": base64.b64encode(encode_pal4(image)).decode()}
@@ -256,11 +267,7 @@ class LiveWeather:
             frames = {}
             for group in store.groups:
                 variant = reading.variant or group.active
-                degrees = (
-                    whole_degrees(reading.temperature)
-                    if group.temperature is not None and reading.temperature is not None
-                    else group.activeTemperature
-                )
+                degrees = _degrees_to_show(reading, group.temperature, group.activeTemperature)
                 if variant not in group.variants:
                     continue
                 if (variant, degrees) == (group.active, group.activeTemperature):
@@ -300,11 +307,7 @@ class LiveWeather:
         variant = reading.variant if reading else None
         if payload.weather is None or variant not in payload.weather.variants:
             return payload.content, None, None
-        degrees = (
-            whole_degrees(reading.temperature)
-            if payload.weather.temperature is not None and reading.temperature is not None
-            else None
-        )
+        degrees = _degrees_to_show(reading, payload.weather.temperature, None)
         content = render(payload.weather.variants, payload.weather.temperature, variant, degrees)
         return content, variant, degrees
 

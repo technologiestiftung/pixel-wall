@@ -5,15 +5,17 @@
  * the C++ decoder in agreement.
  */
 
+import { base64ToBytes, bytesToBase64 } from "../lib/base64";
+
 const MAGIC = 0x50;
 const PAL4_MAGIC = 0x51;
 const PAL4_HEADER_BYTES = 8;
-export const PAL4_MAX_COLORS = 16;
+const PAL4_MAX_COLORS = 16;
 const VERSION = 0x01;
 const HEADER_BYTES = 7;
 
-export const ENCODING_RAW = 0x00;
-export const ENCODING_RLE = 0x01;
+const ENCODING_RAW = 0x00;
+const ENCODING_RLE = 0x01;
 
 export interface Mask {
 	widthPx: number;
@@ -55,10 +57,11 @@ export function maskFromImageData(
 ): Mask {
 	const { widthPx, heightPx, alphaThreshold = 128 } = options;
 	const mask = createMask(widthPx, heightPx);
+	const stride = strideFor(widthPx);
 	for (let y = 0; y < heightPx; y++) {
 		for (let x = 0; x < widthPx; x++) {
 			if (data[(y * widthPx + x) * 4 + 3] >= alphaThreshold) {
-				setBit(mask, x, y);
+				mask.bits[y * stride + (x >> 3)] |= 0x80 >> (x & 7);
 			}
 		}
 	}
@@ -174,16 +177,19 @@ export function encodeMaskBlock(mask: Mask): Uint8Array {
 		);
 	}
 
-	const raw = [
-		...header(ENCODING_RAW, mask.widthPx, mask.heightPx),
-		...mask.bits,
-	];
-	const rle = [
-		...header(ENCODING_RLE, mask.widthPx, mask.heightPx),
-		...rleBody(mask),
-	];
+	const rle = rleBody(mask);
+	return rle.length < mask.bits.length
+		? withHeader(header(ENCODING_RLE, mask.widthPx, mask.heightPx), rle)
+		: withHeader(header(ENCODING_RAW, mask.widthPx, mask.heightPx), mask.bits);
+}
 
-	return Uint8Array.from(rle.length < raw.length ? rle : raw);
+/** Both encodings of a block share a header of the same length, so comparing
+ * bodies alone picks the smaller block. */
+function withHeader(head: number[], body: ArrayLike<number>): Uint8Array {
+	const out = new Uint8Array(head.length + body.length);
+	out.set(head);
+	out.set(body, head.length);
+	return out;
 }
 
 export function decodeMaskBlock(block: Uint8Array): Mask {
@@ -253,23 +259,6 @@ export function decodeMaskBlock(block: Uint8Array): Mask {
 		throw new Error(`Mask RLE covers ${bitIndex} bits, expected ${totalBits}`);
 	}
 	return mask;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-	let binary = "";
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-	return btoa(binary);
-}
-
-function base64ToBytes(encoded: string): Uint8Array {
-	const binary = atob(encoded);
-	const bytes = new Uint8Array(binary.length);
-	for (let i = 0; i < binary.length; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
-	return bytes;
 }
 
 export function encodeMaskBase64(mask: Mask): string {
@@ -398,39 +387,59 @@ export function pal4FromImageData(
 		palette.push(colour);
 	}
 
+	// Artwork repeats a handful of colours across many pixels, so each
+	// distinct RGBA value is matched against the palette only once.
+	const nearestByRgba = new Map<number, number>();
 	const indices = new Uint8Array(pixelCount);
 	for (let i = 0; i < pixelCount; i++) {
 		const alpha = data[i * 4 + 3];
 		if (crisp && alpha < 128) {
-			indices[i] = 0;
 			continue;
 		}
-		const weight = crisp ? 255 : alpha;
-		// Premultiply by alpha (i.e. blend onto a black background) so a
-		// half-covered edge pixel is judged by how it will actually look
-		// next to unlit neighbours, not by the fully-saturated colour under
-		// its fringe.
-		const r = (data[i * 4] * weight) / 255;
-		const g = (data[i * 4 + 1] * weight) / 255;
-		const b = (data[i * 4 + 2] * weight) / 255;
-
-		let bestIndex = 0;
-		let bestDistance = Number.POSITIVE_INFINITY;
-		for (let p = 0; p < palette.length; p++) {
-			const [pr, pg, pb] = palette[p];
-			const dr = r - pr;
-			const dg = g - pg;
-			const db = b - pb;
-			const distance = dr * dr + dg * dg + db * db;
-			if (distance < bestDistance) {
-				bestDistance = distance;
-				bestIndex = p;
-			}
+		const rgba =
+			((data[i * 4] << 24) |
+				(data[i * 4 + 1] << 16) |
+				(data[i * 4 + 2] << 8) |
+				alpha) >>>
+			0;
+		let index = nearestByRgba.get(rgba);
+		if (index === undefined) {
+			const weight = crisp ? 255 : alpha;
+			// Premultiply by alpha (i.e. blend onto a black background) so a
+			// half-covered edge pixel is judged by how it will actually look
+			// next to unlit neighbours, not by the fully-saturated colour under
+			// its fringe.
+			index = nearestPaletteIndex(palette, [
+				(data[i * 4] * weight) / 255,
+				(data[i * 4 + 1] * weight) / 255,
+				(data[i * 4 + 2] * weight) / 255,
+			]);
+			nearestByRgba.set(rgba, index);
 		}
-		indices[i] = bestIndex;
+		indices[i] = index;
 	}
 
 	return { widthPx, heightPx, palette, indices };
+}
+
+function nearestPaletteIndex(
+	palette: number[][],
+	[r, g, b]: [number, number, number],
+): number {
+	let bestIndex = 0;
+	let bestDistance = Number.POSITIVE_INFINITY;
+	for (let p = 0; p < palette.length; p++) {
+		const [pr, pg, pb] = palette[p];
+		const dr = r - pr;
+		const dg = g - pg;
+		const db = b - pb;
+		const distance = dr * dr + dg * dg + db * db;
+		if (distance < bestDistance) {
+			bestDistance = distance;
+			bestIndex = p;
+		}
+	}
+	return bestIndex;
 }
 
 /** Packed rows including the index-0 padding nibble on odd widths. */
@@ -469,11 +478,11 @@ function pal4Header(encoding: number, image: Palette4): number[] {
 function pal4RleBody(packed: Uint8Array): number[] {
 	const out: number[] = [];
 	const totalNibbles = packed.length * 2;
+	const nibbleAt = (i: number) =>
+		i % 2 === 0 ? (packed[i >> 1] >> 4) & 0x0f : packed[i >> 1] & 0x0f;
 	let index = 0;
 
 	while (index < totalNibbles) {
-		const nibbleAt = (i: number) =>
-			i % 2 === 0 ? (packed[i >> 1] >> 4) & 0x0f : packed[i >> 1] & 0x0f;
 		const value = nibbleAt(index);
 		let run = 0;
 		while (index < totalNibbles && nibbleAt(index) === value) {
@@ -499,9 +508,10 @@ export function encodePal4Block(image: Palette4): Uint8Array {
 	}
 
 	const packed = pal4PackedRows(image);
-	const raw = [...pal4Header(ENCODING_RAW, image), ...packed];
-	const rle = [...pal4Header(ENCODING_RLE, image), ...pal4RleBody(packed)];
-	return Uint8Array.from(rle.length < raw.length ? rle : raw);
+	const rle = pal4RleBody(packed);
+	return rle.length < packed.length
+		? withHeader(pal4Header(ENCODING_RLE, image), rle)
+		: withHeader(pal4Header(ENCODING_RAW, image), packed);
 }
 
 function unpackPal4Rle(body: Uint8Array, packed: Uint8Array): void {

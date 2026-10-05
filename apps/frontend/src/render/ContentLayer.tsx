@@ -7,16 +7,18 @@ import type {
 	TextContent,
 	UploadedMedia,
 } from "../domain/types";
+import type { MarqueeParams } from "../domain/scroll";
 import { DEFAULT_WEATHER_VARIANT } from "../domain/weather";
 import type { AppliedRender } from "../state/reducer";
 import { useCurrentWeather } from "../state/useCurrentWeather";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { useFontsVersion } from "./fonts";
-import { rasterizeContent } from "./rasterize";
+import { createCanvas, rasterizeContent } from "./rasterize";
 import {
 	drawTemperature,
 	formatTemperature,
 	renderTemperatureGlyphs,
+	TEMPERATURE_PLACEHOLDER,
 } from "./temperature";
 import { measureTextWidthPx } from "./text";
 import { useTemplateImagesVersion } from "./templateImages";
@@ -255,13 +257,6 @@ function ScrollingBitmap({
 			}),
 		[JSON.stringify(content), textWidthPx, compositeHeightPx, fontsVersion],
 	);
-	const offset = useMarqueeOffset(content.value.length > 0, {
-		compositeWidthPx,
-		textWidthPx,
-		speedPxPerSec: content.speedPxPerSec ?? 60,
-		pauseMs: content.pauseMs ?? LOOP_PAUSE_MS,
-		direction: content.direction ?? "left",
-	});
 
 	return (
 		<div className="absolute inset-0 overflow-hidden">
@@ -278,18 +273,39 @@ function ScrollingBitmap({
 					backgroundColor: backgroundHex ?? undefined,
 				}}
 			>
-				<img
+				<MarqueeImage
 					src={bitmap}
-					alt=""
-					style={{
-						...BITMAP_STYLE,
-						position: "absolute",
-						left: offset,
-						top: 0,
-					}}
+					enabled={content.value.length > 0}
+					compositeWidthPx={compositeWidthPx}
+					textWidthPx={textWidthPx}
+					speedPxPerSec={content.speedPxPerSec ?? 60}
+					pauseMs={content.pauseMs ?? LOOP_PAUSE_MS}
+					direction={content.direction ?? "left"}
 				/>
 			</div>
 		</div>
+	);
+}
+
+/** Split out so only this `<img>` re-renders every animation frame, not the
+ * rasterizing parent. */
+function MarqueeImage({
+	src,
+	enabled,
+	...params
+}: MarqueeParams & { src: string; enabled: boolean }) {
+	const offset = useMarqueeOffset(enabled, params);
+	return (
+		<img
+			src={src}
+			alt=""
+			style={{
+				...BITMAP_STYLE,
+				position: "absolute",
+				left: offset,
+				top: 0,
+			}}
+		/>
 	);
 }
 
@@ -334,10 +350,14 @@ function WeatherBitmap({
 				frameDurationMs={media.frameDurationMs}
 				{...placement}
 			/>
-			{content.temperature && typeof weather?.temperature === "number" && (
+			{content.temperature && (
 				<TemperatureOverlay
 					style={content.temperature}
-					text={formatTemperature(weather.temperature)}
+					text={
+						typeof weather?.temperature === "number"
+							? formatTemperature(weather.temperature)
+							: TEMPERATURE_PLACEHOLDER
+					}
 					widthPx={placement.compositeWidthPx}
 					heightPx={placement.compositeHeightPx}
 					offsetXPx={placement.offsetXPx}
@@ -369,9 +389,7 @@ function TemperatureOverlay({
 	useEffect(() => {
 		let cancelled = false;
 		renderTemperatureGlyphs(style).then((glyphs) => {
-			const canvas = document.createElement("canvas");
-			canvas.width = Math.max(1, Math.round(widthPx));
-			canvas.height = Math.max(1, Math.round(heightPx));
+			const canvas = createCanvas({ widthPx, heightPx });
 			const ctx = canvas.getContext("2d");
 			if (cancelled || !ctx) {
 				return;
@@ -442,24 +460,53 @@ function AnimatedBitmap({
 		frameCount,
 	]);
 
-	const frameIndex = useAnimationFrameIndex(frameCount, frameDurationMs);
-
 	if (stripUrl === null) {
 		return null;
 	}
 
 	return (
 		<div className="absolute inset-0 overflow-hidden">
-			<img
+			<FrameStripImage
 				src={stripUrl}
-				alt=""
-				style={{
-					...BITMAP_STYLE,
-					position: "absolute",
-					left: -(frameIndex * compositeWidthPx) - offsetXPx,
-					top: -offsetYPx,
-				}}
+				frameCount={frameCount}
+				frameDurationMs={frameDurationMs}
+				frameWidthPx={compositeWidthPx}
+				offsetXPx={offsetXPx}
+				offsetYPx={offsetYPx}
 			/>
 		</div>
+	);
+}
+
+/** Split out so stepping frames re-renders only this `<img>`, not the parent
+ * whose effect dependencies serialize the whole content (an upload's sprite
+ * sheet included) on every render. */
+function FrameStripImage({
+	src,
+	frameCount,
+	frameDurationMs,
+	frameWidthPx,
+	offsetXPx,
+	offsetYPx,
+}: {
+	src: string;
+	frameCount: number;
+	frameDurationMs: number;
+	frameWidthPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	const frameIndex = useAnimationFrameIndex(frameCount, frameDurationMs);
+	return (
+		<img
+			src={src}
+			alt=""
+			style={{
+				...BITMAP_STYLE,
+				position: "absolute",
+				left: -(frameIndex * frameWidthPx) - offsetXPx,
+				top: -offsetYPx,
+			}}
+		/>
 	);
 }
