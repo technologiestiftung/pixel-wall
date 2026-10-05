@@ -1,8 +1,13 @@
 import type { ReactNode } from "react";
-import { contrastRatio, MIN_TEXT_CONTRAST } from "../../domain/color";
+import {
+	contrastRatio,
+	MIN_LINE_CONTRAST,
+	MIN_TEXT_CONTRAST,
+} from "../../domain/color";
 import {
 	DEFAULT_BACKGROUND_HEX,
 	defaultContentFor,
+	displayedLineColor,
 	isMovingAnimation,
 } from "../../domain/content";
 import { referenceScreenId } from "../../domain/mapping";
@@ -88,6 +93,7 @@ function ContentEditor() {
 		appliedLayers.foreground,
 	);
 	const textLowContrast = hasLowTextContrast(previewLayers);
+	const lineLowContrast = hasLowLineContrast(previewLayers);
 
 	// Switching tabs is free — each tab keeps its own draft — except Text and
 	// Animation/Bild share one foreground layer, so editing one silently
@@ -122,6 +128,12 @@ function ContentEditor() {
 						<Warning>
 							Textfarbe und Hintergrundfarbe haben zu wenig Kontrast — der Text
 							ist schlecht lesbar.
+						</Warning>
+					)}
+					{lineLowContrast && (
+						<Warning>
+							Linienfarbe und Hintergrundfarbe haben zu wenig Kontrast — die
+							Linien werden schlecht sichtbar sein.
 						</Warning>
 					)}
 					{/* No aria-labelledby here: it would give this wrapper the
@@ -291,5 +303,19 @@ function dropsAnimationOnSave(
 		state.draftText === null &&
 		appliedForeground?.type === "animation" &&
 		isMovingAnimation(appliedForeground)
+	);
+}
+
+/** Whether an animation's line colour would be hard to see on the
+ * background. No background is an unlit, black screen. */
+function hasLowLineContrast(layers: ScreenLayers): boolean {
+	const lineColor =
+		layers.foreground?.type === "animation"
+			? displayedLineColor(layers.foreground)
+			: null;
+	return (
+		lineColor !== null &&
+		contrastRatio(lineColor, layers.background ?? DEFAULT_BACKGROUND_HEX) <
+			MIN_LINE_CONTRAST
 	);
 }

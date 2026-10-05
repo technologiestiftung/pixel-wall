@@ -1,0 +1,185 @@
+<svg width="327" height="327" viewBox="0 -75 327 327" fill="none" xmlns="http://www.w3.org/2000/svg">
+<style>
+@keyframes kf_Spirale_path-trim_0 {
+  0% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  0.667% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  20.667% {
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  28% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  48% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  100% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+}
+#Spirale {
+  stroke-dashoffset: 0;
+  animation: kf_Spirale_path-trim_0 15s linear infinite;
+}
+@keyframes kf_Spirale_Pfeil_transform_0 {
+  0% {
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(0.6) scaleY(0.6) translate(-7.019px, -5.041px);
+  }
+  19.33% {
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(0.6) scaleY(0.6) translate(-7.019px, -5.041px);
+  }
+  22% {
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(1) scaleY(1) translate(-7.019px, -5.041px);
+  }
+  26.67% {
+    animation-timing-function: ease-in;
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(1) scaleY(1) translate(-7.019px, -5.041px);
+  }
+  28.67% {
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(0.6) scaleY(0.6) translate(-7.019px, -5.041px);
+  }
+  100% {
+    transform: translateX(279.641px) translateY(89.269px) translate(7.019px, 5.041px) scaleX(0.6) scaleY(0.6) translate(-7.019px, -5.041px);
+  }
+}
+@keyframes kf_Spirale_Pfeil_opacity_0 {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  19.33% {
+    animation-timing-function: ease-out;
+    opacity: 0;
+  }
+  22% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  26.67% {
+    animation-timing-function: ease-in;
+    opacity: 1;
+  }
+  28.67% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#Spirale_Pfeil {
+  transform-origin: 0 0;
+  animation:
+    kf_Spirale_Pfeil_transform_0 15s linear infinite,
+    kf_Spirale_Pfeil_opacity_0 15s linear infinite;
+}
+@keyframes kf_Welle_path-trim_0 {
+  0% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  50.667% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  70.667% {
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  78% {
+    animation-timing-function: ease-in-out;
+    stroke-dasharray: 1 1;
+    visibility: visible;
+  }
+  98% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+  100% {
+    stroke-dasharray: 0 1;
+    visibility: hidden;
+  }
+}
+#Welle {
+  stroke-dashoffset: 0;
+  animation: kf_Welle_path-trim_0 15s linear infinite;
+}
+@keyframes kf_Welle_Pfeil_transform_0 {
+  0% {
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(0.6) scaleY(0.6) translate(-6.395px, -5.38px);
+  }
+  69.33% {
+    animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(0.6) scaleY(0.6) translate(-6.395px, -5.38px);
+  }
+  72% {
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(1) scaleY(1) translate(-6.395px, -5.38px);
+  }
+  76.67% {
+    animation-timing-function: ease-in;
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(1) scaleY(1) translate(-6.395px, -5.38px);
+  }
+  78.67% {
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(0.6) scaleY(0.6) translate(-6.395px, -5.38px);
+  }
+  100% {
+    transform: translateX(277.305px) translateY(82.345px) translate(6.395px, 5.38px) scaleX(0.6) scaleY(0.6) translate(-6.395px, -5.38px);
+  }
+}
+@keyframes kf_Welle_Pfeil_opacity_0 {
+  0% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  69.33% {
+    animation-timing-function: ease-out;
+    opacity: 0;
+  }
+  72% {
+    animation-timing-function: linear;
+    opacity: 1;
+  }
+  76.67% {
+    animation-timing-function: ease-in;
+    opacity: 1;
+  }
+  78.67% {
+    animation-timing-function: linear;
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+#Welle_Pfeil {
+  transform-origin: 0 0;
+  animation:
+    kf_Welle_Pfeil_transform_0 15s linear infinite,
+    kf_Welle_Pfeil_opacity_0 15s linear infinite;
+}
+</style>
+<g id="Spirale___Welle_____Sequenz__Loop_15s_" clip-path="url(#clip0_158_67)">
+<path id="Spirale" transform="translate(33.5104 38.1729)" d="M0 49.7121C1.79 57.4771 3.94 66.5071 7.13 74.9971C10.315 83.4871 14.55 91.4321 20.49 97.0221C22.46 98.6721 24.445 99.5721 26.42 99.8771C28.395 100.177 30.365 99.8821 32.3 99.1071C36.17 97.5721 39.92 94.1521 43.36 89.9421C50.235 81.5121 55.85 69.8871 58.685 63.6521C66.155 47.0821 70.505 24.2371 65.275 7.17214C64.655 5.30214 63.495 3.06714 61.93 1.60714C61.15 0.877138 60.265 0.342138 59.305 0.142138C58.345 -0.057862 57.3 0.077138 56.19 0.687138C52.76 3.05714 50.87 7.47714 49.73 12.3071C48.59 17.1421 48.21 22.3871 47.815 26.4071C46.785 40.5171 48.225 54.5371 52.75 67.9421C55.13 75.2921 58.17 82.9271 62.215 89.4471C65.805 95.3921 69.445 98.4921 73.025 99.5421C76.61 100.592 80.135 99.6071 83.49 97.3871C86.84 95.1721 90.03 91.7321 92.92 87.8821C95.815 84.0321 98.42 79.7721 100.62 75.9171C107.635 63.2471 113.08 49.7221 114.79 35.2221C115.675 27.8571 115.905 19.9271 114.69 12.6571C114.24 8.86214 112.505 4.23214 110.055 1.75714C108.83 0.522138 107.425 -0.172862 105.915 0.037138C104.405 0.252138 102.785 1.37714 101.13 3.79214C96.95 10.8321 96.205 20.7871 95.7 29.0971C94.71 45.0471 97.575 60.7071 103.445 75.4771C106.785 84.0821 110.215 90.2871 113.74 94.2921C117.27 98.2971 120.885 100.102 124.61 99.9071C128.335 99.7171 132.17 97.5271 136.12 93.5521C140.07 89.5721 144.14 83.8071 148.34 76.4521C159.23 57.3321 166.025 34.8321 162.73 12.7171C162.22 10.0771 161.46 6.82714 160.09 4.28714C158.72 1.75214 156.745 -0.082862 153.81 0.097138C150.56 1.04214 148.575 4.01214 147.25 7.53214C145.93 11.0521 145.28 15.1271 144.71 18.2871C142.65 33.6021 143.185 49.4121 147.665 64.1971C149.415 69.9171 152.805 80.5521 157.77 88.7521C160.255 92.8471 163.135 96.3371 166.4 98.3021C169.67 100.262 173.325 100.697 177.37 98.6821C185.35 94.1221 192.99 83.5721 198.955 71.8321C204.925 60.0921 209.21 47.1571 210.475 37.8221C211.205 32.2371 211.765 26.2121 211.57 20.4121C211.375 14.6171 210.425 9.04714 208.135 4.40214C207.355 2.82714 206.085 1.35214 204.595 0.587138C203.1 -0.182862 201.395 -0.237862 199.735 0.997138C196.095 4.20214 194.215 9.40714 193.175 15.1571C192.13 20.9021 191.925 27.1921 191.63 32.5571C191.43 41.3921 192.125 50.0621 194.22 58.6371C196.02 65.3871 198.66 74.5021 202.425 82.5071C206.195 90.5071 211.09 97.3971 217.405 99.6621C222.11 100.842 226.365 98.7671 230.075 95.5371C233.78 92.3071 236.925 87.9221 239.41 84.4771C246.14 74.6271 251.355 63.3221 255.225 52.0921" pathLength="1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 1"/>
+<path id="Spirale_Pfeil" transform="translate(279.641 89.2688)" d="M9.98929 0.561224C9.74929 0.0612237 9.14927 -0.138775 8.65927 0.101225L0.569274 4.04122C0.0692738 4.28122 -0.140727 4.88122 0.0992726 5.38122C0.349273 5.88122 0.949269 6.08122 1.43927 5.84122L8.62927 2.33122L12.1393 9.52122C12.3793 10.0212 12.9793 10.2212 13.4793 9.98122C13.9693 9.74122 14.1793 9.14123 13.9393 8.64123L9.98929 0.551222V0.561224Z" fill="white"/>
+<path id="Welle" transform="translate(37.08 74.995)" d="M0 26.375C3.635 26.375 6.365 24.725 8.64 22.255C10.91 19.785 12.735 16.485 14.55 13.19C16.365 9.89501 18.185 6.59501 20.46 4.12501C22.735 1.65001 25.465 1.1337e-05 29.1 1.1337e-05C32.74 -0.00498973 35.465 1.64501 37.745 4.12001C40.025 6.59501 41.845 9.89001 43.665 13.185C45.485 16.48 47.305 19.775 49.575 22.25C51.845 24.72 54.57 26.37 58.205 26.37C61.835 26.375 64.555 24.725 66.825 22.255C69.095 19.785 70.91 16.485 72.725 13.19C74.54 9.89501 76.36 6.59501 78.635 4.12501C80.91 1.65001 83.64 1.1337e-05 87.275 1.1337e-05C90.925 -0.00498973 93.655 1.64501 95.925 4.12001C98.195 6.59501 100.01 9.89001 101.825 13.185C103.64 16.48 105.455 19.775 107.725 22.25C109.995 24.72 112.725 26.37 116.36 26.37C120.005 26.375 122.735 24.725 125.005 22.255C127.275 19.785 129.09 16.485 130.905 13.19C132.72 9.89501 134.535 6.59501 136.805 4.12501C139.075 1.65001 141.805 1.1337e-05 145.44 1.1337e-05C149.07 -0.00498973 151.8 1.64501 154.07 4.12001C156.345 6.59501 158.165 9.89001 159.98 13.185C161.8 16.48 163.62 19.775 165.885 22.25C168.155 24.72 170.875 26.37 174.51 26.37C178.15 26.375 180.875 24.725 183.15 22.255C185.42 19.785 187.24 16.485 189.06 13.19C190.875 9.89501 192.7 6.59501 194.97 4.12501C197.245 1.65001 199.97 1.1337e-05 203.6 1.1337e-05C207.245 -0.00498973 209.965 1.65001 212.235 4.12001C214.5 6.59501 216.32 9.89001 218.14 13.185C219.955 16.48 221.775 19.775 224.05 22.25C226.32 24.72 229.05 26.37 232.69 26.37C237.215 26.365 240.335 23.79 242.93 20.255C244.225 18.485 245.385 16.475 246.53 14.42C247.67 12.37 248.79 10.275 250 8.34001" pathLength="1" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1 1"/>
+<path id="Welle_Pfeil" transform="translate(277.305 82.3454)" d="M10.7446 0.774602C10.6246 0.234602 10.0846 -0.0953984 9.54462 0.0246016L0.774602 2.0446C0.234602 2.1646 -0.0953984 2.7046 0.0246016 3.2446C0.144602 3.7846 0.684614 4.1146 1.22461 3.9946L9.01462 2.1946L10.8146 9.9846C10.9346 10.5246 11.4746 10.8546 12.0146 10.7346C12.5546 10.6146 12.8846 10.0746 12.7646 9.5346L10.7446 0.764599V0.774602Z" fill="white"/>
+</g>
+<defs>
+<clipPath id="clip0_158_67">
+<rect width="326.18" height="176.35" fill="white"/>
+</clipPath>
+</defs>
+</svg>

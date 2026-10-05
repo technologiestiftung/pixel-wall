@@ -95,6 +95,51 @@ export async function decodeAnimatedSvg(
 	}
 
 	const size = targetSize(svg, options.maxEdgePx);
+	const capMs = (options.maxFrames * 1000) / ANIMATION_FPS;
+	return sampleSvg(svg, size, (durationsMs) => {
+		const loopMs = loopDurationMs(durationsMs, capMs);
+		if (loopMs === 0) {
+			return null;
+		}
+		const frameCount = Math.min(
+			options.maxFrames,
+			Math.max(1, Math.round((loopMs / 1000) * ANIMATION_FPS)),
+		);
+		return { loopMs, frameCount };
+	});
+}
+
+/**
+ * Samples a built-in template's SVG source at a fixed loop length and frame
+ * count, rasterised so its longer edge is `maxEdgePx`. Unlike
+ * decodeAnimatedSvg, the timing comes from the template's own definition so
+ * the frames always match animationTiming (render/animatedTemplate.ts).
+ */
+export async function sampleSvgText(
+	text: string,
+	options: { maxEdgePx: number; loopMs: number; frameCount: number },
+): Promise<SampledFrame[] | null> {
+	if (typeof document.createElement("div").attachShadow !== "function") {
+		return null;
+	}
+	const svg = parseSanitizedSvg(text);
+	if (!svg) {
+		return null;
+	}
+	const { loopMs, frameCount } = options;
+	return sampleSvg(svg, targetSize(svg, options.maxEdgePx), () => ({
+		loopMs,
+		frameCount,
+	}));
+}
+
+async function sampleSvg(
+	svg: SVGSVGElement,
+	size: { width: number; height: number },
+	planTiming: (
+		durationsMs: number[],
+	) => { loopMs: number; frameCount: number } | null,
+): Promise<SampledFrame[] | null> {
 	svg.setAttribute("width", String(size.width));
 	svg.setAttribute("height", String(size.height));
 
@@ -116,25 +161,18 @@ export async function decodeAnimatedSvg(
 		cssAnimations.forEach((animation) => animation.pause());
 		live.pauseAnimations();
 
-		const capMs = (options.maxFrames * 1000) / ANIMATION_FPS;
-		const loopMs = loopDurationMs(
-			[
-				...cssAnimations.map((animation) => {
-					const duration = animation.effect?.getComputedTiming().duration;
-					return typeof duration === "number" ? duration : 0;
-				}),
-				...smilAnimations.map(simpleDurationMs),
-			],
-			capMs,
-		);
-		if (loopMs === 0) {
+		const timing = planTiming([
+			...cssAnimations.map((animation) => {
+				const duration = animation.effect?.getComputedTiming().duration;
+				return typeof duration === "number" ? duration : 0;
+			}),
+			...smilAnimations.map(simpleDurationMs),
+		]);
+		if (!timing) {
 			return null;
 		}
 
-		const frameCount = Math.min(
-			options.maxFrames,
-			Math.max(1, Math.round((loopMs / 1000) * ANIMATION_FPS)),
-		);
+		const { loopMs, frameCount } = timing;
 		const durationMs = loopMs / frameCount;
 
 		const frames: SampledFrame[] = [];

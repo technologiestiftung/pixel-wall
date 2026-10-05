@@ -73,6 +73,9 @@ export interface AnimationContent {
 	/** The user's own image or animation when `mode` is "upload". Carried
 	 * inline so it survives a reload through the backend's opaque `source`. */
 	upload?: UploadedMedia;
+	/** Line colour for a template drawn only in lines (`Template.lineArt`);
+	 * absent draws the artwork's own white. */
+	lineColor?: string;
 }
 
 /** How live weather draws the temperature — the same styling Text offers,
