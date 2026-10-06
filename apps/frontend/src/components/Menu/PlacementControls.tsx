@@ -20,7 +20,7 @@ export function PlacementControls({
 					<input
 						id="scale"
 						type="range"
-						min={25}
+						min={10}
 						max={400}
 						value={content.scalePercent}
 						onChange={(e) =>

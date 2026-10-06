@@ -57,7 +57,7 @@ export async function renderAnimationFrameStrip(
 
 	const box = templateBox(content, canvasSize);
 	const frames = await sampleTemplate(template.file, {
-		maxEdgePx: Math.max(1, Math.round(box.size)),
+		maxEdgePx: quantizeSampleEdgePx(box.size),
 		loopMs: template.loopMs ?? 4000,
 		frameCount,
 		lineColor: lineColorFor(content),
@@ -87,6 +87,22 @@ export async function renderAnimationFrameStrip(
 	}
 
 	return strip;
+}
+
+/** Rounds a desired icon edge length to the nearest `SAMPLE_QUANTIZE_PX`, so
+ * dragging the scale slider reuses the same sampled SVG frames across a whole
+ * range of nearby sizes instead of missing `sampleCache` (and re-scrubbing
+ * every animation frame in the SVG) on every single pixel of movement. The
+ * final `drawImage` in `renderAnimationFrameStrip` still scales the result to
+ * the exact `box.size`, so this doesn't change what's actually drawn — only
+ * how often it has to be re-sampled from scratch. */
+const SAMPLE_QUANTIZE_PX = 8;
+
+function quantizeSampleEdgePx(sizePx: number): number {
+	return Math.max(
+		SAMPLE_QUANTIZE_PX,
+		Math.round(sizePx / SAMPLE_QUANTIZE_PX) * SAMPLE_QUANTIZE_PX,
+	);
 }
 
 /** Sampled frames per template file/size/frame count, so re-rendering the

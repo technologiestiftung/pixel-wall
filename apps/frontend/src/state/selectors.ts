@@ -1,4 +1,4 @@
-import { DEFAULT_LAYOUT, PITCH_MM_PER_PX } from "../domain/layout";
+import { DEFAULT_LAYOUT, PITCH_MM_PER_PX, specById } from "../domain/layout";
 import {
 	computeDisplayComposite,
 	layersForGroup,
@@ -6,7 +6,14 @@ import {
 	selectionGroups,
 } from "../domain/mapping";
 import { EMPTY_LAYERS, withEdit } from "../domain/types";
-import type { Content, ScreenLayers, SelectionGroup } from "../domain/types";
+import type {
+	AnimationContent,
+	Content,
+	ScreenLayers,
+	SelectionGroup,
+	TextContent,
+} from "../domain/types";
+import { templateBox, uploadBox } from "../render/rasterize";
 import type { AppliedRender, WallState } from "./reducer";
 
 type DraftFields = Pick<
@@ -179,6 +186,107 @@ export function draftHasChanges(state: WallState): boolean {
 			JSON.stringify(applied.layers)
 		);
 	});
+}
+
+interface RectPx {
+	x: number;
+	y: number;
+	w: number;
+	h: number;
+}
+
+function rectsOverlap(a: RectPx, b: RectPx): boolean {
+	return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+/** Whether a foreground, once scaled/aligned into `canvasSize`, would land
+ * entirely in the selection's physical gaps rather than over any actual
+ * screen — possible because a multi-screen composite spans real gaps between
+ * screens (see CONTEXT.md "Selection"), so a small or off-center placement
+ * can miss every screen even though it's fully inside the composite canvas.
+ * Only "template" and "upload" Animation/Bild carry a scale/align the user
+ * controls directly; Wetter's box depends on async-loaded media and Game of
+ * Life has no canvas position at all, so neither is checked here. */
+function isForegroundOffScreen(
+	foreground: TextContent | AnimationContent | null,
+	canvasSize: { widthPx: number; heightPx: number },
+	screenRects: RectPx[],
+): boolean {
+	if (!foreground || foreground.type !== "animation") {
+		return false;
+	}
+	if (foreground.mode === "template") {
+		const box = templateBox(foreground, canvasSize);
+		const rect = { x: box.x, y: box.y, w: box.size, h: box.size };
+		return !screenRects.some((r) => rectsOverlap(rect, r));
+	}
+	if (foreground.mode === "upload" && foreground.upload) {
+		const box = uploadBox(foreground, foreground.upload, canvasSize);
+		const rect = { x: box.x, y: box.y, w: box.widthPx, h: box.heightPx };
+		return !screenRects.some((r) => rectsOverlap(rect, r));
+	}
+	return false;
+}
+
+/**
+ * Whether the selection's current content (draft folded over applied, same
+ * as the other preview warnings below) would be invisible on every selected
+ * screen — centered or otherwise placed fully within a gap between screens.
+ * Grouped by composite/foreground identity rather than assuming one shared
+ * canvas, since a mixed selection renders two (see `selectionGroups`).
+ */
+export function isSelectionContentOffScreen(state: RenderInputs): boolean {
+	if (!state.selection) {
+		return false;
+	}
+
+	const groups = new Map<
+		string,
+		{
+			compositeWidthPx: number;
+			compositeHeightPx: number;
+			foreground: TextContent | AnimationContent | null;
+			rects: RectPx[];
+		}
+	>();
+
+	for (const screenId of state.selection.screenIds) {
+		const render = resolveScreenRender(state, screenId);
+		if (!render) {
+			continue;
+		}
+		const spec = specById(state.specs, screenId);
+		const key = `${render.compositeWidthPx}x${render.compositeHeightPx}:${JSON.stringify(render.layers.foreground)}`;
+		let group = groups.get(key);
+		if (!group) {
+			group = {
+				compositeWidthPx: render.compositeWidthPx,
+				compositeHeightPx: render.compositeHeightPx,
+				foreground: render.layers.foreground,
+				rects: [],
+			};
+			groups.set(key, group);
+		}
+		group.rects.push({
+			x: render.offsetXPx,
+			y: render.offsetYPx,
+			w: spec.pixelSize,
+			h: spec.pixelSize,
+		});
+	}
+
+	for (const group of groups.values()) {
+		if (
+			isForegroundOffScreen(
+				group.foreground,
+				{ widthPx: group.compositeWidthPx, heightPx: group.compositeHeightPx },
+				group.rects,
+			)
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /** Whether the unsaved-changes dialog should ask about a held-back intent.

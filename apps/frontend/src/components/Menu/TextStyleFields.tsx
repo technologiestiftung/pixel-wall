@@ -16,14 +16,7 @@ interface PaddingFieldProps extends NumberFieldProps {
 
 export function FontSizeField({ id, value, onChange }: NumberFieldProps) {
 	return (
-		<PxField
-			id={id}
-			label="Textgröße"
-			min={8}
-			max={64}
-			value={value}
-			onChange={onChange}
-		/>
+		<PxField id={id} label="Textgröße" min={1} value={value} onChange={onChange} />
 	);
 }
 
@@ -58,7 +51,7 @@ function PxField({
 }: NumberFieldProps & {
 	label: string;
 	min: number;
-	max: number;
+	max?: number;
 	disabled?: boolean;
 }) {
 	return (
@@ -74,7 +67,10 @@ function PxField({
 					max={max}
 					value={value}
 					disabled={disabled}
-					onChange={(e) => onChange(Number(e.target.value))}
+					onChange={(e) => {
+						const next = Number(e.target.value);
+						onChange(Number.isFinite(next) ? Math.max(min, next) : min);
+					}}
 					className="w-full min-w-0 flex-1 px-3 py-2.5 text-[14px] text-[#20201b] disabled:cursor-not-allowed disabled:bg-transparent"
 				/>
 				<span className="shrink-0 border-l border-[#edede9] px-2.5 py-2.5 text-[12.5px] text-[#767671]">

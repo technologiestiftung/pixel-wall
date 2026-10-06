@@ -23,6 +23,7 @@ import type {
 } from "../../domain/types";
 import type { WallState } from "../../state/reducer";
 import {
+	isSelectionContentOffScreen,
 	needsUnsavedConfirmation,
 	resolveScreenRender,
 } from "../../state/selectors";
@@ -77,6 +78,7 @@ function ContentEditor() {
 	);
 	const textLowContrast = hasLowTextContrast(previewLayers);
 	const lineLowContrast = hasLowLineContrast(previewLayers);
+	const contentOffScreen = isSelectionContentOffScreen(state);
 
 	// Switching tabs is free — each tab keeps its own draft — except Text and
 	// Animation/Bild share one foreground layer, so editing one silently
@@ -117,6 +119,13 @@ function ContentEditor() {
 						<Warning>
 							Linienfarbe und Hintergrundfarbe haben zu wenig Kontrast — die
 							Linien werden schlecht sichtbar sein.
+						</Warning>
+					)}
+					{contentOffScreen && (
+						<Warning>
+							Der Inhalt liegt vollständig in einer Lücke zwischen den Screens
+							und wäre auf keinem Screen sichtbar — verschiebe oder skaliere
+							ihn, damit er zu sehen ist.
 						</Warning>
 					)}
 					{/* No aria-labelledby here: it would give this wrapper the
