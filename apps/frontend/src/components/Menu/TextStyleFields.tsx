@@ -16,7 +16,13 @@ interface PaddingFieldProps extends NumberFieldProps {
 
 export function FontSizeField({ id, value, onChange }: NumberFieldProps) {
 	return (
-		<PxField id={id} label="Textgröße" min={1} value={value} onChange={onChange} />
+		<PxField
+			id={id}
+			label="Textgröße"
+			min={1}
+			value={value}
+			onChange={onChange}
+		/>
 	);
 }
 
@@ -114,6 +120,12 @@ export function FontField({
 						</option>
 						<option value="Pixelify Sans, ui-monospace, monospace">
 							Pixelify Sans
+						</option>
+						<option value="Host Grotesk, FrankMoji, ui-monospace, monospace">
+							Host Grotesk + FrankMoji
+						</option>
+						<option value="Pixelify Sans, FrankMoji, ui-monospace, monospace">
+							Pixelify Sans + FrankMoji
 						</option>
 						<option value="ui-monospace, monospace">Monospace</option>
 					</select>
