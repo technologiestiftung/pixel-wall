@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
-import { SCREEN_SPECS, DEFAULT_LAYOUT } from "../../../src/domain/layout";
+import { SCREEN_SPECS } from "../../../src/domain/layout";
 import { initialWallState, wallReducer } from "../../../src/state/reducer";
 import { needsUnsavedConfirmation } from "../../../src/state/selectors";
 import type { StateResponse, WireContentDto } from "../../../src/api/types";
@@ -47,7 +47,6 @@ describe("wallReducer: hydrated", () => {
 		const next = wallReducer(initialWallState, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 		});
 
@@ -89,7 +88,6 @@ describe("wallReducer: hydrated", () => {
 		const next = wallReducer(initialWallState, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 		});
 
@@ -121,7 +119,6 @@ describe("wallReducer: hydrated", () => {
 		const next = wallReducer(initialWallState, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 		});
 
@@ -164,7 +161,6 @@ describe("wallReducer: hydrated", () => {
 		const next = wallReducer(initialWallState, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 		});
 
@@ -175,7 +171,6 @@ describe("wallReducer: hydrated", () => {
 		const seeded = wallReducer(initialWallState, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote: {
 				"03": {
 					window: { offsetXPx: 0, offsetYPx: 0, widthPx: 32, heightPx: 32 },
@@ -187,7 +182,6 @@ describe("wallReducer: hydrated", () => {
 		const next = wallReducer(seeded, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote: {},
 		});
 
@@ -214,7 +208,6 @@ describe("wallReducer: apply-success", () => {
 			selection: { kind: "large", screenIds: ["02"] },
 			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 		});
 
 		expect(next.applied["02"]).toMatchObject({
@@ -448,7 +441,6 @@ describe("wallReducer: navigating while a save is in flight", () => {
 			selection: { kind: "large", screenIds: ["04"] },
 			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 		});
 		expect(saved.pendingIntent).toBeNull();
 		expect(saved.selection).toEqual({ kind: "large", screenIds: ["07"] });

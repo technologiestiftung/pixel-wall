@@ -4,8 +4,6 @@ import type {
 	ApplyRequest,
 	ApplyResponse,
 	ControlResponse,
-	LayoutPositionDto,
-	LayoutResponse,
 	ScreensResponse,
 	StateResponse,
 	WeatherDto,
@@ -32,20 +30,6 @@ export function claimControl(
 
 export function getScreens(request: Requester): Promise<ScreensResponse> {
 	return request<ScreensResponse>("/api/screens");
-}
-
-export function getLayout(request: Requester): Promise<LayoutResponse> {
-	return request<LayoutResponse>("/api/layout");
-}
-
-export function putLayout(
-	request: Requester,
-	positions: LayoutPositionDto[],
-): Promise<LayoutResponse> {
-	return request<LayoutResponse>("/api/layout", {
-		method: "PUT",
-		body: JSON.stringify({ positions }),
-	});
 }
 
 export function getState(request: Requester): Promise<StateResponse> {

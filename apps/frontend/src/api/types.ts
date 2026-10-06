@@ -1,18 +1,8 @@
 import type { ScreenKind, ScreenLayers, ScreenSpec } from "../domain/types";
 import type { WeatherVariant } from "../domain/weather";
 
-export interface LayoutPositionDto {
-	screenId: string;
-	xMm: number;
-	yMm: number;
-}
-
 export interface ScreensResponse {
 	screens: ScreenSpec[];
-}
-
-export interface LayoutResponse {
-	positions: LayoutPositionDto[];
 }
 
 /** A screen's region of the (possibly multi-screen) content bitmap. */
@@ -100,7 +90,6 @@ export interface SourceDto extends ScreenLayers {
 }
 
 export interface StateResponse {
-	layout: LayoutPositionDto[];
 	screens: Record<
 		string,
 		{

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type Dispatch } from "react";
-import { getLayout, getScreens, getState, type Requester } from "../api/wall";
-import { DEFAULT_LAYOUT, SCREEN_SPECS } from "../domain/layout";
+import { getScreens, getState, type Requester } from "../api/wall";
+import { SCREEN_SPECS } from "../domain/layout";
 import type { Generation, WallAction } from "./reducer";
 
 const POLL_INTERVAL_MS = 20_000;
@@ -33,9 +33,8 @@ export function useWallSync(
 			// around.
 			const sinceGeneration = generationRef.current;
 			try {
-				const [screens, layout, state] = await Promise.all([
+				const [screens, state] = await Promise.all([
 					getScreens(request),
-					getLayout(request),
 					getState(request),
 				]);
 				if (cancelled) {
@@ -44,7 +43,6 @@ export function useWallSync(
 				dispatch({
 					type: "hydrated",
 					specs: screens.screens,
-					layout: layout.positions,
 					remote: state.screens,
 					sinceGeneration,
 				});
@@ -53,7 +51,6 @@ export function useWallSync(
 					dispatch({
 						type: "hydrated",
 						specs: SCREEN_SPECS,
-						layout: DEFAULT_LAYOUT,
 						remote: {},
 						sinceGeneration,
 					});

@@ -15,7 +15,6 @@ import type {
 	Content,
 	ColorContent,
 	ContentType,
-	LayoutPosition,
 	ScreenLayers,
 	ScreenSpec,
 	Selection,
@@ -53,23 +52,21 @@ export interface AppliedRender {
  */
 export type NavigationIntent =
 	| { kind: "toggle-screen"; screenId: string; additive: boolean }
-	| { kind: "clear-selection" }
-	| { kind: "toggle-layout-edit-mode" };
+	| { kind: "clear-selection" };
 
 /**
- * How many local writes have landed for each piece of state that the
- * background poller (`useWallSync`) also overwrites wholesale. A poll started
- * before a local write can resolve after it; tagging the poll with the
- * generation it started at lets `hydrated` tell that response is stale for
- * whatever it would otherwise clobber, instead of blindly reverting a save
- * that already landed — see CONTEXT.md "Client sync".
+ * How many local writes have landed for each screen that the background
+ * poller (`useWallSync`) also overwrites wholesale. A poll started before a
+ * local write can resolve after it; tagging the poll with the generation it
+ * started at lets `hydrated` tell that response is stale for whatever it
+ * would otherwise clobber, instead of blindly reverting a save that already
+ * landed — see CONTEXT.md "Client sync".
  */
 export interface Generation {
 	screens: Record<string, number>;
-	layout: Record<string, number>;
 }
 
-const EMPTY_GENERATION: Generation = { screens: {}, layout: {} };
+const EMPTY_GENERATION: Generation = { screens: {} };
 
 const NO_DRAFTS = {
 	draftText: null,
@@ -79,7 +76,6 @@ const NO_DRAFTS = {
 
 export interface WallState {
 	specs: ScreenSpec[];
-	layout: LayoutPosition[];
 	selection: Selection | null;
 	activeTab: ContentType;
 	/**
@@ -96,9 +92,6 @@ export interface WallState {
 	syncStatus: "loading" | "ready";
 	applyStatus: "idle" | "pending" | "error";
 	applyError: string | null;
-	/** "Layout bearbeiten" — dragging screens around is a distinct mode from
-	 * everyday content editing (see CONTEXT.md "Layout"). */
-	layoutEditMode: boolean;
 	/** An intent held back because carrying it out would discard unsaved
 	 * changes — waiting either for the user to confirm in the dialog, or for
 	 * a save already in flight to land (see `request-intent`). */
@@ -109,7 +102,6 @@ export interface WallState {
 
 export const initialWallState: WallState = {
 	specs: SCREEN_SPECS,
-	layout: DEFAULT_LAYOUT,
 	selection: null,
 	activeTab: "text",
 	draftText: null,
@@ -119,7 +111,6 @@ export const initialWallState: WallState = {
 	syncStatus: "loading",
 	applyStatus: "idle",
 	applyError: null,
-	layoutEditMode: false,
 	pendingIntent: null,
 	generation: EMPTY_GENERATION,
 };
@@ -134,18 +125,15 @@ export type WallAction =
 	| {
 			type: "apply-success";
 			// Captured at request-build time, not re-read from current state —
-			// the selection (or the layout, in a future drag-to-rearrange
-			// world) may have changed while the request was in flight.
+			// the selection may have changed while the request was in flight.
 			selection: Selection;
 			layers: ScreenLayers;
 			specs: ScreenSpec[];
-			layout: LayoutPosition[];
 	  }
 	| { type: "apply-error"; message: string }
 	| {
 			type: "hydrated";
 			specs: ScreenSpec[];
-			layout: LayoutPosition[];
 			remote: StateResponse["screens"];
 			/** The `Generation` snapshot taken when this poll started, so a
 			 * response that resolves after a newer local write can be told apart
@@ -153,8 +141,7 @@ export type WallAction =
 			 * site) so callers that don't care about the race — tests included —
 			 * can leave it out and get the old blind-overwrite behaviour. */
 			sinceGeneration?: Generation;
-	  }
-	| { type: "move-screen"; screenId: string; xMm: number; yMm: number };
+	  };
 
 export function wallReducer(state: WallState, action: WallAction): WallState {
 	switch (action.type) {
@@ -202,7 +189,7 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 			for (const group of selectionGroups(action.specs, action.selection)) {
 				const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
 				const composite = computeDisplayComposite(
-					{ specs: action.specs, positions: action.layout },
+					{ specs: action.specs, positions: DEFAULT_LAYOUT },
 					group,
 					devicePxPerMm,
 				);
@@ -238,36 +225,17 @@ export function wallReducer(state: WallState, action: WallAction): WallState {
 		case "hydrated":
 			return hydrate(state, action);
 
-		case "move-screen":
-			return {
-				...state,
-				layout: state.layout.map((p) =>
-					p.screenId === action.screenId
-						? { ...p, xMm: action.xMm, yMm: action.yMm }
-						: p,
-				),
-				generation: {
-					...state.generation,
-					layout: {
-						...state.generation.layout,
-						[action.screenId]:
-							(state.generation.layout[action.screenId] ?? 0) + 1,
-					},
-				},
-			};
-
 		default:
 			return state;
 	}
 }
 
 /**
- * Folds a poll response into state, screen-by-screen (and likewise for
- * layout): anything the poll's `sinceGeneration` snapshot shows as unchanged
- * since it started is safe to overwrite with the response, but anything with
- * a newer generation had a local write land while the poll was in flight, so
- * the (by now stale) response is dropped for just that piece — see
- * `Generation`.
+ * Folds a poll response into state, screen-by-screen: anything the poll's
+ * `sinceGeneration` snapshot shows as unchanged since it started is safe to
+ * overwrite with the response, but anything with a newer generation had a
+ * local write land while the poll was in flight, so the (by now stale)
+ * response is dropped for just that screen — see `Generation`.
  */
 function hydrate(
 	state: WallState,
@@ -287,20 +255,9 @@ function hydrate(
 			: hydrateScreen(screenId, entry);
 	}
 
-	const layout = action.layout.map((remote) => {
-		const stale =
-			(state.generation.layout[remote.screenId] ?? 0) !==
-			(since.layout[remote.screenId] ?? 0);
-		if (!stale) {
-			return remote;
-		}
-		return state.layout.find((p) => p.screenId === remote.screenId) ?? remote;
-	});
-
 	return {
 		...state,
 		specs: action.specs,
-		layout,
 		applied,
 		syncStatus: "ready",
 	};
@@ -400,14 +357,6 @@ function applyIntent(state: WallState, intent: NavigationIntent): WallState {
 		case "clear-selection":
 			return {
 				...state,
-				selection: null,
-				...NO_DRAFTS,
-			};
-
-		case "toggle-layout-edit-mode":
-			return {
-				...state,
-				layoutEditMode: !state.layoutEditMode,
 				selection: null,
 				...NO_DRAFTS,
 			};

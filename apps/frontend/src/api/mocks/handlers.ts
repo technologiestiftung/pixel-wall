@@ -1,9 +1,9 @@
 import { http, HttpResponse } from "msw";
-import { DEFAULT_LAYOUT, SCREEN_SPECS } from "../../domain/layout";
+import { SCREEN_SPECS } from "../../domain/layout";
 import { createMask, encodeMaskBase64 } from "../../domain/mask";
 import type { LibraryUpload, UploadedMedia } from "../../domain/types";
 import { API_URL } from "../../lib/api";
-import type { ApplyRequest, LayoutPositionDto, StateResponse } from "../types";
+import type { ApplyRequest, StateResponse } from "../types";
 
 /**
  * In-memory stand-in for the backend, used by tests and by
@@ -11,7 +11,6 @@ import type { ApplyRequest, LayoutPositionDto, StateResponse } from "../types";
  * enough to exercise the app, including slicing static content per screen —
  * see apps/backend/app/compose.py for the real thing.
  */
-let layout: LayoutPositionDto[] = DEFAULT_LAYOUT.map((p) => ({ ...p }));
 const applied: StateResponse["screens"] = {};
 let uploads: LibraryUpload[] = [];
 
@@ -37,19 +36,8 @@ export const handlers = [
 		HttpResponse.json({ screens: SCREEN_SPECS }),
 	),
 
-	http.get(`${API_BASE}/layout`, () =>
-		HttpResponse.json({ positions: layout }),
-	),
-
-	http.put(`${API_BASE}/layout`, async ({ request }) => {
-		const body = (await request.json()) as { positions: LayoutPositionDto[] };
-		layout = body.positions;
-		return HttpResponse.json({ positions: layout });
-	}),
-
 	http.get(`${API_BASE}/state`, () =>
 		HttpResponse.json({
-			layout,
 			screens: applied,
 			updated_at: new Date().toISOString(),
 		}),

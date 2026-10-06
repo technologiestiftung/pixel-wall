@@ -75,41 +75,10 @@ def test_health_reports_auth_and_mqtt(api):
     assert body["mqtt"]["topic_prefix"] == "ledwall/screen"
 
 
-def test_state_starts_with_default_layout_and_no_content(api):
+def test_state_starts_with_no_content(api):
     body = api.get("/api/state").json()
     assert body["screens"] == {}
-    assert len(body["layout"]) == 7
     assert "brightness" not in body
-
-
-# -------------------------------------------------------------------- layout
-
-
-def test_layout_round_trips(api):
-    positions = [{"screenId": s, "xMm": i * 10, "yMm": i * 5} for i, s in enumerate(
-        ["01", "02", "03", "04", "05", "06", "07"]
-    )]
-    response = api.put("/api/layout", json={"positions": positions})
-    assert response.status_code == 200
-    assert api.get("/api/layout").json()["positions"] == positions
-
-
-def test_layout_rejects_unknown_screen(api):
-    response = api.put(
-        "/api/layout", json={"positions": [{"screenId": "99", "xMm": 0, "yMm": 0}]}
-    )
-    assert response.status_code == 422
-
-
-def test_layout_survives_an_apply(api):
-    positions = [{"screenId": "01", "xMm": 1, "yMm": 2}]
-    api.put("/api/layout", json={"positions": positions})
-    api.post("/api/apply", json={
-        "selectionKind": "small",
-        "screens": [{"screenId": "01", "window": window()}],
-        "content": mask_content(["####", "...."]),
-    })
-    assert api.get("/api/layout").json()["positions"] == positions
 
 
 # --------------------------------------------------------------------- apply
@@ -481,6 +450,13 @@ def test_old_flat_state_endpoints_are_gone(api, method):
 def test_brightness_endpoint_is_gone(api):
     response = api.put("/api/brightness", json={"small": 35, "large": 95})
     assert response.status_code in (404, 405)
+
+
+def test_layout_endpoint_is_gone(api):
+    """Screen positions are fixed at install time (docs/adr) — the frontend's
+    own `DEFAULT_LAYOUT` constant, no longer a backend-synced resource."""
+    assert api.get("/api/layout").status_code == 404
+    assert api.put("/api/layout", json={"positions": []}).status_code == 404
 
 
 SHEET = "data:image/png;base64,iVBORw0KGgo="

@@ -37,23 +37,6 @@ import { TextPanel } from "./TextPanel";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 
 export function Menu() {
-	const { layoutEditMode } = useWallState();
-
-	if (layoutEditMode) {
-		return (
-			<aside className="flex w-[400px] shrink-0 flex-col gap-5 border-r-[0.5px] border-[#595959] bg-white p-7">
-				<h2 className="w-full text-[21px] font-semibold text-[#20201b]">
-					Layout bearbeiten
-				</h2>
-				<p className="text-[13px] text-[#6b6b66]">
-					Ziehe die Bildschirme in der Vorschau an ihre gewünschte Position.
-					Überlappungen sind nicht möglich.
-				</p>
-				<UnsavedChangesPrompt />
-			</aside>
-		);
-	}
-
 	return (
 		// Only the fields scroll: the actions are a footer outside the scroll
 		// area, so a long panel can never push Speichern out of sight.

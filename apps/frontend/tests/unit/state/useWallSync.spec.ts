@@ -11,13 +11,10 @@ import type { Requester } from "../../../src/api/wall";
 
 vi.mock("../../../src/api/wall", () => ({
 	getScreens: vi.fn(),
-	getLayout: vi.fn(),
 	getState: vi.fn(),
 }));
 
-const { getScreens, getLayout, getState } = await import(
-	"../../../src/api/wall"
-);
+const { getScreens, getState } = await import("../../../src/api/wall");
 const { useWallSync } = await import("../../../src/state/useWallSync");
 
 function deferred<T>() {
@@ -61,19 +58,16 @@ describe("useWallSync", () => {
 
 	test("snapshots generation before the request goes out, not when it resolves", async () => {
 		const screens = deferred<{ screens: unknown[] }>();
-		const layout = deferred<{ positions: unknown[] }>();
 		const state = deferred<{
 			screens: Record<string, unknown>;
 		}>();
 
 		vi.mocked(getScreens).mockReturnValue(screens.promise as never);
-		vi.mocked(getLayout).mockReturnValue(layout.promise as never);
 		vi.mocked(getState).mockReturnValue(state.promise as never);
 
 		const dispatch = vi.fn();
 		const beforeSave: Generation = {
 			screens: { "06": 1 },
-			layout: {},
 		};
 
 		await act(async () => {
@@ -86,7 +80,6 @@ describe("useWallSync", () => {
 
 		const afterSave: Generation = {
 			screens: { "06": 2 },
-			layout: {},
 		};
 		await act(async () => {
 			// The save completes and the component re-renders with the newer
@@ -97,7 +90,6 @@ describe("useWallSync", () => {
 		await act(async () => {
 			// Only now does the slow, pre-save poll resolve.
 			screens.resolve({ screens: [] });
-			layout.resolve({ positions: [] });
 			state.resolve({ screens: {} });
 			await Promise.resolve();
 			await Promise.resolve();

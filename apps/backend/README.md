@@ -267,28 +267,12 @@ The fixed hardware inventory. Static; it never changes at runtime.
 
 Three `small` screens (`01`–`03`) and four `large` (`04`–`07`).
 
-### `GET /api/layout` → `200`, `PUT /api/layout` → `200`
-
-The user-arranged physical positions, in millimetres, of every screen. This is
-a _planning_ arrangement used to work out how content spans a selection — it is
-not the electrical topology, and the display process does not derive panel
-addresses from it.
-
-```json
-{
-	"positions": [{ "screenId": "01", "xMm": 508, "yMm": 3 }]
-}
-```
-
-`PUT` replaces the whole list and returns it. An unknown `screenId` is a `422`.
-
 ### `GET /api/state` → `200`
 
 Everything the wall is currently showing.
 
 ```json
 {
-	"layout": [{ "screenId": "01", "xMm": 508, "yMm": 3 }],
 	"screens": {
 		"04": {
 			"window": {

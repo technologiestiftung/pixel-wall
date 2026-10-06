@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { DEFAULT_LAYOUT } from "../../../src/domain/layout";
 import {
 	draftHasChanges,
 	resolveScreenRender,
@@ -146,7 +147,7 @@ describe("resolveScreenRenders", () => {
 
 		const renders = resolveScreenRenders(state);
 
-		for (const { screenId } of state.layout) {
+		for (const { screenId } of DEFAULT_LAYOUT) {
 			expect(renders.get(screenId)).toEqual(
 				resolveScreenRender(state, screenId),
 			);

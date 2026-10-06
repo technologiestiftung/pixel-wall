@@ -1,8 +1,4 @@
-import {
-	memo,
-	type MouseEvent as ReactMouseEvent,
-	type PointerEvent as ReactPointerEvent,
-} from "react";
+import { memo, type MouseEvent as ReactMouseEvent } from "react";
 import {
 	displayScaleForKind,
 	displayScreenId,
@@ -18,12 +14,7 @@ interface ScreenTileProps {
 	mmToPx: number;
 	selected: boolean;
 	render: AppliedRender | null;
-	draggable: boolean;
-	dragging: boolean;
 	onToggle: (screenId: string, additive: boolean) => void;
-	onDragStart: (screenId: string, clientXPx: number, clientYPx: number) => void;
-	onDragMove: (clientXPx: number, clientYPx: number) => void;
-	onDragEnd: () => void;
 }
 
 // Real LED matrices have a small physical gap between adjacent LEDs within
@@ -31,13 +22,6 @@ interface ScreenTileProps {
 // whole pitch. This is the fraction of one pixel's on-screen size reserved
 // for that gap, rendered as a grid overlay in the panel's own dark color.
 const PIXEL_GAP_FRACTION = 0.14;
-
-function dragCursorClass(draggable: boolean, dragging: boolean): string {
-	if (!draggable) {
-		return "";
-	}
-	return dragging ? "cursor-grabbing" : "cursor-grab";
-}
 
 /** Memoized: typing into the edit panel re-renders the Stage on every
  * keystroke, but only the selected tiles' renders actually change. */
@@ -47,44 +31,13 @@ export const ScreenTile = memo(function ScreenTile({
 	mmToPx,
 	selected,
 	render,
-	draggable,
-	dragging,
 	onToggle,
-	onDragStart,
-	onDragMove,
-	onDragEnd,
 }: ScreenTileProps) {
 	const sizePx = spec.physicalSizeMm * mmToPx;
 	const scale = displayScaleForKind(spec.kind, mmToPx);
 	const gapPx = scale * PIXEL_GAP_FRACTION;
 
-	function handlePointerDown(e: ReactPointerEvent<HTMLButtonElement>) {
-		if (!draggable) {
-			return;
-		}
-		e.currentTarget.setPointerCapture(e.pointerId);
-		onDragStart(spec.id, e.clientX, e.clientY);
-	}
-
-	function handlePointerMove(e: ReactPointerEvent<HTMLButtonElement>) {
-		if (!draggable || !dragging) {
-			return;
-		}
-		onDragMove(e.clientX, e.clientY);
-	}
-
-	function handlePointerUp(e: ReactPointerEvent<HTMLButtonElement>) {
-		if (!draggable || !dragging) {
-			return;
-		}
-		e.currentTarget.releasePointerCapture(e.pointerId);
-		onDragEnd();
-	}
-
 	function handleClick(e: ReactMouseEvent<HTMLButtonElement>) {
-		if (draggable) {
-			return;
-		}
 		onToggle(spec.id, e.shiftKey);
 	}
 
@@ -92,15 +45,8 @@ export const ScreenTile = memo(function ScreenTile({
 		<button
 			type="button"
 			onClick={handleClick}
-			onPointerDown={handlePointerDown}
-			onPointerMove={handlePointerMove}
-			onPointerUp={handlePointerUp}
 			aria-pressed={selected}
-			title={
-				draggable
-					? undefined
-					: `${spec.physicalSizeMm}×${spec.physicalSizeMm} mm · ${spec.pixelSize}×${spec.pixelSize} px (Shift+Klick für Mehrfachauswahl)`
-			}
+			title={`${spec.physicalSizeMm}×${spec.physicalSizeMm} mm · ${spec.pixelSize}×${spec.pixelSize} px (Shift+Klick für Mehrfachauswahl)`}
 			// The extra thickness when selected is an outline rather than a
 			// wider border: the tile is sized to the screen's physical size, so
 			// growing the border would eat into the content box and nudge the
@@ -109,13 +55,12 @@ export const ScreenTile = memo(function ScreenTile({
 				selected
 					? "border-yellow-400 outline outline-2 outline-yellow-400"
 					: "border-transparent"
-			} ${dragCursorClass(draggable, dragging)}`}
+			}`}
 			style={{
 				left: position.xMm * mmToPx,
 				top: position.yMm * mmToPx,
 				width: sizePx,
 				height: sizePx,
-				touchAction: draggable ? "none" : undefined,
 			}}
 		>
 			{render && (

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
-import { SCREEN_SPECS, DEFAULT_LAYOUT } from "../../../src/domain/layout";
+import { SCREEN_SPECS } from "../../../src/domain/layout";
 import { initialWallState, wallReducer } from "../../../src/state/reducer";
 import type { StateResponse } from "../../../src/api/types";
 import { draftHasChanges } from "../../../src/state/selectors";
@@ -33,7 +33,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 			selection: { kind: "large", screenIds: ["06"] },
 			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 		});
 		expect(draftHasChanges(saved)).toBe(false);
 
@@ -55,7 +54,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 		const afterStaleHydrate = wallReducer(saved, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 			sinceGeneration,
 		});
@@ -74,7 +72,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 			selection: { kind: "large", screenIds: ["06"] },
 			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 		});
 
 		// A poll that started after the save observes the post-save generation.
@@ -96,7 +93,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 		const afterHydrate = wallReducer(saved, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 			sinceGeneration,
 		});
@@ -114,7 +110,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 			selection: { kind: "large", screenIds: ["06"] },
 			layers: { background: "#FE4441", foreground: null },
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 		});
 		const sinceGeneration = initialWallState.generation; // predates the save
 
@@ -134,7 +129,6 @@ describe("wallReducer: hydrated vs. a newer local save", () => {
 		const afterHydrate = wallReducer(saved, {
 			type: "hydrated",
 			specs: SCREEN_SPECS,
-			layout: DEFAULT_LAYOUT,
 			remote,
 			sinceGeneration,
 		});

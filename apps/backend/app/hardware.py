@@ -1,10 +1,10 @@
 """Where each physical panel sits in its driver's canvas.
 
-This is **not** the user's layout. `app/screens.py`'s `DEFAULT_LAYOUT` and the
-persisted mm positions are a planning arrangement that decides how content is
-split across a selection; the tables here are fixed by cabling and are not
-user-editable. The two are composed per redraw: crop the applied bitmap at the
-screen's content-space window, then blit into its matrix-space rectangle.
+This is **not** the user's layout. The frontend's `DEFAULT_LAYOUT` (fixed at
+install time) decides how content is split across a selection; the tables
+here are fixed by cabling and are not user-editable either. The two are
+composed per redraw: crop the applied bitmap at the screen's content-space
+window, then blit into its matrix-space rectangle.
 """
 
 #: The Pi drives four 64x64 panels as two chains of two, one chain per bonnet

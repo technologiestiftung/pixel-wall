@@ -15,8 +15,6 @@ from .models import (
     ControlRequest,
     ControlResponse,
     HealthResponse,
-    LayoutRequest,
-    LayoutResponse,
     MqttStatus,
     ScreensResponse,
     StateResponse,
@@ -131,20 +129,6 @@ def post_control(payload: ControlRequest) -> ControlResponse:
 @app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])
 def get_screens() -> ScreensResponse:
     return ScreensResponse(screens=screen_inventory.SCREEN_SPECS)
-
-
-@app.get("/api/layout", response_model=LayoutResponse, tags=["wall"])
-def get_layout() -> LayoutResponse:
-    return LayoutResponse(positions=state_store.read_state()["layout"])
-
-
-@app.put("/api/layout", response_model=LayoutResponse, tags=["wall"])
-def put_layout(payload: LayoutRequest) -> LayoutResponse:
-    with state_store.edit_lock:
-        current = WallState.model_validate(state_store.read_state())
-        current.layout = payload.positions
-        written = _write(current)
-    return LayoutResponse(positions=written["layout"])
 
 
 @app.get("/api/state", response_model=StateResponse, tags=["wall"])

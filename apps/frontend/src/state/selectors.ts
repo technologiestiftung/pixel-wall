@@ -1,4 +1,4 @@
-import { PITCH_MM_PER_PX } from "../domain/layout";
+import { DEFAULT_LAYOUT, PITCH_MM_PER_PX } from "../domain/layout";
 import {
 	computeDisplayComposite,
 	layersForGroup,
@@ -16,7 +16,7 @@ type DraftFields = Pick<
 
 /** Everything the preview's per-screen renders depend on. */
 export type RenderInputs = DraftFields &
-	Pick<WallState, "specs" | "layout" | "selection" | "applied">;
+	Pick<WallState, "specs" | "selection" | "applied">;
 
 /**
  * The in-progress content edits currently drafted, in the order they should
@@ -67,7 +67,7 @@ function draftRendersForGroup(
 ): Map<string, AppliedRender> {
 	const devicePxPerMm = 1 / PITCH_MM_PER_PX[group.kind];
 	const composite = computeDisplayComposite(
-		{ specs: state.specs, positions: state.layout },
+		{ specs: state.specs, positions: DEFAULT_LAYOUT },
 		group,
 		devicePxPerMm,
 	);
@@ -131,7 +131,7 @@ export function resolveScreenRenders(
 	state: RenderInputs,
 ): Map<string, AppliedRender | null> {
 	const renders = new Map<string, AppliedRender | null>(
-		state.layout.map(({ screenId }) => [
+		DEFAULT_LAYOUT.map(({ screenId }) => [
 			screenId,
 			state.applied[screenId] ?? null,
 		]),

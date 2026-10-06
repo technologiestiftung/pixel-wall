@@ -13,7 +13,7 @@ from pydantic import (
 
 from . import config
 from .mask import MaskFormatError, Palette4, decode_block
-from .screens import DEFAULT_LAYOUT, SCREEN_IDS, ScreenKind
+from .screens import SCREEN_IDS, ScreenKind
 
 #: `gameOfLife` carries no bitmap at all — see CONTEXT.md "Content" (Game of
 #: Life) and docs/wire-format.md. Small-screen (ESP32) only.
@@ -32,16 +32,6 @@ def _validate_screen_id(value: str) -> str:
     if value not in SCREEN_IDS:
         raise ValueError(f"unknown screen id: {value}")
     return value
-
-
-class LayoutPositionModel(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    screenId: str
-    xMm: float
-    yMm: float
-
-    _known_screen = field_validator("screenId")(_validate_screen_id)
 
 
 class ScreenWindow(BaseModel):
@@ -150,9 +140,6 @@ class ScreenStateModel(BaseModel):
 class WallState(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    layout: list[LayoutPositionModel] = Field(
-        default_factory=lambda: [LayoutPositionModel(**p) for p in DEFAULT_LAYOUT]
-    )
     screens: dict[str, ScreenStateModel] = Field(default_factory=dict)
 
     @field_validator("screens")
@@ -166,16 +153,6 @@ class WallState(BaseModel):
 
 class StateResponse(WallState):
     updated_at: str
-
-
-class LayoutRequest(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    positions: list[LayoutPositionModel]
-
-
-class LayoutResponse(BaseModel):
-    positions: list[LayoutPositionModel]
 
 
 class ScreensResponse(BaseModel):

@@ -9,8 +9,8 @@ interface UnsavedChangesDialogProps {
 }
 
 /** Shown when something the user asked for would silently drop an unsaved
- * draft — selecting other screens, clearing the selection, entering layout
- * mode. See state/reducer.ts `NavigationIntent`.
+ * draft — selecting other screens, or clearing the selection. See
+ * state/reducer.ts `NavigationIntent`.
  *
  * Every way of dismissing it cancels rather than discards: clicking away is
  * the gesture you make when you didn't mean to open this at all, so it must

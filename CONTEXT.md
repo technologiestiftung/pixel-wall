@@ -2,7 +2,7 @@
 
 ## Screen (Bildschirm)
 
-7 physical LED panels mounted on the wall. Two distinct hardware kinds, both fixed in count and pixel resolution but user-repositionable in the layout (see **Layout**):
+7 physical LED panels mounted on the wall. Two distinct hardware kinds, both fixed in count, pixel resolution, and physical position (see **Layout**):
 
 - **Small screen** (`kleiner Bildschirm`): 32×32px, 128×128mm. All three are chained off a **single ESP32**, which drives them as one 96×32 hardware canvas — but that is a wiring detail, not a content one: each small screen is addressed separately and always shows its own independent content, never combined with another screen to form a shared content canvas, even when selected together with others.
 - **Large screen** (`großer Bildschirm`): 64×64px, 192×192mm. Driven via HUB75. Cabled with enough slack to be repositioned somewhat freely relative to other screens. Large screens selected together combine into one continuous canvas (see **Selection**).
@@ -11,11 +11,11 @@ There are 4 large screens and 3 small screens (7 total). The large screens hang 
 
 ## Layout (Anordnung)
 
-The user-arranged 2D physical positions of all 7 screens, set by dragging screens around in the preview to plan/try out wall arrangements. Positions are in real-world units (mm), since screen physical sizes (128mm/192mm) are known — this lets the app derive the actual physical gap between two adjacent large screens directly from their dragged positions, rather than needing a separately configured gap value.
+The 2D physical positions of all 7 screens, fixed at install time (see `docs/adr/0004-fixed-layout-no-editing.md`) rather than user-editable. Positions are in real-world units (mm), since screen physical sizes (128mm/192mm) are known — this lets the app derive the actual physical gap between two adjacent large screens directly from their configured positions, rather than needing a separately configured gap value.
 
-No rigidity is enforced between the two large screens of a physical HUB75 chain-pair — despite being electrically one continuous canvas, their connecting cable has enough slack that they can be dragged apart to some degree, so the layout tool does not lock them together as a rigid block.
+No rigidity is assumed between the two large screens of a physical HUB75 chain-pair — despite being electrically one continuous canvas, their connecting cable has enough slack that they are not necessarily mounted as a perfectly rigid block.
 
-Rearranging the layout is a distinct mode from everyday content editing ("Layout bearbeiten," entered explicitly via a toggle in the preview toolbar) rather than drag-to-move coexisting inline with click-to-select on the same screens — layout changes are rare/setup-time actions, while selecting screens to edit content is the everyday workflow. While in this mode, clicking a screen does not select it — the edit panel is replaced with drag instructions instead of the normal content editor, and dragging a screen persists its new position to the backend as soon as the drag ends (not deferred to a separate save step).
+The layout lives as a single constant on the frontend (`DEFAULT_LAYOUT`) — nothing reads or writes it over the network. The backend never consults per-screen positions at all, not even to render content: the frontend derives each screen's pixel `window` from the layout and sends that already-computed window along with every apply (see **Rendering split**), so the backend only ever crops to a window it's told, never to a position it looks up itself.
 
 ## Selection (Auswahl)
 
@@ -23,7 +23,6 @@ One or more screens chosen in the preview as the target for a content edit. Sele
 
 - Any selection — large, small, or both — is **one picture**: content is mapped as one continuous canvas stretched/split across the selected screens' combined bounding box, and each screen shows its own window into it. Selected screens need not be adjacent; any physical gap between them is treated as blank/phantom pixels. **Game of Life is the one exception**: each screen runs its own independently random board rather than a slice of a shared picture (see **Content**).
 - A selection may **mix** small and large screens. Because the two kinds differ in pixel pitch and hardware, the canvas is rendered once per kind at that kind's density and saved as one apply request per kind; text size, padding and scroll speed are specified in large-screen pixels and rescaled for the small screens so they match physically. **Moving Animation/Bild content is not offered for a mixed selection** — animated templates and animated uploads are hidden from the pickers, while still images (static templates, single-frame uploads), Text and Hintergrund all work. A moving animation the selection already shows is dropped when a Hintergrund change is saved across it, rather than being spread onto the other kind. Game of Life is only offered when the selection is small screens only.
-- The layout tool prevents screens from literally overlapping (never physically valid), but does not otherwise validate drag distance against real-world cable slack — that's left to the user's judgement.
 
 Large-screen sizing detail: 192×192mm at 64×64px (3mm pixel pitch). Small-screen sizing: 128×128mm at 32×32px (4mm pixel pitch) — the two hardware kinds have different pixel densities, not just different sizes.
 
@@ -51,7 +50,7 @@ Commits the in-progress (locally previewed, not-yet-sent) content edit for the c
 
 ## Unsaved changes
 
-Any action that would throw away an in-progress edit — selecting other screens, "Auswahl aufheben", entering layout mode — is held back and confirmed first (speichern / verwerfen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. Closing the dialog without choosing — the × button, Escape, or clicking outside — keeps the draft and does nothing else. While a save is already in flight there is nothing to ask: the action simply waits and is carried out once the save lands; if the save fails, the dialog asks after all, so the draft can be retried or discarded.
+Any action that would throw away an in-progress edit — selecting other screens, "Auswahl aufheben" — is held back and confirmed first (speichern / verwerfen), rather than silently discarding it. Actions that have nothing to lose go through untouched, so clicking around the wall stays a free action while the panel is untouched. Closing the dialog without choosing — the × button, Escape, or clicking outside — keeps the draft and does nothing else. While a save is already in flight there is nothing to ask: the action simply waits and is carried out once the save lands; if the save fails, the dialog asks after all, so the draft can be retried or discarded.
 
 Switching content tabs is _not_ gated by this dialog: Text, Animation/Bild and Hintergrund each keep their own in-progress draft, so moving between them never silently loses anything — with one exception. Text and Animation/Bild both write the same foreground layer (see "Layers" above), so only one of them can actually be drafted at a time: editing one silently drops whatever was drafted for the other, no confirmation asked, since there is no way to reconcile "scrolling text" and "a logo" into a single foreground.
 
@@ -66,7 +65,3 @@ The frontend renders one **static bitmap** per screen for the content being appl
 The live preview renders that same rasterized bitmap (device-pixel resolution, 32×32 or 64×64) scaled up with pixelated/nearest-neighbor image scaling rather than smooth vector text or icons — the preview is meant to look like the real coarse LED grid, not a clean scaled-up mockup.
 
 **Game of Life is the one exception** to this whole section: no bitmap is ever generated or sent for it, so the preview falls back to a static placeholder rather than a rendered frame (see **Content**).
-
-## Layout persistence
-
-The user-arranged **Layout** is persisted on the backend (not just browser `localStorage`), since the backend needs to know real per-screen positions/gaps to correctly receive and forward per-screen content — and so the layout is consistent across devices/browsers rather than being a local-only planning convenience.

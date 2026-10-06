@@ -2,6 +2,7 @@ import { applyChanges } from "../api/wall";
 import { useAuth } from "../auth/AuthContext";
 import { useControl } from "../auth/ControlContext";
 import { buildApplyRequest } from "../domain/apply";
+import { DEFAULT_LAYOUT } from "../domain/layout";
 import { selectionGroups } from "../domain/mapping";
 import { ApiError } from "../lib/api";
 import {
@@ -13,7 +14,7 @@ import { useWallDispatch, useWallState } from "./WallProvider";
 
 export function useApplyChanges() {
 	const state = useWallState();
-	const { specs, layout, selection, applyStatus, applyError } = state;
+	const { specs, selection, applyStatus, applyError } = state;
 	const dispatch = useWallDispatch();
 	const { request } = useAuth();
 	const { isController } = useControl();
@@ -35,7 +36,7 @@ export function useApplyChanges() {
 			// selection is saved as one request per kind.
 			const payloads = await Promise.all(
 				selectionGroups(specs, selection).map((group) =>
-					buildApplyRequest({ specs, positions: layout }, group, {
+					buildApplyRequest({ specs, positions: DEFAULT_LAYOUT }, group, {
 						layers,
 					}),
 				),
@@ -48,7 +49,6 @@ export function useApplyChanges() {
 				selection,
 				layers,
 				specs,
-				layout,
 			});
 			return true;
 		} catch (error) {

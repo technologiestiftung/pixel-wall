@@ -40,20 +40,21 @@ export const SCREEN_SPECS: ScreenSpec[] = [
 ];
 
 /**
- * Default wall arrangement, derived from the Figma "State — Text" stage
- * (node 10:134), converting its px coordinates to millimeters using the
- * design's own px-per-mm scale (176px / 128mm = 264px / 192mm = 1.375).
- * Each screen keeps its original physical position — only the id numbering
- * changed (small 01–03, large 04–07) from the Figma source's badge order.
+ * The wall's physical arrangement — fixed at install time (see CONTEXT.md
+ * "Layout"). These are the positions the screens were last dragged to on the
+ * physical wall (read from its `GET /api/state` and rounded to whole
+ * millimetres — the drag gesture's sub-pixel precision isn't meaningful
+ * physical precision), now the permanent arrangement rather than an editable
+ * default.
  */
 export const DEFAULT_LAYOUT: LayoutPosition[] = [
-	{ screenId: "01", xMm: 508, yMm: 3 },
-	{ screenId: "02", xMm: 7, yMm: 91 },
-	{ screenId: "03", xMm: 482, yMm: 399 },
-	{ screenId: "04", xMm: 255, yMm: 91 },
-	{ screenId: "05", xMm: 453, yMm: 140 },
-	{ screenId: "06", xMm: 57, yMm: 246 },
-	{ screenId: "07", xMm: 255, yMm: 290 },
+	{ screenId: "01", xMm: 0, yMm: 63 },
+	{ screenId: "02", xMm: 546, yMm: 4 },
+	{ screenId: "03", xMm: 474, yMm: 410 },
+	{ screenId: "04", xMm: 243, yMm: 283 },
+	{ screenId: "05", xMm: 445, yMm: 156 },
+	{ screenId: "06", xMm: 40, yMm: 208 },
+	{ screenId: "07", xMm: 242, yMm: 81 },
 ];
 
 /** Screen ids are zero-padded ("01"–"07") for stable sorting/lookup, but
@@ -89,41 +90,6 @@ export function rectFor(spec: ScreenSpec, position: LayoutPosition): RectMm {
 		widthMm: spec.physicalSizeMm,
 		heightMm: spec.physicalSizeMm,
 	};
-}
-
-/** Axis-aligned overlap test (touching edges are not considered overlapping). */
-export function rectsOverlap(a: RectMm, b: RectMm): boolean {
-	return (
-		a.xMm < b.xMm + b.widthMm &&
-		a.xMm + a.widthMm > b.xMm &&
-		a.yMm < b.yMm + b.heightMm &&
-		a.yMm + a.heightMm > b.yMm
-	);
-}
-
-/**
- * Whether placing `movingScreenId` at `candidate` would overlap any other
- * screen's current position — the only constraint layout-edit dragging
- * enforces (see CONTEXT.md "Layout": literal overlap is never physically
- * valid; anything short of that is left to the user's judgement).
- */
-export function wouldOverlapAny(
-	wall: { specs: ScreenSpec[]; positions: LayoutPosition[] },
-	movingScreenId: string,
-	candidate: { xMm: number; yMm: number },
-): boolean {
-	const { specs, positions } = wall;
-	const movingSpec = specById(specs, movingScreenId);
-	const candidateRect = rectFor(movingSpec, {
-		screenId: movingScreenId,
-		...candidate,
-	});
-
-	return positions
-		.filter((p) => p.screenId !== movingScreenId)
-		.some((p) =>
-			rectsOverlap(candidateRect, rectFor(specById(specs, p.screenId), p)),
-		);
 }
 
 /** Smallest axis-aligned box (in mm, from the wall-space origin) containing every screen. */
