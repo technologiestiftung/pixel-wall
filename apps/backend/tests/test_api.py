@@ -548,3 +548,43 @@ def test_upload_library_skips_an_entry_with_a_missing_image(api):
 
 def test_delete_ignores_path_like_ids(api):
     assert api.delete("/api/uploads/..%2Fstate").status_code in (404, 405)
+
+
+# ------------------------------------------------------------------- changes
+
+
+def _apply_one(api):
+    return api.post("/api/apply", json={
+        "selectionKind": "small",
+        "screens": [{"screenId": "01", "window": window()}],
+        "content": mask_content(["####", "...."]),
+    })
+
+
+def test_changes_without_since_answers_at_once_with_the_revision(api):
+    response = api.get("/api/changes")
+    assert response.status_code == 200
+    assert isinstance(response.json()["revision"], int)
+
+
+def test_changes_revision_moves_on_every_apply(api):
+    before = api.get("/api/changes").json()["revision"]
+    _apply_one(api)
+    _apply_one(api)
+    assert api.get("/api/changes").json()["revision"] == before + 2
+
+
+def test_changes_answers_at_once_when_since_is_stale(api):
+    before = api.get("/api/changes").json()["revision"]
+    _apply_one(api)
+    response = api.get("/api/changes", params={"since": before})
+    assert response.json()["revision"] == before + 1
+
+
+def test_changes_times_out_unchanged_when_nothing_happens(api, monkeypatch):
+    import app.main as main
+    monkeypatch.setattr(main, "CHANGES_WAIT_S", 0.3)
+    current = api.get("/api/changes").json()["revision"]
+    response = api.get("/api/changes", params={"since": current})
+    assert response.status_code == 200
+    assert response.json()["revision"] == current

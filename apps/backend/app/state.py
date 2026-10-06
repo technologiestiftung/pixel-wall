@@ -16,6 +16,13 @@ _write_lock = Lock()
 #: weather refresh (app/weather.py) both do from their own threads.
 edit_lock = RLock()
 
+#: Bumped on every successful write, so /api/changes can tell browsers the
+#: wall changed without re-reading the file. `updated_at` alone can't do it:
+#: it only has one-second resolution. In memory only — a backend restart
+#: starts again from 0, which clients see as "changed" and simply re-sync.
+_revision = 0
+_revision_lock = Lock()
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -43,10 +50,17 @@ def read_state() -> dict[str, Any]:
 
 
 def write_state(state: WallState) -> dict[str, Any]:
+    global _revision
     payload = state.model_dump()
     payload["updated_at"] = _now()
     atomic_write_json(config.STATE_FILE, payload)
+    with _revision_lock:
+        _revision += 1
     return payload
+
+
+def revision() -> int:
+    return _revision
 
 
 def atomic_write_json(target: Path, payload: Any) -> None:

@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 import { SCREEN_SPECS } from "../../domain/layout";
 import { createMask, encodeMaskBase64 } from "../../domain/mask";
 import type { LibraryUpload, UploadedMedia } from "../../domain/types";
@@ -13,6 +13,7 @@ import type { ApplyRequest, StateResponse } from "../types";
  */
 const applied: StateResponse["screens"] = {};
 let uploads: LibraryUpload[] = [];
+let revision = 0;
 
 // Must match the origin the app actually calls: a bare "/api" only matches the
 // dev server's own origin, so requests to VITE_API_URL passed straight through
@@ -42,6 +43,14 @@ export const handlers = [
 			updated_at: new Date().toISOString(),
 		}),
 	),
+
+	http.get(`${API_BASE}/changes`, async ({ request }) => {
+		const since = new URL(request.url).searchParams.get("since");
+		if (since !== null && Number(since) === revision) {
+			await delay(25_000);
+		}
+		return HttpResponse.json({ revision });
+	}),
 
 	http.get(`${API_BASE}/weather`, () =>
 		HttpResponse.json({
@@ -109,6 +118,7 @@ export const handlers = [
 					};
 		}
 
+		revision += 1;
 		return HttpResponse.json({ appliedAt: new Date().toISOString() });
 	}),
 ];

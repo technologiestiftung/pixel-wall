@@ -56,7 +56,7 @@ Switching content tabs is _not_ gated by this dialog: Text, Animation/Bild and H
 
 ## Client sync
 
-Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_PASSWORD` is set, so an internal/kiosk deployment on a trusted local network can run without it while a shared network can turn it on. The frontend shows its password gate only when `GET /api/health` reports `auth.enabled`. If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.
+Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_PASSWORD` is set, so an internal/kiosk deployment on a trusted local network can run without it while a shared network can turn it on. The frontend shows its password gate only when `GET /api/health` reports `auth.enabled`. If the app is open in multiple tabs/devices, they stay in sync live: each holds a long poll on `GET /api/changes` and re-fetches the state the moment anyone changes the wall, with window-focus and slow-interval re-syncs kept as a fallback — see docs/adr/0005-live-sync-via-long-polling.md.
 
 ## Rendering split
 

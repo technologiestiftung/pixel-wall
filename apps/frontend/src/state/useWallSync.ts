@@ -1,16 +1,26 @@
 import { useEffect, useRef, type Dispatch } from "react";
-import { getScreens, getState, type Requester } from "../api/wall";
+import {
+	getScreens,
+	getState,
+	waitForChange,
+	type Requester,
+} from "../api/wall";
 import { SCREEN_SPECS } from "../domain/layout";
 import type { Generation, WallAction } from "./reducer";
 
 const POLL_INTERVAL_MS = 20_000;
+/** Pause before re-opening the live-sync long poll after it failed (backend
+ * down, network gone), so an unreachable wall isn't hammered. */
+const LIVE_RETRY_MS = 5_000;
 
 /**
- * Hydrates wall state from the backend on mount, then keeps it in sync via
- * lightweight polling (on window focus, and on a fixed interval) rather
- * than a live push channel — see CONTEXT.md "Client sync". Falls back to
- * the local defaults if the backend is unreachable, so the app still
- * renders something sensible offline.
+ * Hydrates wall state from the backend on mount, then keeps it in sync live:
+ * a long poll on `/api/changes` re-syncs as soon as anyone changes the wall
+ * (see CONTEXT.md "Client sync" and
+ * docs/adr/0005-live-sync-via-long-polling.md). Window focus and a slow
+ * interval still re-sync too, as a fallback for when the long poll is down.
+ * Falls back to the local defaults if the backend is unreachable, so the app
+ * still renders something sensible offline.
  */
 export function useWallSync(
 	dispatch: Dispatch<WallAction>,
@@ -58,12 +68,41 @@ export function useWallSync(
 			}
 		}
 
+		const liveAbort = new AbortController();
+
+		async function watchLive() {
+			let since: number | null = null;
+			while (!cancelled) {
+				try {
+					const { revision } = await waitForChange(
+						request,
+						since,
+						liveAbort.signal,
+					);
+					if (cancelled) {
+						return;
+					}
+					if (since !== null && revision !== since) {
+						void sync();
+					}
+					since = revision;
+				} catch {
+					if (cancelled) {
+						return;
+					}
+					await new Promise((resolve) => setTimeout(resolve, LIVE_RETRY_MS));
+				}
+			}
+		}
+
 		void sync();
+		void watchLive();
 		const interval = setInterval(sync, POLL_INTERVAL_MS);
 		window.addEventListener("focus", sync);
 
 		return () => {
 			cancelled = true;
+			liveAbort.abort();
 			clearInterval(interval);
 			window.removeEventListener("focus", sync);
 		};

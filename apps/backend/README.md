@@ -305,6 +305,20 @@ block in one of two formats:
 | `mask1`  | text, flat colour fills, single-colour icons | one RGB value in `color` |
 | `pal4`   | multi-colour template artwork                | a palette inside `data`  |
 
+### `GET /api/changes?since=<revision>` → `200`
+
+Long poll for live sync between open editors. Answers `{"revision": <int>}`
+as soon as the state revision differs from `since` — it goes up by one on
+every state write — or after 25 s with it unchanged. Without `since` it
+answers at once, which is how a client learns the current revision. The
+counter is in memory and restarts at 0 with the backend, which clients treat
+as a change and re-sync. See
+[`docs/adr/0005-live-sync-via-long-polling.md`](../../docs/adr/0005-live-sync-via-long-polling.md).
+
+```bash
+curl -s "http://localhost:5000/api/changes?since=3"   # blocks until the next apply
+```
+
 ### `POST /api/apply` → `200`
 
 Applies one content edit to a selection of screens.

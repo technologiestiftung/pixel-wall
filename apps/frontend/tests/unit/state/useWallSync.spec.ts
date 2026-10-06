@@ -12,9 +12,14 @@ import type { Requester } from "../../../src/api/wall";
 vi.mock("../../../src/api/wall", () => ({
 	getScreens: vi.fn(),
 	getState: vi.fn(),
+	// The live-sync long poll never answers here, so only the initial sync
+	// these tests drive by hand ever reaches `dispatch`.
+	waitForChange: vi.fn(() => new Promise(() => {})),
 }));
 
-const { getScreens, getState } = await import("../../../src/api/wall");
+const { getScreens, getState, waitForChange } = await import(
+	"../../../src/api/wall"
+);
 const { useWallSync } = await import("../../../src/state/useWallSync");
 
 function deferred<T>() {
@@ -103,6 +108,47 @@ describe("useWallSync", () => {
 		);
 		expect(dispatch).not.toHaveBeenCalledWith(
 			expect.objectContaining({ sinceGeneration: afterSave }),
+		);
+	});
+
+	test("re-syncs as soon as the live long poll reports a new revision", async () => {
+		vi.mocked(getScreens).mockResolvedValue({ screens: [] } as never);
+		vi.mocked(getState).mockResolvedValue({ screens: {} } as never);
+		const change = deferred<{ revision: number }>();
+		vi.mocked(waitForChange)
+			.mockResolvedValueOnce({ revision: 1 })
+			.mockReturnValueOnce(change.promise)
+			.mockReturnValue(new Promise(() => {}));
+
+		const dispatch = vi.fn();
+		await act(async () => {
+			container = document.createElement("div");
+			root = createRoot(container);
+			root.render(
+				createElement(Harness, { dispatch, generation: { screens: {} } }),
+			);
+		});
+
+		// Only the mount-time sync so far: learning the starting revision is
+		// not itself a change.
+		expect(getState).toHaveBeenCalledTimes(1);
+		expect(waitForChange).toHaveBeenLastCalledWith(
+			request,
+			1,
+			expect.any(AbortSignal),
+		);
+
+		await act(async () => {
+			change.resolve({ revision: 2 });
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+
+		expect(getState).toHaveBeenCalledTimes(2);
+		expect(waitForChange).toHaveBeenLastCalledWith(
+			request,
+			2,
+			expect.any(AbortSignal),
 		);
 	});
 });

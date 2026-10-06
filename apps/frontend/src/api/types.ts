@@ -89,6 +89,12 @@ export interface SourceDto extends ScreenLayers {
 	canvas?: SourceCanvasDto;
 }
 
+/** `GET /api/changes` — a long poll that answers once the wall state's
+ * revision moves past `since` (or after the backend's wait times out). */
+export interface ChangesResponse {
+	revision: number;
+}
+
 export interface StateResponse {
 	screens: Record<
 		string,

@@ -3,6 +3,7 @@ import type { FetchInit } from "../lib/api";
 import type {
 	ApplyRequest,
 	ApplyResponse,
+	ChangesResponse,
 	ControlResponse,
 	ScreensResponse,
 	StateResponse,
@@ -34,6 +35,18 @@ export function getScreens(request: Requester): Promise<ScreensResponse> {
 
 export function getState(request: Requester): Promise<StateResponse> {
 	return request<StateResponse>("/api/state");
+}
+
+/** Resolves once the wall changes after `since` (or the backend's wait times
+ * out); without `since` it resolves at once with the current revision. Pass
+ * `signal` so an unmounting caller can drop the held request. */
+export function waitForChange(
+	request: Requester,
+	since: number | null,
+	signal?: AbortSignal,
+): Promise<ChangesResponse> {
+	const query = since === null ? "" : `?since=${since}`;
+	return request<ChangesResponse>(`/api/changes${query}`, { signal });
 }
 
 export function applyChanges(

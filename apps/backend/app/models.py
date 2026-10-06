@@ -155,6 +155,10 @@ class StateResponse(WallState):
     updated_at: str
 
 
+class ChangesResponse(BaseModel):
+    revision: int
+
+
 class ScreensResponse(BaseModel):
     screens: list[dict]
 

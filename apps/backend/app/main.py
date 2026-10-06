@@ -1,7 +1,10 @@
+import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
+from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
@@ -12,6 +15,7 @@ from .models import (
     ApplyRequest,
     ApplyResponse,
     AuthStatus,
+    ChangesResponse,
     ControlRequest,
     ControlResponse,
     HealthResponse,
@@ -31,6 +35,12 @@ from .weather import live_weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("ledwall.backend")
+
+#: /api/changes holds a request open at most this long before answering with
+#: "no change", so proxies and sleeping laptops never see a hung connection.
+CHANGES_WAIT_S = 25.0
+#: How often a held /api/changes request checks the in-memory revision.
+CHANGES_CHECK_S = 0.2
 
 
 @asynccontextmanager
@@ -134,6 +144,23 @@ def get_screens() -> ScreensResponse:
 @app.get("/api/state", response_model=StateResponse, tags=["wall"])
 def get_state() -> StateResponse:
     return StateResponse(**state_store.read_state())
+
+
+@app.get("/api/changes", response_model=ChangesResponse, tags=["wall"])
+async def wait_for_change(request: Request, since: Optional[int] = None) -> ChangesResponse:
+    """Long poll for live sync: answers as soon as the wall state's revision
+    differs from `since`, or after CHANGES_WAIT_S with it unchanged. Without
+    `since` it answers immediately, which is how a client learns the current
+    revision. See docs/adr/0005-live-sync-via-long-polling.md."""
+    deadline = time.monotonic() + CHANGES_WAIT_S
+    while (
+        since is not None
+        and state_store.revision() == since
+        and time.monotonic() < deadline
+        and not await request.is_disconnected()
+    ):
+        await asyncio.sleep(CHANGES_CHECK_S)
+    return ChangesResponse(revision=state_store.revision())
 
 
 @app.post("/api/apply", response_model=ApplyResponse, tags=["wall"])
