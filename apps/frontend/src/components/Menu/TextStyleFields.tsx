@@ -121,7 +121,9 @@ export function FontField({
 						<option value="Pixelify Sans, FrankMoji, ui-monospace, monospace">
 							Pixelify Sans
 						</option>
-						<option value="FrankMoji, ui-monospace, monospace">Monospace</option>
+						<option value="FrankMoji, ui-monospace, monospace">
+							Monospace
+						</option>
 					</select>
 					<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
 				</div>
