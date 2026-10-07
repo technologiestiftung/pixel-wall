@@ -65,3 +65,15 @@ The frontend renders one **static bitmap** per screen for the content being appl
 The live preview renders that same rasterized bitmap (device-pixel resolution, 32×32 or 64×64) scaled up with pixelated/nearest-neighbor image scaling rather than smooth vector text or icons — the preview is meant to look like the real coarse LED grid, not a clean scaled-up mockup.
 
 **Game of Life is the one exception** to this whole section: no bitmap is ever generated or sent for it, so the preview falls back to a static placeholder rather than a rendered frame (see **Content**).
+
+## Power
+
+**Soft shutdown**:
+Gracefully halting the Raspberry Pi's OS (never a hard power cut) to turn the wall off, blanking the 4 large screens via the display driver's clean-exit handler. Triggered by a daily schedule or a manual frontend action — both do the same thing.
+_Avoid_: shutdown (ambiguous in this project — always means soft shutdown, never a hard power cut)
+
+**Off** (ESP32 gap):
+A soft shutdown does not reach the 3 small screens. Once the Pi — and the MQTT broker it hosts — goes down, they keep showing their last content indefinitely rather than going blank. This is an accepted gap, not a bug (see `docs/adr/0005-soft-shutdown-leaves-esp32-screens-lit.md`).
+
+**On**:
+Not software-controlled. Restoring power is an ordinary physical action — a mains timer or manual switch — outside this codebase's scope.
