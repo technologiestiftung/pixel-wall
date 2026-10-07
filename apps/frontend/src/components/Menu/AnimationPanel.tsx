@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { TEMPLATES } from "../../domain/content";
+import { TEMPLATES, templatesFor } from "../../domain/content";
 import {
 	DEFAULT_TEMPERATURE_STYLE,
 	DEFAULT_WEATHER_VARIANT,
@@ -89,7 +89,7 @@ export function AnimationPanel({
 				<AnimationTemplatePicker
 					content={content}
 					onChange={onChange}
-					stillOnly={stillOnly}
+					screenKind={screenKind}
 				/>
 			)}
 			{content.mode === "weather" && (
@@ -255,17 +255,15 @@ function TemperatureControls({ content, onChange }: TemperatureControlsProps) {
 interface AnimationTemplatePickerProps {
 	content: AnimationContent;
 	onChange: (content: AnimationContent) => void;
-	stillOnly: boolean;
+	screenKind: SelectionKind;
 }
 
 function AnimationTemplatePicker({
 	content,
 	onChange,
-	stillOnly,
+	screenKind,
 }: AnimationTemplatePickerProps) {
-	const templates = stillOnly
-		? TEMPLATES.filter((template) => !template.animated)
-		: TEMPLATES;
+	const templates = templatesFor(screenKind);
 	return (
 		<>
 			<div className="flex flex-col gap-2.5">

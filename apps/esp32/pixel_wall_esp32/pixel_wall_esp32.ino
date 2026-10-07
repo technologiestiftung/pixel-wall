@@ -358,7 +358,10 @@ void setup() {
 	mqtt.setCallback(onMessage);
 	// A Lauftext filmstrip is several KB; the old 1024-byte buffer was sized
 	// for a 256-character text message and would drop these silently.
-	mqtt.setBufferSize(16384);
+	// Must stay >= wire_decode.h's MAX_PIXELS_BYTES plus wire-header/encoding
+	// overhead — bumped alongside it (see that file's comment) after bench
+	// testing confirmed the heap headroom on the physical board.
+	mqtt.setBufferSize(20480);
 	connectMQTT();
 
 	startedAt = millis();

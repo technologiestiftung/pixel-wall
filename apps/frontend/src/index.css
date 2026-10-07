@@ -16,6 +16,18 @@
 	font-display: swap;
 }
 
+/* COLRv1 colour emoji font, used as a fallback after the text font so
+ * letters keep their own face and only emoji come from here. Licensed CC
+ * BY-NC-ND 4.0 — see public/fonts/FrankMoji-LICENSE.txt. Not rendered by
+ * Safari (no COLRv1 support); Chrome/Firefox only. */
+@font-face {
+	font-family: "FrankMoji";
+	src: url("/fonts/FrankMoji-COLRv1.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 @font-face {
 	font-family: "Host Grotesk";
 	src:

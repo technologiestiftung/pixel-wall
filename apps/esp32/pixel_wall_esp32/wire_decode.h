@@ -40,9 +40,15 @@
 #define PAL4_MAX_COLORS 16
 
 /* A 256-char Lauftext filmstrip decodes to ~9.2 KB; above this the payload is
- * dropped and the last good frame kept rather than exhausting the heap. */
+ * dropped and the last good frame kept rather than exhausting the heap.
+ * Raised from the original 12288 (which was only ever sized for that
+ * Lauftext case, never for animated-template frame strips) after bench
+ * testing on the physical board: all 3 small screens simultaneously holding
+ * a maxed-out strip at this size settle at a stable ~72 KB free heap / ~42 KB
+ * largest block, no crash. See apps/backend/app/compose.py's
+ * ESP32_MAX_PIXELS_BYTES, which must mirror this. */
 #ifndef MAX_PIXELS_BYTES
-#define MAX_PIXELS_BYTES 12288
+#define MAX_PIXELS_BYTES 16384
 #endif
 
 typedef struct {

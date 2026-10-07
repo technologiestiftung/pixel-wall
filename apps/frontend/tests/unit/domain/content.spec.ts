@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { isMovingAnimation } from "../../../src/domain/content";
+import {
+	SMALL_SCREEN_MAX_ANIMATION_LOOP_MS,
+	TEMPLATES,
+	isMovingAnimation,
+	templatesFor,
+} from "../../../src/domain/content";
 import type { AnimationContent } from "../../../src/domain/types";
 
 const base: AnimationContent = {
@@ -40,5 +45,44 @@ describe("isMovingAnimation", () => {
 
 	test("counts Game of Life as moving", () => {
 		expect(isMovingAnimation({ ...base, mode: "gameOfLife" })).toBe(true);
+	});
+});
+
+describe("templatesFor", () => {
+	test("large screens get every template, still and animated", () => {
+		expect(templatesFor("large")).toEqual(TEMPLATES);
+	});
+
+	test("a mixed selection drops every animated template", () => {
+		const templates = templatesFor("mixed");
+		expect(templates.length).toBeGreaterThan(0);
+		expect(templates.every((template) => !template.animated)).toBe(true);
+	});
+
+	test("a small-only selection drops animated templates longer than the loop cap, but keeps still ones and short animations", () => {
+		const templates = templatesFor("small");
+		const stillTemplates = TEMPLATES.filter((template) => !template.animated);
+		const longAnimated = TEMPLATES.filter(
+			(template) =>
+				template.animated &&
+				(template.loopMs ?? 0) > SMALL_SCREEN_MAX_ANIMATION_LOOP_MS,
+		);
+		const shortAnimated = TEMPLATES.filter(
+			(template) =>
+				template.animated &&
+				(template.loopMs ?? 0) <= SMALL_SCREEN_MAX_ANIMATION_LOOP_MS,
+		);
+
+		expect(longAnimated.length).toBeGreaterThan(0);
+		expect(shortAnimated.length).toBeGreaterThan(0);
+		for (const template of stillTemplates) {
+			expect(templates).toContain(template);
+		}
+		for (const template of shortAnimated) {
+			expect(templates).toContain(template);
+		}
+		for (const template of longAnimated) {
+			expect(templates).not.toContain(template);
+		}
 	});
 });

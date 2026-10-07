@@ -9,7 +9,7 @@ import { useSyncExternalStore } from "react";
  * at both weights the "Schnitt" control offers, mirroring the async-load +
  * version-bump pattern in templateImages.ts.
  */
-const CUSTOM_FONTS = ["Pixelify Sans", "Host Grotesk"];
+const CUSTOM_FONTS = ["Pixelify Sans", "Host Grotesk", "FrankMoji"];
 const WEIGHTS = ["400", "700"];
 
 const cache = new Set<string>();
@@ -49,36 +49,35 @@ if (typeof document !== "undefined" && document.fonts) {
 }
 
 /**
- * Resolves once `fontFamily`'s first custom family at `fontWeight` has
- * finished loading (or immediately, if it's not one of ours, or already
+ * Resolves once every custom family in `fontFamily` at `fontWeight` has
+ * finished loading (or immediately, if none are ours, or all are already
  * loaded) — for callers outside React that can't take a dependency on
  * `useFontsVersion`, namely render/wire.ts, which must not quantize a canvas
  * still drawn in the fallback font into the payload sent to the physical
- * screens.
+ * screens. Every family is awaited, not just the first, because a stack
+ * like "Host Grotesk, FrankMoji" draws emoji from the second one.
  */
 export function waitForFont(
 	fontFamily: string,
 	fontWeight: string,
 ): Promise<void> {
-	const primaryFamily = fontFamily
-		.split(",")[0]
-		?.trim()
-		.replace(/^["']|["']$/g, "");
-	if (
-		typeof document === "undefined" ||
-		!document.fonts ||
-		!primaryFamily ||
-		!CUSTOM_FONTS.includes(primaryFamily)
-	) {
+	if (typeof document === "undefined" || !document.fonts) {
 		return Promise.resolve();
 	}
-	if (cache.has(fontKey(primaryFamily, fontWeight))) {
-		return Promise.resolve();
-	}
-	return document.fonts
-		.load(`${fontWeight} 16px "${primaryFamily}"`)
-		.then(() => undefined)
-		.catch(() => undefined);
+	const pending = fontFamily
+		.split(",")
+		.map((family) => family.trim().replace(/^["']|["']$/g, ""))
+		.filter(
+			(family) =>
+				CUSTOM_FONTS.includes(family) &&
+				!cache.has(fontKey(family, fontWeight)),
+		)
+		.map((family) =>
+			document.fonts
+				.load(`${fontWeight} 16px "${family}"`)
+				.catch(() => undefined),
+		);
+	return Promise.all(pending).then(() => undefined);
 }
 
 function subscribe(onChange: () => void): () => void {

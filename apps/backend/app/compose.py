@@ -50,8 +50,25 @@ def _wire_window(window: ScreenWindow) -> Window:
 
 
 #: Mirrors MAX_PIXELS_BYTES in apps/esp32/pixel_wall_esp32/wire_decode.h —
-#: the firmware rejects any block that decodes to more than this.
-ESP32_MAX_PIXELS_BYTES = 12288
+#: the firmware rejects any block that decodes to more than this. Bench-tested
+#: on the physical board (2026-10-07): all 3 small screens simultaneously
+#: holding a maxed-out 32-frame pal4 strip each settles at a stable ~72 KB
+#: free heap / ~42 KB largest block, no crash — raised from the original
+#: 12288 (sized for an unrelated worst-case Lauftext filmstrip, never tuned
+#: for animation frames) accordingly. PubSubClient's setBufferSize in the
+#: sketch must stay >= this plus wire-header/encoding overhead.
+ESP32_MAX_PIXELS_BYTES = 16384
+
+#: How much faster than its authored pace a small-screen animated template may
+#: play once its frame strip is cropped to fit ESP32_MAX_PIXELS_BYTES. Cropping
+#: alone (dropping frames but holding each for longer, so the loop's total
+#: length is unchanged) keeps the speed exact but can leave long templates
+#: updating only a few times a second — a 15s loop cropped to 32 frames update
+#: at ~2fps. Capping the speed-up instead trades some of that length accuracy
+#: for a higher, steadier update rate: at 1.5x, that same 15s template updates
+#: at ~4.8fps and finishes its loop in ~10s instead of 15s. 1.0 disables this
+#: (the old behaviour: exact speed, whatever fps the crop leaves you with).
+SMALL_SCREEN_MAX_SPEEDUP = 1.5
 
 
 def _fit_frames_for_small_screen(
@@ -60,8 +77,11 @@ def _fit_frames_for_small_screen(
     """An animated template's strip holds every frame at full composite width,
     which on a small screen is several times what the ESP32 can hold. Each
     screen only ever shows its own window of a frame, so crop every frame to
-    that, then drop frames evenly (keeping the loop's total length) until the
-    strip fits the firmware's decode budget."""
+    that, then drop frames evenly until the strip fits the firmware's decode
+    budget. The kept frames are spread back over as much of the original loop
+    length as SMALL_SCREEN_MAX_SPEEDUP allows — see its comment — never below
+    the content's own native per-frame duration (that would play faster than
+    the template was ever sampled at, for no benefit)."""
     image = decode_block(content.block())
     source_count = content.frames.frameCount
     frame_width = content.frames.compositeWidthPx
@@ -94,7 +114,11 @@ def _fit_frames_for_small_screen(
                 row = (row << width) | frame.row_value(y)
             strip.set_row_value(y, row)
 
-    loop_ms = source_count * content.frames.frameDurationMs
+    native_duration_ms = content.frames.frameDurationMs
+    loop_ms = source_count * native_duration_ms
+    correct_duration_ms = loop_ms / count
+    frame_duration_ms = max(native_duration_ms, correct_duration_ms / SMALL_SCREEN_MAX_SPEEDUP)
+
     fitted = content.model_copy(
         update={
             "widthPx": strip.width_px,
@@ -102,7 +126,7 @@ def _fit_frames_for_small_screen(
             "data": _encoded_data(strip),
             "frames": FramesModel(
                 frameCount=count,
-                frameDurationMs=loop_ms / count,
+                frameDurationMs=frame_duration_ms,
                 compositeWidthPx=width,
             ),
         }

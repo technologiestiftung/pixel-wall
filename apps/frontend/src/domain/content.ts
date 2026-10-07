@@ -3,6 +3,7 @@ import type {
 	ColorContent,
 	Content,
 	ContentType,
+	SelectionKind,
 	TextContent,
 } from "./types";
 
@@ -166,7 +167,7 @@ const DEFAULT_TEXT: TextContent = {
 	mode: "static",
 	value: "",
 	fontSizePx: 16,
-	fontFamily: "Host Grotesk, ui-monospace, monospace",
+	fontFamily: "Host Grotesk, FrankMoji, ui-monospace, monospace",
 	fontWeight: "700",
 	color: "#FFFFFF",
 	direction: "left",
@@ -184,6 +185,35 @@ const DEFAULT_TEXT: TextContent = {
  * physical wall, and 16 is the rate that testing settled on — see
  * docs/wire-format.md "frames" and docs/adr/0002-phase-animated-templates-by-hardware-kind.md. */
 export const ANIMATION_FPS = 16;
+
+/** A small-screen (ESP32) selection hides animated templates authored longer
+ * than this from the picker. The ESP32's decode budget only holds a handful
+ * of frames, so a longer loop either plays choppily or noticeably sped up
+ * (see docs/wire-format.md "frames" and compose.py's
+ * SMALL_SCREEN_MAX_SPEEDUP) — past this length neither trade-off reads as
+ * acceptable, so the template isn't offered at all for a small selection.
+ * Large screens are unaffected. */
+export const SMALL_SCREEN_MAX_ANIMATION_LOOP_MS = 8000;
+
+/** The Animation/Bild template picker's options for a given selection: a
+ * mixed selection drops every animated template (CONTEXT.md "Selection" —
+ * moving content isn't offered there), and a small-only selection
+ * additionally drops animated templates longer than
+ * SMALL_SCREEN_MAX_ANIMATION_LOOP_MS. Large-only returns every template. */
+export function templatesFor(screenKind: SelectionKind): Template[] {
+	return TEMPLATES.filter((template) => {
+		if (screenKind === "mixed" && template.animated) {
+			return false;
+		}
+		if (
+			screenKind === "small" &&
+			(template.loopMs ?? 0) > SMALL_SCREEN_MAX_ANIMATION_LOOP_MS
+		) {
+			return false;
+		}
+		return true;
+	});
+}
 
 /** Whether an Animation/Bild foreground moves — an animated template, a
  * multi-frame upload, live weather, or Game of Life. Moving content isn't offered across a
