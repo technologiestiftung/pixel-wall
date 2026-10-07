@@ -202,7 +202,9 @@ export const SMALL_SCREEN_MAX_ANIMATION_LOOP_MS = 8000;
  * SMALL_SCREEN_MAX_ANIMATION_LOOP_MS. Large-only returns every template. */
 export function templatesFor(screenKind: SelectionKind): Template[] {
 	return TEMPLATES.filter((template) => {
-		if (screenKind === "mixed" && template.animated) return false;
+		if (screenKind === "mixed" && template.animated) {
+			return false;
+		}
 		if (
 			screenKind === "small" &&
 			(template.loopMs ?? 0) > SMALL_SCREEN_MAX_ANIMATION_LOOP_MS
