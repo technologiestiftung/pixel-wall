@@ -258,8 +258,9 @@ def test_small_screen_frames_are_cropped_to_each_screens_window(api):
 def test_small_screen_frames_fit_the_esp32_decode_budget(api, monkeypatch):
     """A 4 s loop at 16 fps across all three small screens is ~96 KB decoded
     per screen; the firmware rejects anything over MAX_PIXELS_BYTES
-    (wire_decode.h), so frames are dropped evenly to fit, keeping the loop
-    length."""
+    (wire_decode.h), so frames are dropped evenly to fit. Each kept frame
+    keeps its original duration, so the loop finishes sooner than the
+    authored 4 s but still plays at the authored frame rate."""
     from app import wire
     from app.compose import ESP32_MAX_PIXELS_BYTES
 
@@ -283,9 +284,7 @@ def test_small_screen_frames_fit_the_esp32_decode_budget(api, monkeypatch):
         frame = wire.decode_frame(sent[screen_id])
         assert frame.mask.stride * frame.mask.height_px <= ESP32_MAX_PIXELS_BYTES
         assert frame.frames.composite_width_px == 32
-        assert frame.frames.frame_count * frame.frames.frame_duration_ms == pytest.approx(
-            frame_count * 62.5, abs=frame.frames.frame_count
-        )
+        assert frame.frames.frame_duration_ms == pytest.approx(62.5, abs=1)
 
 
 def test_apply_rejects_mixed_kinds(api):

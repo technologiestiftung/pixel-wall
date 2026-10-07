@@ -115,19 +115,13 @@ export function FontField({
 						}
 						className="w-full appearance-none rounded-[7px] border border-[#dededa] px-[11px] py-2.5 text-[13px] text-[#20201b]"
 					>
-						<option value="Host Grotesk, ui-monospace, monospace">
+						<option value="Host Grotesk, FrankMoji, ui-monospace, monospace">
 							Host Grotesk
 						</option>
-						<option value="Pixelify Sans, ui-monospace, monospace">
+						<option value="Pixelify Sans, FrankMoji, ui-monospace, monospace">
 							Pixelify Sans
 						</option>
-						<option value="Host Grotesk, FrankMoji, ui-monospace, monospace">
-							Host Grotesk + FrankMoji
-						</option>
-						<option value="Pixelify Sans, FrankMoji, ui-monospace, monospace">
-							Pixelify Sans + FrankMoji
-						</option>
-						<option value="ui-monospace, monospace">Monospace</option>
+						<option value="FrankMoji, ui-monospace, monospace">Monospace</option>
 					</select>
 					<ChevronDownIcon className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[#8a8a85]" />
 				</div>

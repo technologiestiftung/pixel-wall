@@ -60,8 +60,11 @@ def _fit_frames_for_small_screen(
     """An animated template's strip holds every frame at full composite width,
     which on a small screen is several times what the ESP32 can hold. Each
     screen only ever shows its own window of a frame, so crop every frame to
-    that, then drop frames evenly (keeping the loop's total length) until the
-    strip fits the firmware's decode budget."""
+    that, then drop frames evenly until the strip fits the firmware's decode
+    budget — keeping each remaining frame's original duration (so playback
+    stays at the authored frame rate) rather than stretching it to cover the
+    original loop length, which would slow playback down the more frames get
+    dropped."""
     image = decode_block(content.block())
     source_count = content.frames.frameCount
     frame_width = content.frames.compositeWidthPx
@@ -94,7 +97,6 @@ def _fit_frames_for_small_screen(
                 row = (row << width) | frame.row_value(y)
             strip.set_row_value(y, row)
 
-    loop_ms = source_count * content.frames.frameDurationMs
     fitted = content.model_copy(
         update={
             "widthPx": strip.width_px,
@@ -102,7 +104,7 @@ def _fit_frames_for_small_screen(
             "data": _encoded_data(strip),
             "frames": FramesModel(
                 frameCount=count,
-                frameDurationMs=loop_ms / count,
+                frameDurationMs=content.frames.frameDurationMs,
                 compositeWidthPx=width,
             ),
         }

@@ -166,7 +166,7 @@ const DEFAULT_TEXT: TextContent = {
 	mode: "static",
 	value: "",
 	fontSizePx: 16,
-	fontFamily: "Host Grotesk, ui-monospace, monospace",
+	fontFamily: "Host Grotesk, FrankMoji, ui-monospace, monospace",
 	fontWeight: "700",
 	color: "#FFFFFF",
 	direction: "left",
