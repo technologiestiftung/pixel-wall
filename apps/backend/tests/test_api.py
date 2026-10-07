@@ -258,14 +258,17 @@ def test_small_screen_frames_are_cropped_to_each_screens_window(api):
 def test_small_screen_frames_fit_the_esp32_decode_budget(api, monkeypatch):
     """A 4 s loop at 16 fps across all three small screens is ~96 KB decoded
     per screen; the firmware rejects anything over MAX_PIXELS_BYTES
-    (wire_decode.h), so frames are dropped evenly to fit. Each kept frame
-    keeps its original duration, so the loop finishes sooner than the
-    authored 4 s but still plays at the authored frame rate."""
+    (wire_decode.h), so frames are dropped evenly to fit. The kept frames are
+    held for longer than their native 62.5 ms each (fewer frames now cover the
+    same loop), but only up to SMALL_SCREEN_MAX_SPEEDUP's cap on how much
+    faster than authored the result may play — beyond that it speeds up
+    instead of dropping to an even lower frame rate."""
     from app import wire
-    from app.compose import ESP32_MAX_PIXELS_BYTES
+    from app.compose import ESP32_MAX_PIXELS_BYTES, SMALL_SCREEN_MAX_SPEEDUP
 
     sent = capture_published(monkeypatch)
     frame_count, composite = 64, 96
+    native_duration_ms = 62.5
     image = Palette4(
         composite * frame_count, 32, list(PALETTE),
         bytearray(1 if (x // composite) % 2 else 2
@@ -277,14 +280,17 @@ def test_small_screen_frames_fit_the_esp32_decode_budget(api, monkeypatch):
             {"screenId": f"0{n + 1}", "window": window(n * 32, 0, 32, 32)}
             for n in range(3)
         ],
-        "content": frames_content(image, frame_count, 62.5, composite),
+        "content": frames_content(image, frame_count, native_duration_ms, composite),
     })
 
     for screen_id in ("01", "02", "03"):
         frame = wire.decode_frame(sent[screen_id])
         assert frame.mask.stride * frame.mask.height_px <= ESP32_MAX_PIXELS_BYTES
         assert frame.frames.composite_width_px == 32
-        assert frame.frames.frame_duration_ms == pytest.approx(62.5, abs=1)
+        kept = frame.frames.frame_count
+        correct_duration_ms = (frame_count * native_duration_ms) / kept
+        expected_duration_ms = max(native_duration_ms, correct_duration_ms / SMALL_SCREEN_MAX_SPEEDUP)
+        assert frame.frames.frame_duration_ms == pytest.approx(expected_duration_ms, abs=0.5)
 
 
 def test_apply_rejects_mixed_kinds(api):
