@@ -2,10 +2,12 @@ import type {
 	AnimationContent,
 	Content,
 	HorizontalAlign,
+	TextContent,
 	UploadedMedia,
 	VerticalAlign,
 } from "../domain/types";
 import { lineColorFor } from "../domain/content";
+import { drawStaticPathText } from "./pathText";
 import { getTemplateImage, getUploadImage } from "./templateImages";
 
 /** Position of a `size`-long span within a `containerSize`-long axis, for a
@@ -250,31 +252,47 @@ export function drawContentToCanvas(
 
 	ctx.fillStyle = monochrome ? "#ffffff" : content.color;
 	ctx.font = `${content.fontWeight} ${content.fontSizePx}px ${content.fontFamily}`;
+	drawTextByMode(ctx, content, { widthPx: canvas.width, heightPx: canvas.height });
+	return canvas;
+}
 
+/** Dispatches a text foreground's single-frame draw by `mode` — split out of
+ * `drawContentToCanvas` to keep that function's branching within lint's
+ * complexity budget. Running Pfadtext draws here too (as its static,
+ * laid-out-once layout) — the travelling case goes through render/wire.ts's
+ * frames path instead (render/pathText.ts's renderPathTextFrameStrip). */
+function drawTextByMode(
+	ctx: CanvasRenderingContext2D,
+	content: TextContent,
+	canvasSize: { widthPx: number; heightPx: number },
+) {
+	if (content.mode === "path") {
+		drawStaticPathText(ctx, content);
+		return;
+	}
 	if (content.mode === "static") {
 		drawStaticText(ctx, {
 			value: content.value,
-			widthPx: canvas.width,
-			heightPx: canvas.height,
+			widthPx: canvasSize.widthPx,
+			heightPx: canvasSize.heightPx,
 			fontSizePx: content.fontSizePx,
 			hAlign: content.hAlign,
 			vAlign: content.vAlign,
 			paddingPx: content.paddingPx ?? 0,
 		});
-	} else {
-		ctx.textAlign = "left";
-		ctx.textBaseline = "middle";
-		const y =
-			alignOffset(
-				content.vAlign,
-				canvas.height,
-				content.fontSizePx,
-				content.paddingPx ?? 0,
-			) +
-			content.fontSizePx / 2;
-		ctx.fillText(content.value, 0, y);
+		return;
 	}
-	return canvas;
+	ctx.textAlign = "left";
+	ctx.textBaseline = "middle";
+	const y =
+		alignOffset(
+			content.vAlign,
+			canvasSize.heightPx,
+			content.fontSizePx,
+			content.paddingPx ?? 0,
+		) +
+		content.fontSizePx / 2;
+	ctx.fillText(content.value, 0, y);
 }
 
 /** Static text supports multiple lines (the editor's textarea allows them);

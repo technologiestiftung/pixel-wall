@@ -1,5 +1,5 @@
 import { isMovingAnimation } from "./content";
-import { PITCH_MM_PER_PX, rectFor, specById } from "./layout";
+import { isAllLargeScreensSelection, PITCH_MM_PER_PX, rectFor, specById } from "./layout";
 import type {
 	LayoutPosition,
 	ScreenLayers,
@@ -76,12 +76,27 @@ export function referenceScreenId(
  * device pixels; within a mixed selection they are specified in large-screen
  * pixels, so a small-screen group rescales them to cover the same physical
  * size at its coarser pitch.
+ *
+ * Pfadtext is dropped outright — regardless of mixed or single-kind — when
+ * the group isn't exactly the 4 large screens, since that's the one
+ * selection shape it's defined for (see CONTEXT.md "Content" and
+ * docs/adr/0005-pfadtext-motion-via-frame-strip.md): "like a moving
+ * Animation/Bild foreground across a mixed selection, Pfadtext is dropped —
+ * with a warning — if saved against a selection that isn't exactly those 4
+ * screens."
  */
 export function layersForGroup(
 	layers: ScreenLayers,
 	group: SelectionGroup,
 ): ScreenLayers {
 	const { foreground } = layers;
+	if (
+		foreground?.type === "text" &&
+		foreground.mode === "path" &&
+		!isAllLargeScreensSelection(group.canvasScreenIds ?? group.screenIds)
+	) {
+		return { ...layers, foreground: null };
+	}
 	if (!group.canvasScreenIds) {
 		return layers;
 	}
