@@ -17,6 +17,7 @@ from .models import (
     HealthResponse,
     MqttStatus,
     ScreensResponse,
+    ShutdownResponse,
     StateResponse,
     UploadLibrary,
     UploadModel,
@@ -27,6 +28,7 @@ from .models import (
     WeatherStatus,
 )
 from .mqtt import publish_frames, publisher
+from .power import shutdown_now
 from .weather import live_weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -124,6 +126,15 @@ def post_control(payload: ControlRequest) -> ControlResponse:
     """Claims or renews control of the wall for one browser session — the
     editor calls it as a heartbeat. See app/control.py."""
     return ControlResponse(controller=control_lease.claim(payload.sessionId, payload.takeover))
+
+
+@app.post("/api/shutdown", response_model=ShutdownResponse, tags=["system"])
+def post_shutdown() -> ShutdownResponse:
+    """Soft-shuts down the Raspberry Pi — see CONTEXT.md "Power" and
+    docs/adr/0005-soft-shutdown-leaves-esp32-screens-lit.md. The same action
+    the daily ledwall-shutdown.timer takes, triggered on demand."""
+    shutdown_now()
+    return ShutdownResponse(status="shutting down")
 
 
 @app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])

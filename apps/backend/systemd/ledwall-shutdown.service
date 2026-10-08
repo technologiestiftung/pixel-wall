@@ -1,0 +1,6 @@
+[Unit]
+Description=Pixel Wall soft shutdown
+
+[Service]
+Type=oneshot
+ExecStart=/sbin/shutdown -h now

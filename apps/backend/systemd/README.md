@@ -1,8 +1,14 @@
 # systemd units
 
-Two units, deliberately independent: `ledwall-display` is the wall, and
-`ledwall-backend` is only a way to change what the wall shows. Stopping the
-backend leaves the display running on the last written state.
+Three units, deliberately independent: `ledwall-display` is the wall,
+`ledwall-backend` is only a way to change what the wall shows, and
+`ledwall-shutdown.timer` is the daily soft shutdown. Stopping the backend
+leaves the display running on the last written state; `ledwall-shutdown.timer`
+fires `shutdown -h now` directly rather than through the backend, so the
+schedule holds even if the backend has crashed (see CONTEXT.md "Power" and
+`docs/adr/0005-soft-shutdown-leaves-esp32-screens-lit.md`). The backend's own
+`POST /api/shutdown` (for the frontend's manual trigger) runs the identical
+command via the `sudoers.d/ledwall-shutdown` rule setup-pi.sh installs.
 
 ## The shared state file
 

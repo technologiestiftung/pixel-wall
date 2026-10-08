@@ -22,6 +22,11 @@ if [[ -z "${LEDWALL_SETUP_PULLED:-}" ]]; then
   LEDWALL_SETUP_PULLED=1 exec "$BACKEND/setup-pi.sh" "$@"
 fi
 
+step "Setting system timezone"
+# The daily shutdown schedule (LEDWALL_SHUTDOWN_AT below) means local time;
+# a fresh Pi image otherwise defaults to UTC.
+sudo timedatectl set-timezone Europe/Berlin
+
 step "Installing system packages"
 sudo apt update
 sudo apt install -y python3-venv mosquitto mosquitto-clients
@@ -58,6 +63,13 @@ else
 fi
 sudo chmod 600 /etc/ledwall/backend.env
 
+step "Allowing $SVC_USER to trigger a soft shutdown without a password"
+# Scoped to exactly one fixed command — see pi-config/sudoers-ledwall-shutdown.
+sed "s|@USER@|$SVC_USER|" "$BACKEND/pi-config/sudoers-ledwall-shutdown" \
+  | sudo tee /etc/sudoers.d/ledwall-shutdown >/dev/null
+sudo chmod 440 /etc/sudoers.d/ledwall-shutdown
+sudo visudo -cf /etc/sudoers.d/ledwall-shutdown
+
 step "Opening MQTT broker to the LAN"
 sudo tee /etc/mosquitto/conf.d/ledwall.conf >/dev/null <<'EOF'
 listener 1883 0.0.0.0
@@ -93,12 +105,18 @@ for u in ledwall-backend ledwall-display; do
   sed -e "s|/home/pi/ledwall|$REPO|g" -e "s|^User=pi$|User=$SVC_USER|" \
       "$BACKEND/systemd/$u.service" | sudo tee "/etc/systemd/system/$u.service" >/dev/null
 done
+sudo install -m 644 "$BACKEND/systemd/ledwall-shutdown.service" /etc/systemd/system/
+# LEDWALL_SHUTDOWN_AT overrides the daily off-time (HH:MM, local time), e.g.:
+#   LEDWALL_SHUTDOWN_AT=22:00 ./apps/backend/setup-pi.sh
+sed "s|@SHUTDOWN_AT@|${LEDWALL_SHUTDOWN_AT:-18:00}|" "$BACKEND/systemd/ledwall-shutdown.timer" \
+  | sudo tee /etc/systemd/system/ledwall-shutdown.timer >/dev/null
 sudo systemctl daemon-reload
-sudo systemctl enable ledwall-display ledwall-backend
+sudo systemctl enable ledwall-display ledwall-backend ledwall-shutdown.timer
 sudo systemctl restart ledwall-display ledwall-backend
+sudo systemctl restart ledwall-shutdown.timer
 
 step "Status"
-systemctl --no-pager --lines=0 status ledwall-display ledwall-backend mosquitto || true
+systemctl --no-pager --lines=0 status ledwall-display ledwall-backend ledwall-shutdown.timer mosquitto || true
 ss -tln | grep -q '0.0.0.0:1883' && echo "MQTT listening on 0.0.0.0:1883" \
   || echo "WARNING: MQTT is not listening on 0.0.0.0:1883" >&2
 
@@ -107,6 +125,9 @@ cat <<EOF
 Done. If this was the first run, log out and back in so $SVC_USER picks up the
 ledwall group for interactive shells. Health check:
   curl -su :<password> http://localhost:5000/api/health | python3 -m json.tool
+
+Wall shuts down daily at ${LEDWALL_SHUTDOWN_AT:-18:00} (Europe/Berlin). Turning
+it back on is physical — a mains timer or the power switch — not this script.
 EOF
 
 if (( reboot_needed )); then

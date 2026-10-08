@@ -1,0 +1,4 @@
+# Lets the backend (running as @USER@, not root) trigger the same soft
+# shutdown the daily timer runs, from POST /api/shutdown. Scoped to exactly
+# this one fixed command — see app/power.py and CONTEXT.md "Power".
+@USER@ ALL=(root) NOPASSWD: /sbin/shutdown -h now

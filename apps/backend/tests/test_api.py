@@ -443,6 +443,22 @@ def test_limits_advertises_both_formats(api):
     assert body["bitmap"]["formats"] == ["mask1", "pal4"]
 
 
+# ------------------------------------------------------------------ shutdown
+
+
+def test_shutdown_triggers_a_soft_shutdown(api, monkeypatch):
+    """See CONTEXT.md "Power" — app/power.py is covered on its own; this only
+    checks the endpoint wires up to it."""
+    calls = []
+    monkeypatch.setattr("app.main.shutdown_now", lambda: calls.append(True))
+
+    response = api.post("/api/shutdown")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "shutting down"
+    assert calls == [True]
+
+
 # --------------------------------------------------------------- retired API
 
 

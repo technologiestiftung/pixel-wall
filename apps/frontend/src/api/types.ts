@@ -126,6 +126,11 @@ export interface ControlResponse {
 	controller: boolean;
 }
 
+/** POST /api/shutdown — see apps/backend/app/power.py and CONTEXT.md "Power". */
+export interface ShutdownResponse {
+	status: string;
+}
+
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };

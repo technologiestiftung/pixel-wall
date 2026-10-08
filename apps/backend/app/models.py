@@ -344,6 +344,10 @@ class ControlResponse(BaseModel):
     controller: bool
 
 
+class ShutdownResponse(BaseModel):
+    status: str
+
+
 class HealthResponse(BaseModel):
     status: str
     state_file: str
