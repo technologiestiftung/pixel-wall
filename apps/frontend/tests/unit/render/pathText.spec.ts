@@ -112,7 +112,7 @@ describe("pathTextTiming", () => {
 		// Each PFADTEXT_PATHS entry has its own lengthPx/margin, so the same
 		// text/speed/pause must produce different timings per path — otherwise
 		// pathTextTiming would be silently ignoring content.pathId.
-		const timings = ["rund", "diagonal", "schwung"].map(
+		const timings = ["rund", "diagonal", "schwung", "welle"].map(
 			(pathId) => pathTextTiming({ ...base, pathRunning: true, pathId })?.frameCount,
 		);
 		expect(new Set(timings).size).toBeGreaterThan(1);

@@ -59,9 +59,9 @@ describe("buildPathThroughPoints", () => {
 });
 
 describe("PFADTEXT_PATHS", () => {
-	test("has exactly 3 named paths, each with a unique id", () => {
-		expect(PFADTEXT_PATHS).toHaveLength(3);
-		expect(new Set(PFADTEXT_PATHS.map((o) => o.id)).size).toBe(3);
+	test("has exactly 4 named paths, each with a unique id", () => {
+		expect(PFADTEXT_PATHS).toHaveLength(4);
+		expect(new Set(PFADTEXT_PATHS.map((o) => o.id)).size).toBe(4);
 	});
 
 	test("every path is a fixed, positive-length path with a deterministic pointAt", () => {
@@ -82,6 +82,52 @@ describe("PFADTEXT_PATHS", () => {
 			expect(option.offCanvasMarginPx).toBeGreaterThan(0);
 			expect(option.offCanvasMarginPx).toBeLessThan(option.path.lengthPx);
 		}
+	});
+});
+
+describe("the 'welle' path", () => {
+	const option = PFADTEXT_PATHS.find((o) => o.id === "welle");
+
+	test("starts and ends exactly at a screen centre, in its own named order (06 then 05)", () => {
+		expect(option).toBeDefined();
+		if (!option) {
+			return;
+		}
+		const start = option.path.pointAt(0);
+		const end = option.path.pointAt(option.path.lengthPx);
+		expect(start.x).toBeCloseTo(32, 1); // 06
+		expect(start.y).toBeCloseTo(74.33333333333333, 1);
+		expect(end.x).toBeCloseTo(167, 1); // 05
+		expect(end.y).toBeCloseTo(57, 1);
+	});
+
+	test("passes near both 07 and 04 along the way, visiting 07 before 04", () => {
+		// The point of a *named* order (as opposed to a derived one like
+		// perimeterOrder/nearestNeighborOrder) is that it visits screens in a
+		// specific sequence — 06, 07, 04, 05 — rather than whatever a general
+		// strategy would pick. This checks that sequence actually holds by
+		// finding each screen's closest approach along the curve.
+		expect(option).toBeDefined();
+		if (!option) {
+			return;
+		}
+		const { path } = option;
+		const sampleCount = 200;
+		const distances = Array.from({ length: sampleCount + 1 }, (_, i) => {
+			const d = (path.lengthPx * i) / sampleCount;
+			return { d, point: path.pointAt(d) };
+		});
+		function closestApproachD(target: { x: number; y: number }): number {
+			return distances.reduce((best, s) =>
+				Math.hypot(s.point.x - target.x, s.point.y - target.y) <
+				Math.hypot(best.point.x - target.x, best.point.y - target.y)
+					? s
+					: best,
+			).d;
+		}
+		const d07 = closestApproachD({ x: 99.33333333333333, y: 32 });
+		const d04 = closestApproachD({ x: 99.66666666666667, y: 99.33333333333333 });
+		expect(d07).toBeLessThan(d04);
 	});
 });
 

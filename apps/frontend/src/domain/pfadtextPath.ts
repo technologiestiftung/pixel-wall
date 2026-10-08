@@ -44,9 +44,15 @@ export interface PfadtextPath {
  * order would do here (the two screens nearest the middle sit almost
  * directly above/below each other).
  */
-function perimeterOrder(points: Vec2[], pickStart: (sorted: Vec2[]) => number): Vec2[] {
+function perimeterOrder(
+	points: Vec2[],
+	pickStart: (sorted: Vec2[]) => number,
+): Vec2[] {
 	const centroid = points.reduce(
-		(sum, p) => ({ x: sum.x + p.x / points.length, y: sum.y + p.y / points.length }),
+		(sum, p) => ({
+			x: sum.x + p.x / points.length,
+			y: sum.y + p.y / points.length,
+		}),
 		{ x: 0, y: 0 },
 	);
 	const sorted = [...points].sort(
@@ -171,8 +177,14 @@ export function buildPathThroughPoints(
 	const second = points[1];
 	const last = points[points.length - 1];
 	const secondLast = points[points.length - 2];
-	const phantomStart: Vec2 = { x: 2 * first.x - second.x, y: 2 * first.y - second.y };
-	const phantomEnd: Vec2 = { x: 2 * last.x - secondLast.x, y: 2 * last.y - secondLast.y };
+	const phantomStart: Vec2 = {
+		x: 2 * first.x - second.x,
+		y: 2 * first.y - second.y,
+	};
+	const phantomEnd: Vec2 = {
+		x: 2 * last.x - secondLast.x,
+		y: 2 * last.y - secondLast.y,
+	};
 	const extended = [phantomStart, ...points, phantomEnd];
 
 	const samples: Vec2[] = [];
@@ -185,7 +197,8 @@ export function buildPathThroughPoints(
 			extended[segment + 2],
 			extended[segment + 3],
 		];
-		const steps = segment === segmentCount - 1 ? samplesPerSegment : samplesPerSegment - 1;
+		const steps =
+			segment === segmentCount - 1 ? samplesPerSegment : samplesPerSegment - 1;
 		for (let step = 0; step <= steps; step++) {
 			const { point, tangent } = hermiteSegmentPoint(
 				p0,
@@ -214,7 +227,11 @@ export function buildPathThroughPoints(
 		return Math.atan2(tangent.y, tangent.x);
 	}
 
-	function extrapolate(from: Vec2, angleRad: number, distancePx: number): PathPoint {
+	function extrapolate(
+		from: Vec2,
+		angleRad: number,
+		distancePx: number,
+	): PathPoint {
 		return {
 			x: from.x + Math.cos(angleRad) * distancePx,
 			y: from.y + Math.sin(angleRad) * distancePx,
@@ -275,7 +292,10 @@ function offCanvasMarginPx(
 	path: PfadtextPath,
 	canvasSize: { widthPx: number; heightPx: number },
 ): number {
-	function exitDistance(origin: PathPoint, direction: { x: number; y: number }): number {
+	function exitDistance(
+		origin: PathPoint,
+		direction: { x: number; y: number },
+	): number {
 		// A point inside the box leaves it at the EARLIEST crossing of either
 		// axis's bound — not the latest, which would wait until both axes have
 		// cleared and overshoot by however much the ray travels diagonally.
@@ -342,34 +362,67 @@ function computeScreenCenters(): { id: string; center: Vec2 }[] {
 		const spec = specById(SCREEN_SPECS, slot.screenId);
 		return {
 			id: slot.screenId,
-			center: { x: slot.offsetXPx + spec.pixelSize / 2, y: slot.offsetYPx + spec.pixelSize / 2 },
+			center: {
+				x: slot.offsetXPx + spec.pixelSize / 2,
+				y: slot.offsetYPx + spec.pixelSize / 2,
+			},
 		};
 	});
 }
 
 const screenCenters = computeScreenCenters();
 
-export const PFADTEXT_CANVAS_SIZE: { widthPx: number; heightPx: number } = (() => {
-	const composite = computeDisplayComposite(
-		{ specs: SCREEN_SPECS, positions: DEFAULT_LAYOUT },
-		{ kind: "large", screenIds: LARGE_SCREEN_IDS },
-		1 / PITCH_MM_PER_PX.large,
-	);
-	return { widthPx: composite.widthPx, heightPx: composite.heightPx };
-})();
+export const PFADTEXT_CANVAS_SIZE: { widthPx: number; heightPx: number } =
+	(() => {
+		const composite = computeDisplayComposite(
+			{ specs: SCREEN_SPECS, positions: DEFAULT_LAYOUT },
+			{ kind: "large", screenIds: LARGE_SCREEN_IDS },
+			1 / PITCH_MM_PER_PX.large,
+		);
+		return { widthPx: composite.widthPx, heightPx: composite.heightPx };
+	})();
 
-export const PFADTEXT_SCREEN_RECTS: ScreenRect[] = screenCenters.map(({ id, center }) => {
-	const spec = specById(SCREEN_SPECS, id);
-	return { id, x: center.x - spec.pixelSize / 2, y: center.y - spec.pixelSize / 2, size: spec.pixelSize };
-});
+export const PFADTEXT_SCREEN_RECTS: ScreenRect[] = screenCenters.map(
+	({ id, center }) => {
+		const spec = specById(SCREEN_SPECS, id);
+		return {
+			id,
+			x: center.x - spec.pixelSize / 2,
+			y: center.y - spec.pixelSize / 2,
+			size: spec.pixelSize,
+		};
+	},
+);
 
 // eslint-disable-next-line max-params -- all four are needed; splitting into an options object adds indirection for no benefit here.
-function namedPath(id: string, label: string, points: Vec2[], tension: number): PfadtextPathOption {
+function namedPath(
+	id: string,
+	label: string,
+	points: Vec2[],
+	tension: number,
+): PfadtextPathOption {
 	const path = buildPathThroughPoints(points, { tension });
-	return { id, label, path, offCanvasMarginPx: offCanvasMarginPx(path, PFADTEXT_CANVAS_SIZE) };
+	return {
+		id,
+		label,
+		path,
+		offCanvasMarginPx: offCanvasMarginPx(path, PFADTEXT_CANVAS_SIZE),
+	};
 }
 
 const centers = screenCenters.map((s) => s.center);
+
+/** An explicit, named visiting order — for a curated path where "whichever
+ * order a generic strategy derives" (see `perimeterOrder`/
+ * `nearestNeighborOrder`) isn't the point; the specific order *is* the
+ * design. */
+function byIds(ids: string[]): Vec2[] {
+	return ids.map(
+		(id) =>
+			(screenCenters.find((s) => s.id === id) as { id: string; center: Vec2 })
+				.center,
+	);
+}
 
 /**
  * The 3 fixed, built-in curved paths Pfadtext can run along. Each orders the
@@ -387,11 +440,17 @@ const centers = screenCenters.map((s) => s.center);
  * - "schwung": the same perimeter sweep as "rund" but starting from the
  *   topmost screen instead, at standard tension — a visibly different
  *   entry/exit pair while staying just as open.
+ * - "welle": enters at 06, bends up through 07, back down through 04, then
+ *   out through 05 — an explicit, named order (not a general strategy; see
+ *   `byIds`) at a high tension for one big, soft double-bend rather than a
+ *   tight self-crossing loop (an earlier version of this path looped fully
+ *   around 07/04, which read as needlessly busy).
  */
 export const PFADTEXT_PATHS: PfadtextPathOption[] = [
-	namedPath("rund", "Rund", perimeterOrder(centers, leftmostOf), 1.4),
-	namedPath("diagonal", "Diagonal", nearestNeighborOrder(centers), 1.15),
-	namedPath("schwung", "Schwung", perimeterOrder(centers, topmostOf), 1),
+	namedPath("rund", "Rund", perimeterOrder(centers, leftmostOf), 1.5),
+	namedPath("diagonal", "Diagonal", nearestNeighborOrder(centers), 1.85),
+	namedPath("schwung", "Schwung", perimeterOrder(centers, topmostOf), 1.8),
+	namedPath("welle", "Welle", byIds(["06", "07", "04", "05"]), 2.2),
 ];
 
 /** The path content saved before multiple paths existed keeps showing — the
@@ -405,6 +464,8 @@ export const DEFAULT_PFADTEXT_PATH_ID = "rund";
 export function pfadtextPathOption(id: string | undefined): PfadtextPathOption {
 	return (
 		PFADTEXT_PATHS.find((option) => option.id === id) ??
-		(PFADTEXT_PATHS.find((option) => option.id === DEFAULT_PFADTEXT_PATH_ID) as PfadtextPathOption)
+		(PFADTEXT_PATHS.find(
+			(option) => option.id === DEFAULT_PFADTEXT_PATH_ID,
+		) as PfadtextPathOption)
 	);
 }
