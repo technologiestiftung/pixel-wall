@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="de">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>pal4 debug — Vorschau vs. gesendetes Bild</title>
+		<style>
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				font-family:
+					system-ui,
+					-apple-system,
+					sans-serif;
+				margin: 0;
+				padding: 24px;
+				background: #f5f5f5;
+				color: #111;
+			}
+			h1 {
+				font-size: 18px;
+				margin: 0 0 4px;
+			}
+			p.lead {
+				color: #555;
+				margin: 0 0 20px;
+				max-width: 70ch;
+			}
+			.panel {
+				background: #fff;
+				border: 1px solid #ddd;
+				border-radius: 8px;
+				padding: 16px;
+				margin-bottom: 16px;
+			}
+			.controls {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 16px;
+				align-items: flex-end;
+			}
+			.field {
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+				font-size: 13px;
+			}
+			.field label {
+				font-weight: 600;
+				color: #333;
+			}
+			.colorField {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			input[type="text"],
+			select {
+				padding: 4px 6px;
+				font-size: 13px;
+				border: 1px solid #bbb;
+				border-radius: 4px;
+			}
+			input[type="text"] {
+				width: 90px;
+				font-family: ui-monospace, monospace;
+			}
+			input[type="color"] {
+				width: 36px;
+				height: 28px;
+				padding: 0;
+				border: 1px solid #bbb;
+				border-radius: 4px;
+			}
+			input[type="number"] {
+				width: 70px;
+				padding: 4px 6px;
+				font-size: 13px;
+				border: 1px solid #bbb;
+				border-radius: 4px;
+			}
+			.presets {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+			button.preset {
+				font-size: 12px;
+				padding: 6px 10px;
+				border: 1px solid #bbb;
+				border-radius: 999px;
+				background: #fafafa;
+				cursor: pointer;
+			}
+			button.preset:hover {
+				background: #eee;
+			}
+			.canvases {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 24px;
+			}
+			.canvasBlock {
+				display: flex;
+				flex-direction: column;
+				gap: 8px;
+			}
+			.canvasBlock h2 {
+				font-size: 14px;
+				margin: 0;
+			}
+			.canvasBlock .hint {
+				font-size: 12px;
+				color: #666;
+				max-width: 30ch;
+			}
+			canvas {
+				image-rendering: pixelated;
+				width: 256px;
+				height: 256px;
+				background: #000;
+				border: 1px solid #333;
+				border-radius: 4px;
+			}
+			.swatches {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+				margin-top: 8px;
+			}
+			.swatch {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				font-size: 12px;
+				font-family: ui-monospace, monospace;
+				border: 1px solid #ddd;
+				border-radius: 4px;
+				padding: 3px 8px 3px 3px;
+				background: #fafafa;
+			}
+			.swatch .chip {
+				width: 16px;
+				height: 16px;
+				border-radius: 3px;
+				border: 1px solid rgba(0, 0, 0, 0.2);
+			}
+			.distance {
+				font-size: 13px;
+				margin-top: 4px;
+			}
+			.distance b {
+				font-variant-numeric: tabular-nums;
+			}
+			.ok {
+				color: #15803d;
+			}
+			.merged {
+				color: #b91c1c;
+			}
+			#status {
+				font-size: 13px;
+				color: #666;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>pal4 debug — Vorschau vs. gesendetes Bild</h1>
+		<p class="lead">
+			Links: dieselbe Vorschau wie im Editor (echte Farben, nie
+			quantisiert). Rechts: exakt die Farbpalette, die
+			<code>pal4FromImageData</code> aus denselben Pixeln baut — das ist
+			(bis auf Fenster-/Rahmen-Zuschnitt) was tatsächlich an die
+			Pixel-Screens geschickt wird. Unten lässt sich der
+			Zusammenführungs-Radius live verändern, um den Low-Contrast-Bug
+			gezielt zu reproduzieren.
+		</p>
+
+		<div class="panel">
+			<div class="controls">
+				<div class="field">
+					<label for="template">Template</label>
+					<select id="template"></select>
+				</div>
+				<div class="field">
+					<label for="size">Auflösung</label>
+					<select id="size">
+						<option value="64">64×64 (groß)</option>
+						<option value="32">32×32 (klein)</option>
+					</select>
+				</div>
+				<div class="field">
+					<label for="bgColor">Hintergrund</label>
+					<div class="colorField">
+						<input type="color" id="bgColor" value="#1e3791" />
+						<input type="text" id="bgHex" value="#1e3791" />
+					</div>
+				</div>
+				<div class="field" id="lineField">
+					<label for="lineColor">Linienfarbe</label>
+					<div class="colorField">
+						<input type="color" id="lineColor" value="#2c4596" />
+						<input type="text" id="lineHex" value="#2c4596" />
+					</div>
+				</div>
+				<div class="field">
+					<label for="mergeDistance"
+						>Merge-Radius (crispMergeDistance)</label
+					>
+					<input
+						type="number"
+						id="mergeDistance"
+						value="10"
+						min="0"
+						max="80"
+					/>
+				</div>
+				<div class="field">
+					<span id="status">bereit</span>
+				</div>
+			</div>
+		</div>
+
+		<div class="panel">
+			<div class="presets">
+				<button class="preset" data-preset="lowContrastBug">
+					Low contrast (vorher kaputt)
+				</button>
+				<button class="preset" data-preset="highContrast">
+					Hoher Kontrast (immer ok)
+				</button>
+				<button class="preset" data-preset="boundary">
+					Genau an der Schwelle
+				</button>
+			</div>
+			<div class="distance" id="distanceReadout"></div>
+		</div>
+
+		<div class="panel canvases">
+			<div class="canvasBlock">
+				<h2>Vorschau (echte Farben)</h2>
+				<p class="hint">
+					Was im Editor zu sehen ist — nie quantisiert, kann nicht
+					den Bug zeigen.
+				</p>
+				<canvas id="trueCanvas" width="64" height="64"></canvas>
+			</div>
+			<div class="canvasBlock">
+				<h2>Gesendetes Bild (pal4, Standard-Radius)</h2>
+				<p class="hint">
+					Läuft durch <code>contentToWire</code> — exakt der Pfad,
+					den der echte Export auch nimmt, mit dem aktuellen
+					Produktions-Radius (10).
+				</p>
+				<canvas id="wireCanvas" width="64" height="64"></canvas>
+				<div class="swatches" id="wireSwatches"></div>
+			</div>
+			<div class="canvasBlock">
+				<h2>Gesendetes Bild (frei wählbarer Radius)</h2>
+				<p class="hint">
+					Dieselbe Quantisierung, aber mit dem Radius oben links —
+					auf 24 stellen, um den alten Fehler zu reproduzieren.
+				</p>
+				<canvas id="customCanvas" width="64" height="64"></canvas>
+				<div class="swatches" id="customSwatches"></div>
+			</div>
+		</div>
+
+		<script type="module" src="/src/debugPal4.ts"></script>
+	</body>
+</html>
