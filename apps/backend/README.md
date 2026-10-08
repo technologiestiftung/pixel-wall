@@ -652,3 +652,10 @@ Settings can also go in a `.env` file next to this README (or `app/.env`); it
 is loaded at import time and never overrides a real environment variable. Both
 are gitignored. Leaving `LEDWALL_PASSWORD` out of it runs the API without auth,
 which is usually what you want locally.
+
+## Credits
+
+`pi_display.py` drives the 4 HUB75 panels through the Python bindings of
+[rpi-rgb-led-matrix](https://github.com/hzeller/rpi-rgb-led-matrix) by Henner
+Zeller (GPL-2.0), which does the actual PWM-timed pixel pushing this project
+relies on.

@@ -73,3 +73,9 @@ npm run test:unit   # Vitest, tests/unit
 npm run test:e2e    # Playwright, tests/e2e
 npm run test:a11y   # Playwright + axe, tests/a11y
 ```
+
+## Credits
+
+The colour emoji glyphs in the "Schriftart" picker are
+[FrankMoji](https://frankmoji.com) by Frank Rausch, licensed
+CC BY-NC-ND 4.0 — see `public/fonts/FrankMoji-LICENSE.txt`.
