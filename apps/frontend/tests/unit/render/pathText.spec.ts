@@ -20,9 +20,8 @@ const base: TextContent = {
 
 // `base` doesn't set pathId, so pathText.ts resolves it to the default path —
 // match that here rather than hardcoding which one that is.
-const { path: defaultPath, offCanvasMarginPx: defaultMarginPx } = pfadtextPathOption(
-	base.pathId,
-);
+const { path: defaultPath, offCanvasMarginPx: defaultMarginPx } =
+	pfadtextPathOption(base.pathId);
 
 describe("pathTextTiming", () => {
 	test("is null for static Pfadtext", () => {
@@ -78,7 +77,9 @@ describe("pathTextTiming", () => {
 			const travelPx = (travelMs / 1000) * (base.speedPxPerSec as number);
 			// Both ends padded means travel is at least the path length plus
 			// *two* margins (padding only one end would only ever clear one).
-			expect(travelPx).toBeGreaterThanOrEqual(defaultPath.lengthPx + 2 * defaultMarginPx);
+			expect(travelPx).toBeGreaterThanOrEqual(
+				defaultPath.lengthPx + 2 * defaultMarginPx,
+			);
 		}
 	});
 
@@ -113,14 +114,23 @@ describe("pathTextTiming", () => {
 		// text/speed/pause must produce different timings per path — otherwise
 		// pathTextTiming would be silently ignoring content.pathId.
 		const timings = ["rund", "diagonal", "schwung", "welle"].map(
-			(pathId) => pathTextTiming({ ...base, pathRunning: true, pathId })?.frameCount,
+			(pathId) =>
+				pathTextTiming({ ...base, pathRunning: true, pathId })?.frameCount,
 		);
 		expect(new Set(timings).size).toBeGreaterThan(1);
 	});
 
 	test("a faster speed produces a shorter loop", () => {
-		const slow = pathTextTiming({ ...base, pathRunning: true, speedPxPerSec: 20 });
-		const fast = pathTextTiming({ ...base, pathRunning: true, speedPxPerSec: 200 });
+		const slow = pathTextTiming({
+			...base,
+			pathRunning: true,
+			speedPxPerSec: 20,
+		});
+		const fast = pathTextTiming({
+			...base,
+			pathRunning: true,
+			speedPxPerSec: 200,
+		});
 		expect(slow).not.toBeNull();
 		expect(fast).not.toBeNull();
 		if (!slow || !fast) {

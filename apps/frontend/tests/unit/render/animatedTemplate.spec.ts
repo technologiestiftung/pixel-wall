@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { animationTiming, frameCountFor } from "../../../src/render/animatedTemplate";
+import {
+	animationTiming,
+	frameCountFor,
+} from "../../../src/render/animatedTemplate";
 import type { AnimationContent } from "../../../src/domain/types";
 
 const base: AnimationContent = {

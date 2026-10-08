@@ -252,7 +252,10 @@ export function drawContentToCanvas(
 
 	ctx.fillStyle = monochrome ? "#ffffff" : content.color;
 	ctx.font = `${content.fontWeight} ${content.fontSizePx}px ${content.fontFamily}`;
-	drawTextByMode(ctx, content, { widthPx: canvas.width, heightPx: canvas.height });
+	drawTextByMode(ctx, content, {
+		widthPx: canvas.width,
+		heightPx: canvas.height,
+	});
 	return canvas;
 }
 

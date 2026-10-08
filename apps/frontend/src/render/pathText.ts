@@ -34,7 +34,11 @@ function pathTextValue(content: TextContent): string {
  * equivalent of Text's hAlign, which has no meaning on a curve (see
  * CONTEXT.md "Content"). Mirrors render/rasterize.ts's alignOffset for the
  * "left"/"center"/"right" cases, just under this mode's own names. */
-function staticAnchorPx(content: TextContent, textWidthPx: number, pathLengthPx: number): number {
+function staticAnchorPx(
+	content: TextContent,
+	textWidthPx: number,
+	pathLengthPx: number,
+): number {
 	switch (content.pathPosition ?? "middle") {
 		case "start":
 			return 0;
@@ -89,10 +93,21 @@ function drawGlyphsAlongPath(
  * drawContentToCanvas), same division of labour as the existing
  * static/scrolling text branches there.
  */
-export function drawStaticPathText(ctx: CanvasRenderingContext2D, content: TextContent) {
+export function drawStaticPathText(
+	ctx: CanvasRenderingContext2D,
+	content: TextContent,
+) {
 	const { path } = pfadtextPathOption(content.pathId);
-	const textWidthPx = measureTextWidthPx(pathTextValue(content), fontSpecOf(content));
-	drawGlyphsAlongPath(ctx, content, staticAnchorPx(content, textWidthPx, path.lengthPx), path);
+	const textWidthPx = measureTextWidthPx(
+		pathTextValue(content),
+		fontSpecOf(content),
+	);
+	drawGlyphsAlongPath(
+		ctx,
+		content,
+		staticAnchorPx(content, textWidthPx, path.lengthPx),
+		path,
+	);
 }
 
 /**
@@ -115,9 +130,13 @@ function effectiveCompositeWidthPx(option: PfadtextPathOption): number {
 }
 
 /** See effectiveCompositeWidthPx — the `-textWidthPx`-side counterpart. */
-function effectiveTextWidthPx(content: TextContent, option: PfadtextPathOption): number {
+function effectiveTextWidthPx(
+	content: TextContent,
+	option: PfadtextPathOption,
+): number {
 	return (
-		measureTextWidthPx(pathTextValue(content), fontSpecOf(content)) + option.offCanvasMarginPx
+		measureTextWidthPx(pathTextValue(content), fontSpecOf(content)) +
+		option.offCanvasMarginPx
 	);
 }
 
@@ -139,7 +158,8 @@ export function pathTextTiming(
 		return null;
 	}
 	const option = pfadtextPathOption(content.pathId);
-	const travelPx = effectiveCompositeWidthPx(option) + effectiveTextWidthPx(content, option);
+	const travelPx =
+		effectiveCompositeWidthPx(option) + effectiveTextWidthPx(content, option);
 	const speedPxPerSec = content.speedPxPerSec ?? 60;
 	const travelMs = speedPxPerSec > 0 ? (travelPx / speedPxPerSec) * 1000 : 0;
 	const loopMs = travelMs + (content.pauseMs ?? LOOP_PAUSE_MS);

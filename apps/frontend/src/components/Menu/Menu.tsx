@@ -77,7 +77,10 @@ function ContentEditor() {
 		state,
 		appliedLayers.foreground,
 	);
-	const pathTextDroppedOnSave = dropsPathTextOnSave(state, appliedLayers.foreground);
+	const pathTextDroppedOnSave = dropsPathTextOnSave(
+		state,
+		appliedLayers.foreground,
+	);
 	const textLowContrast = hasLowTextContrast(previewLayers);
 	const lineLowContrast = hasLowLineContrast(previewLayers);
 	const contentOffScreen = isSelectionContentOffScreen(state);
@@ -311,7 +314,10 @@ function dropsAnimationOnSave(
 /** Whether the Text tab can show this content for the selection: Pfadtext
  * only for exactly the 4 large screens (see domain/mapping.ts
  * layersForGroup). */
-function textOfferedFor(content: TextContent, selection: Selection | null): boolean {
+function textOfferedFor(
+	content: TextContent,
+	selection: Selection | null,
+): boolean {
 	if (content.mode !== "path") {
 		return true;
 	}

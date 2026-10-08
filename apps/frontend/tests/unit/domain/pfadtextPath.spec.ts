@@ -126,7 +126,10 @@ describe("the 'welle' path", () => {
 			).d;
 		}
 		const d07 = closestApproachD({ x: 99.33333333333333, y: 32 });
-		const d04 = closestApproachD({ x: 99.66666666666667, y: 99.33333333333333 });
+		const d04 = closestApproachD({
+			x: 99.66666666666667,
+			y: 99.33333333333333,
+		});
 		expect(d07).toBeLessThan(d04);
 	});
 });
@@ -142,6 +145,8 @@ describe("pfadtextPathOption", () => {
 	});
 
 	test("falls back to the default path for an unrecognised id", () => {
-		expect(pfadtextPathOption("not-a-real-path").id).toBe(DEFAULT_PFADTEXT_PATH_ID);
+		expect(pfadtextPathOption("not-a-real-path").id).toBe(
+			DEFAULT_PFADTEXT_PATH_ID,
+		);
 	});
 });

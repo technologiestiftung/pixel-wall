@@ -161,7 +161,10 @@ describe("layersForGroup", () => {
 		test("drops Pfadtext when the selection is fewer than all 4 large screens", () => {
 			const layers = pathTextOf();
 			expect(
-				layersForGroup(layers, { kind: "large", screenIds: ["04", "05", "06"] }),
+				layersForGroup(layers, {
+					kind: "large",
+					screenIds: ["04", "05", "06"],
+				}),
 			).toEqual({ background: "#000000", foreground: null });
 		});
 

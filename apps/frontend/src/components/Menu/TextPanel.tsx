@@ -1,5 +1,8 @@
 import { LOOP_PAUSE_MS } from "../../domain/content";
-import { DEFAULT_PFADTEXT_PATH_ID, PFADTEXT_PATHS } from "../../domain/pfadtextPath";
+import {
+	DEFAULT_PFADTEXT_PATH_ID,
+	PFADTEXT_PATHS,
+} from "../../domain/pfadtextPath";
 import type { TextContent } from "../../domain/types";
 import { PathThumbnail } from "../../render/PathThumbnail";
 import { AlignmentPicker } from "./AlignmentPicker";
@@ -7,7 +10,9 @@ import { TemplateTile } from "./AnimationPanel";
 import { ColorPicker } from "./ColorPicker";
 import { FontField, FontSizeField, PaddingField } from "./TextStyleFields";
 
-function textModesFor(pathAllowed: boolean): ChoiceOption<TextContent["mode"]>[] {
+function textModesFor(
+	pathAllowed: boolean,
+): ChoiceOption<TextContent["mode"]>[] {
 	const base: ChoiceOption<TextContent["mode"]>[] = [
 		{ value: "static", label: "Statischer Text" },
 		{ value: "scrolling", label: "Lauftext" },
@@ -24,7 +29,9 @@ const ABLAUF_OPTIONS: ChoiceOption<"static" | "running">[] = [
 	{ value: "running", label: "Laufend" },
 ];
 
-const POSITION_OPTIONS: ChoiceOption<NonNullable<TextContent["pathPosition"]>>[] = [
+const POSITION_OPTIONS: ChoiceOption<
+	NonNullable<TextContent["pathPosition"]>
+>[] = [
 	{ value: "start", label: "Start" },
 	{ value: "middle", label: "Mitte" },
 	{ value: "end", label: "Ende" },
@@ -138,7 +145,9 @@ export function TextPanel({ content, onChange, pathAllowed }: TextPanelProps) {
 							label="Position"
 							options={POSITION_OPTIONS}
 							value={content.pathPosition ?? "middle"}
-							onChange={(pathPosition) => onChange({ ...content, pathPosition })}
+							onChange={(pathPosition) =>
+								onChange({ ...content, pathPosition })
+							}
 						/>
 					)}
 				</>

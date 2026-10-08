@@ -180,7 +180,10 @@ const MAX_FRAME_COUNT = 255;
  * its real duration (frameDurationMs grows instead) but is sampled more
  * coarsely, rather than producing a frameCount the wire format rejects. */
 export function frameCountFor(loopMs: number, fps: number): number {
-	return Math.min(MAX_FRAME_COUNT, Math.max(1, Math.round((loopMs / 1000) * fps)));
+	return Math.min(
+		MAX_FRAME_COUNT,
+		Math.max(1, Math.round((loopMs / 1000) * fps)),
+	);
 }
 
 /**

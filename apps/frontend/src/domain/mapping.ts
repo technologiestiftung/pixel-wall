@@ -1,5 +1,10 @@
 import { isMovingAnimation } from "./content";
-import { isAllLargeScreensSelection, PITCH_MM_PER_PX, rectFor, specById } from "./layout";
+import {
+	isAllLargeScreensSelection,
+	PITCH_MM_PER_PX,
+	rectFor,
+	specById,
+} from "./layout";
 import type {
 	LayoutPosition,
 	ScreenLayers,
