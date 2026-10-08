@@ -248,6 +248,63 @@ describe("pal4FromImageData", () => {
 		expect(image.indices[250]).toBe(1);
 	});
 
+	it("crisp: a low-contrast but genuinely different background and shape colour both keep their own slot", () => {
+		// Regression test: these two colours are close enough that a human
+		// would call them "low contrast" (Euclidean RGB distance ~20), but
+		// they are two deliberately different, fully-opaque fills — a
+		// template's own colour and a separately-chosen background — not an
+		// anti-aliasing blend of one into the other. Before this fix the
+		// shape's colour was discarded as a "near duplicate" of the
+		// background and every one of its pixels snapped onto the
+		// background's palette entry instead, so the shape silently took on
+		// the background colour (or vanished into it) only once the
+		// background was changed to something close to the shape's colour.
+		const background: [number, number, number] = [30, 55, 145];
+		const shape = [44, 69, 150];
+		const data = pixels([
+			[
+				...Array(80).fill([...background, 255]),
+				...Array(20).fill([...shape, 255]),
+			],
+		]);
+		const image = pal4FromImageData(data, {
+			widthPx: 100,
+			heightPx: 1,
+			crisp: true,
+			background,
+		});
+		expect(image.palette).toEqual([[0, 0, 0], background, shape]);
+		expect(image.indices[0]).toBe(1);
+		expect(image.indices[99]).toBe(2);
+	});
+
+	it("crisp: a small-area foreground colour still earns a slot against a large non-black background", () => {
+		// Regression test for the more severe half of the same bug: `crisp`
+		// mode only gives a colour its own palette slot once it covers at
+		// least 1% of "the artwork" (CRISP_MIN_SHARE). Before this fix that
+		// share was computed against every opaque pixel *including* the
+		// background fill — fine when the background was literal black (the
+		// only colour ever excluded), but the instant a real `background` is
+		// chosen, its own enormous pixel count swamps the denominator and a
+		// perfectly ordinary small-area shape (a thin line, a logo detail)
+		// drops under 1% and loses its slot entirely — regardless of how much
+		// contrast it has with that background. Passing the real background
+		// in lets it be excluded from the count, same as black always was.
+		const background: [number, number, number] = [30, 55, 145];
+		const shape = [200, 80, 40]; // ample contrast; share is the only variable here
+		const data = pixels([
+			[...Array(985).fill([...background, 255]), ...Array(15).fill([...shape, 255])],
+		]);
+		const image = pal4FromImageData(data, {
+			widthPx: 1000,
+			heightPx: 1,
+			crisp: true,
+			background,
+		});
+		expect(image.palette).toEqual([[0, 0, 0], background, shape]);
+		expect(image.indices[999]).toBe(2);
+	});
+
 	it("caps the palette at 16 entries, keeping the most frequent colours", () => {
 		// Colour `n` (1-20, grayscale) appears `n` times, so frequency ranks
 		// exactly by colour value with no ties.
