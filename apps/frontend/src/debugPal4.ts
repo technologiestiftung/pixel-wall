@@ -162,6 +162,8 @@ function renderSwatches(container: HTMLDivElement, image: Palette4) {
  * clear mask bit) as solid black — exactly how an unlit LED looks, matching
  * wireToDataUrl's convention but opaque so it's visible on any page
  * background, not just one that happens to already be black. */
+
+// eslint-disable-next-line
 function paintDecodedFrame(
 	canvas: HTMLCanvasElement,
 	decoded: ReturnType<typeof decodeBlock>,
