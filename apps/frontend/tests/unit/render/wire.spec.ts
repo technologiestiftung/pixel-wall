@@ -37,6 +37,21 @@ const logoTemplate: AnimationContent = {
 	vAlign: "center",
 };
 
+const runningPathText: TextContent = {
+	type: "text",
+	mode: "path",
+	pathRunning: true,
+	value: "HI",
+	fontSizePx: 8,
+	fontFamily: "monospace",
+	fontWeight: "700",
+	color: "#FFFFFF",
+	hAlign: "center",
+	vAlign: "center",
+	speedPxPerSec: 40,
+	pauseMs: 2000,
+};
+
 const gameOfLife: AnimationContent = {
 	type: "animation",
 	mode: "gameOfLife",
@@ -120,6 +135,32 @@ describe("contentToWire", () => {
 		// mask.spec.ts covers.
 		const decoded = decodePal4Base64(wire.data);
 		expect(decoded.palette).toEqual([[0, 0, 0]]);
+	});
+
+	it("routes running Pfadtext to pal4 frames, the same filmstrip mechanism as an animated template", async () => {
+		const wire = await contentToWire(runningPathText, {
+			widthPx: 32,
+			heightPx: 32,
+		});
+		expect(wire.format).toBe("pal4");
+		if (wire.format !== "pal4") {
+			return;
+		}
+		expect(wire.frames).toBeDefined();
+		expect(wire.frames?.compositeWidthPx).toBe(32);
+		expect(wire.scroll).toBeUndefined();
+	});
+
+	it("sends static Pfadtext as a plain pal4 frame, no frames metadata", async () => {
+		const wire = await contentToWire(
+			{ ...runningPathText, pathRunning: false },
+			{ widthPx: 32, heightPx: 32 },
+		);
+		expect(wire.format).toBe("pal4");
+		if (wire.format !== "pal4") {
+			return;
+		}
+		expect(wire.frames).toBeUndefined();
 	});
 
 	it("sends gameOfLife as just the flag, no bitmap, even with a background option", async () => {

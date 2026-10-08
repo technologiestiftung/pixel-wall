@@ -10,6 +10,7 @@ import {
 	displayedLineColor,
 	isMovingAnimation,
 } from "../../domain/content";
+import { isAllLargeScreensSelection } from "../../domain/layout";
 import { referenceScreenId } from "../../domain/mapping";
 import { EMPTY_LAYERS } from "../../domain/types";
 import type {
@@ -76,6 +77,10 @@ function ContentEditor() {
 		state,
 		appliedLayers.foreground,
 	);
+	const pathTextDroppedOnSave = dropsPathTextOnSave(
+		state,
+		appliedLayers.foreground,
+	);
 	const textLowContrast = hasLowTextContrast(previewLayers);
 	const lineLowContrast = hasLowLineContrast(previewLayers);
 	const contentOffScreen = isSelectionContentOffScreen(state);
@@ -109,6 +114,12 @@ function ContentEditor() {
 							für große oder nur für kleine Screens möglich.
 						</Warning>
 					)}
+					{pathTextDroppedOnSave && (
+						<Warning>
+							Beim Speichern wird der Pfadtext entfernt — Pfadtext ist nur für
+							die Auswahl aller 4 großen Screens möglich.
+						</Warning>
+					)}
 					{textLowContrast && (
 						<Warning>
 							Textfarbe und Hintergrundfarbe haben zu wenig Kontrast — der Text
@@ -138,6 +149,7 @@ function ContentEditor() {
 							<TextPanel
 								content={current as TextContent}
 								onChange={handleContentChange}
+								pathAllowed={isAllLargeScreensSelection(selection.screenIds)}
 							/>
 						)}
 						{activeTab === "animation" && (
@@ -223,7 +235,8 @@ function currentContentFor(
 		case "text":
 			return (
 				state.draftText ??
-				(appliedForeground?.type === "text"
+				(appliedForeground?.type === "text" &&
+				textOfferedFor(appliedForeground, state.selection)
 					? appliedForeground
 					: defaultContentFor("text"))
 			);
@@ -295,6 +308,37 @@ function dropsAnimationOnSave(
 		state.draftText === null &&
 		appliedForeground?.type === "animation" &&
 		isMovingAnimation(appliedForeground)
+	);
+}
+
+/** Whether the Text tab can show this content for the selection: Pfadtext
+ * only for exactly the 4 large screens (see domain/mapping.ts
+ * layersForGroup). */
+function textOfferedFor(
+	content: TextContent,
+	selection: Selection | null,
+): boolean {
+	if (content.mode !== "path") {
+		return true;
+	}
+	return selection !== null && isAllLargeScreensSelection(selection.screenIds);
+}
+
+/** Saving a Hintergrund change against a selection that is no longer exactly
+ * the 4 large screens drops the Pfadtext the selection currently shows,
+ * since it's only ever defined for that one shape (see CONTEXT.md "Content"
+ * and domain/mapping.ts's layersForGroup). */
+function dropsPathTextOnSave(
+	state: WallState,
+	appliedForeground: ScreenLayers["foreground"],
+): boolean {
+	return (
+		state.selection !== null &&
+		!isAllLargeScreensSelection(state.selection.screenIds) &&
+		state.draftColor !== null &&
+		state.draftText === null &&
+		appliedForeground?.type === "text" &&
+		appliedForeground.mode === "path"
 	);
 }
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { animationTiming } from "../../../src/render/animatedTemplate";
+import {
+	animationTiming,
+	frameCountFor,
+} from "../../../src/render/animatedTemplate";
 import type { AnimationContent } from "../../../src/domain/types";
 
 const base: AnimationContent = {
@@ -54,5 +57,22 @@ describe("animationTiming", () => {
 
 	it("is null for Game of Life", () => {
 		expect(animationTiming({ ...base, mode: "gameOfLife" })).toBeNull();
+	});
+});
+
+describe("frameCountFor", () => {
+	it("samples at the given fps for a short loop", () => {
+		expect(frameCountFor(4000, 16)).toBe(64);
+	});
+
+	it("never exceeds the wire format's 255-frame ceiling (docs/wire-format.md, backend FramesModel)", () => {
+		// A loop long enough to want far more than 255 samples at 16fps — the
+		// backend rejects frameCount above 255 with a 422 (this is what running
+		// Pfadtext hit for a slow/long configuration before this clamp existed).
+		expect(frameCountFor(60_000, 16)).toBe(255);
+	});
+
+	it("is always at least 1", () => {
+		expect(frameCountFor(0, 16)).toBe(1);
 	});
 });
