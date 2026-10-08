@@ -318,21 +318,14 @@ export function pal4ToRows(image: Palette4): string[] {
 /**
  * Quantizes canvas `ImageData` into a `Palette4` image — the `pal4`
  * counterpart of `maskFromImageData` above, for real multi-colour template
- * artwork (see render/templateImages.ts and render/wire.ts). Index 0 is
- * always `[0, 0, 0]`: both real decoders (apps/esp32's wire_decode.h and the
- * Pi's app/compositor.py) treat index 0 as "nothing lit here" and never even
- * read whatever RGB happens to be stored there, falling back to literal
- * black for this content type (the separate, out-of-band `background` wire
- * field is Lauftext-only — see docs/wire-format.md). A chosen `background`
- * fill must therefore win an ordinary *non-zero* palette slot, same as any
- * other frequent colour, to actually show up lit on hardware — seeding index
- * 0 with it would make the whole background invisible instead. Every pixel
- * is alpha-composited onto black before matching so a) fully transparent
- * pixels land exactly on index 0 and b) anti-aliased edge pixels — which
- * would otherwise mint a near-infinite number of in-between colours and blow
- * through the 16-colour cap — snap to whichever existing palette entry
- * (background included) they're closest to, rather than each becoming its
- * own colour.
+ * artwork (see render/templateImages.ts and render/wire.ts). Index 0 is always
+ * `[0, 0, 0]` (background/unlit, per docs/wire-format.md's "pal4 binary
+ * block"), and every pixel is alpha-composited onto black before matching so
+ * a) fully transparent pixels land exactly on index 0 and b) anti-aliased
+ * edge pixels — which would otherwise mint a near-infinite number of
+ * in-between colours and blow through the 16-colour cap — snap to whichever
+ * existing palette entry (background included) they're closest to, rather
+ * than each becoming its own colour.
  *
  * `crisp` is for moving artwork (animated templates), where that snapping
  * misbehaves: a half-covered pink edge darkens to something closer to navy
@@ -341,49 +334,12 @@ export function pal4ToRows(image: Palette4): string[] {
  * unlit (under half covered) or the palette colour nearest its own,
  * un-darkened colour, and only colours covering a real share of the artwork
  * get a palette slot — not the one-off blends where two shapes meet.
- *
- * "Real share of the artwork" is measured against every opaque pixel in the
- * frame, and a baked-in `background` fill is usually the overwhelming
- * majority of those. It still wins its own slot easily (by far the most
- * frequent entry), but counting it toward that share denominator inflates it
- * enough to push a genuinely-present, small-area foreground colour below the
- * 1% floor — the crash-diet version of this bug: a thin or small-area shape
- * vanishes against ANY chosen background that isn't literally black
- * (black's own pixels were already excluded, by being index 0's freebie),
- * independent of how much contrast it has. Passing the caller's actual
- * `background` lets it be excluded from that denominator the same way.
  */
 export function pal4FromImageData(
 	data: Uint8ClampedArray,
-	options: {
-		widthPx: number;
-		heightPx: number;
-		crisp?: boolean;
-		/** The fill already baked behind the artwork (see
-		 * render/animatedTemplate.ts's fillSlot and render/rasterize.ts's
-		 * drawContentToCanvas), excluded from the "real share of the artwork"
-		 * accounting below — it still gets an ordinary palette slot of its
-		 * own, just not index 0 (see the function doc above for why). Default
-		 * `[0, 0, 0]` is exactly right for a caller with no chosen background
-		 * (the canvas is then genuinely black/transparent there), and keeps
-		 * every existing caller's behaviour unchanged. */
-		background?: [number, number, number];
-		/** Override for the crisp-mode near-duplicate merge radius (Euclidean
-		 * RGB distance), production default 10 — exposed for debug-pal4.html,
-		 * which re-runs the real quantizer at different radii so a merge like
-		 * the low-contrast background/shape bug can be reproduced and compared
-		 * side by side without touching this file. Real callers should not
-		 * pass this. */
-		crispMergeDistance?: number;
-	},
+	options: { widthPx: number; heightPx: number; crisp?: boolean },
 ): Palette4 {
-	const {
-		widthPx,
-		heightPx,
-		crisp = false,
-		background = [0, 0, 0],
-		crispMergeDistance = 10,
-	} = options;
+	const { widthPx, heightPx, crisp = false } = options;
 	const pixelCount = widthPx * heightPx;
 
 	// Only fully (or near-fully) opaque pixels vote for palette entries —
@@ -404,26 +360,9 @@ export function pal4FromImageData(
 	// (and shouldn't waste) a second palette slot.
 	frequency.delete(0);
 	const byFrequencyDesc = [...frequency.entries()].sort((a, b) => b[1] - a[1]);
-	// The chosen background fill still competes for (and, being overwhelmingly
-	// the most frequent entry, always wins) an ordinary slot below — it's only
-	// excluded here, from the share denominator, not from the candidate list
-	// itself.
-	const backgroundKey =
-		(background[0] << 16) | (background[1] << 8) | background[2];
-	const solidCount = byFrequencyDesc.reduce(
-		(sum, [key, count]) => (key === backgroundKey ? sum : sum + count),
-		0,
-	);
+	const solidCount = byFrequencyDesc.reduce((sum, [, count]) => sum + count, 0);
 	const CRISP_MIN_SHARE = 0.01;
-	// Deliberately tight: this only needs to catch the same intended colour
-	// recurring with a few units of rendering noise (sub-pixel AA/rounding
-	// across frames — see the "near-duplicates" test below). A low-contrast
-	// but genuinely distinct colour the artist actually chose — e.g. a
-	// background picked close to a template's own colour — differs by much
-	// more than this and must keep its own palette slot; folding it into the
-	// nearest existing entry is exactly the bug where a shape silently
-	// recolours to (or vanishes into) a similarly-coloured background.
-	const CRISP_MIN_DISTANCE_SQ = crispMergeDistance * crispMergeDistance;
+	const CRISP_MIN_DISTANCE_SQ = 24 * 24;
 	const palette: number[][] = [[0, 0, 0]];
 	for (const [key, count] of byFrequencyDesc) {
 		if (palette.length >= PAL4_MAX_COLORS) {
@@ -466,17 +405,10 @@ export function pal4FromImageData(
 		let index = nearestByRgba.get(rgba);
 		if (index === undefined) {
 			const weight = crisp ? 255 : alpha;
-			// Premultiply by alpha (i.e. blend onto [0, 0, 0]) so a
+			// Premultiply by alpha (i.e. blend onto a black background) so a
 			// half-covered edge pixel is judged by how it will actually look
 			// next to unlit neighbours, not by the fully-saturated colour under
-			// its fringe. Always toward literal black rather than `background`
-			// here, not an oversight: a real chosen background is already
-			// painted behind the artwork before this function ever sees the
-			// canvas (render/rasterize.ts, render/animatedTemplate.ts), so
-			// alpha is already 255 everywhere and this path never actually
-			// executes in that case — it only fires for the no-background
-			// (`background: null`, default [0, 0, 0]) case, where genuinely
-			// transparent canvas is exactly what should blend toward black.
+			// its fringe.
 			index = nearestPaletteIndex(palette, [
 				(data[i * 4] * weight) / 255,
 				(data[i * 4 + 1] * weight) / 255,

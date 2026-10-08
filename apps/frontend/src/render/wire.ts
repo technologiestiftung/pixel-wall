@@ -143,7 +143,7 @@ async function contentToPal4Wire(
 		widthPx: width,
 		heightPx: height,
 		data: encodePal4Base64(
-			canvasToPal4(canvas, { widthPx: width, heightPx: height, background }),
+			canvasToPal4(canvas, { widthPx: width, heightPx: height }),
 		),
 		...(scroll ? { scroll } : {}),
 	};
@@ -190,7 +190,6 @@ async function animationToFramesWire(
 				widthPx: stripWidth,
 				heightPx: height,
 				crisp: true,
-				background,
 			}),
 		),
 		frames,
@@ -201,14 +200,9 @@ async function animationToFramesWire(
  * degrades to blank, mirroring emptyMask below. */
 function canvasToPal4(
 	canvas: HTMLCanvasElement | null,
-	options: {
-		widthPx: number;
-		heightPx: number;
-		crisp?: boolean;
-		background?: string | null;
-	},
+	options: { widthPx: number; heightPx: number; crisp?: boolean },
 ): Palette4 {
-	const { widthPx, heightPx, crisp, background } = options;
+	const { widthPx, heightPx } = options;
 	const context = canvas?.getContext("2d") ?? null;
 	if (!context) {
 		return {
@@ -218,19 +212,10 @@ function canvasToPal4(
 			indices: new Uint8Array(widthPx * heightPx),
 		};
 	}
-	return pal4FromImageData(context.getImageData(0, 0, widthPx, heightPx).data, {
-		widthPx,
-		heightPx,
-		crisp,
-		// The same fill already baked behind the artwork (see
-		// drawContentToCanvas/renderAnimationFrameStrip above) — so
-		// pal4FromImageData can anchor index 0 to it and keep it from
-		// swamping the "real share of the artwork" accounting that decides
-		// which other colours earn a palette slot. `null`/absent keeps that
-		// function's own default (pure black), matching "no background
-		// chosen" leaving the canvas genuinely transparent there.
-		background: background ? hexToRgb(background) : undefined,
-	});
+	return pal4FromImageData(
+		context.getImageData(0, 0, widthPx, heightPx).data,
+		options,
+	);
 }
 
 /** Without a 2D context (jsdom without the optional `canvas` package) a flat
