@@ -158,9 +158,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tbody>
     <tr>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/aeschi"><img src="https://avatars.githubusercontent.com/u/56318362?v=4?s=64" width="64px;" alt="aeschi"/><br /><sub><b>aeschi</b></sub></a><br /><a href="https://github.com/technologiestiftung/template-default/commits?author=aeschi" title="Code">💻</a> <a href="https://github.com/technologiestiftung/template-default/commits?author=aeschi" title="Documentation">📖</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zainab-tariq"><img src="https://avatars.githubusercontent.com/u/15946816?v=4?s=64" width="64px;" alt="Zainab Tariq"/><br /><sub><b>Zainab Tariq</b></sub></a><br /><a href="https://github.com/technologiestiftung/template-default/commits?author=zainab-tariq" title="Code">💻</a></td>
-      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Engy-ai"><img src="https://avatars.githubusercontent.com/u/122390215?v=4?s=64" width="64px;" alt="Engy El Shenawy"/><br /><sub><b>Engy El Shenawy</b></sub></a><br /><a href="https://github.com/technologiestiftung/template-default/commits?author=Engy-ai" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/aeschi"><img src="https://avatars.githubusercontent.com/u/56318362?v=4?s=64" width="64px;" alt="aeschi"/><br /><sub><b>aeschi</b></sub></a><br /><a href="https://github.com/technologiestiftung/pixel-wall/commits?author=aeschi" title="Code">💻</a> <a href="https://github.com/technologiestiftung/pixel-wall/commits?author=aeschi" title="Documentation">📖</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/zainab-tariq"><img src="https://avatars.githubusercontent.com/u/15946816?v=4?s=64" width="64px;" alt="Zainab Tariq"/><br /><sub><b>Zainab Tariq</b></sub></a><br /><a href="https://github.com/technologiestiftung/pixel-wall/commits?author=zainab-tariq" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/Engy-ai"><img src="https://avatars.githubusercontent.com/u/122390215?v=4?s=64" width="64px;" alt="Engy El Shenawy"/><br /><sub><b>Engy El Shenawy</b></sub></a><br /><a href="https://github.com/technologiestiftung/pixel-wall/commits?author=Engy-ai" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
