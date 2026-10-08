@@ -16,6 +16,7 @@ def api(tmp_path, monkeypatch):
     """
     monkeypatch.setattr(config, "STATE_FILE", tmp_path / "state.json")
     monkeypatch.setattr(config, "UPLOADS_DIR", tmp_path / "uploads")
+    monkeypatch.setattr(config, "SHUTDOWN_AT_FILE", tmp_path / "shutdown_at")
     monkeypatch.setattr(config, "PASSWORD", None)
     monkeypatch.setattr(config, "AUTH_ENABLED", False)
     monkeypatch.setattr(config, "MQTT_ENABLED", False)

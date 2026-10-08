@@ -1,0 +1,12 @@
+[Unit]
+Description=Pixel Wall soft shutdown schedule check (every minute)
+
+[Timer]
+# The actual time compared against is LEDWALL_SHUTDOWN_AT_FILE, set from the
+# frontend's schedule dialog — this just has to fire often enough to catch
+# it. See ledwall_shutdown_check.py and CONTEXT.md "Power".
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

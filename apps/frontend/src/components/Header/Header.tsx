@@ -1,9 +1,6 @@
 import { useState } from "react";
-import { shutdownWall } from "../../api/wall";
-import { useAuth } from "../../auth/AuthContext";
-import { ApiError } from "../../lib/api";
-import { ConfirmShutdownDialog } from "./ConfirmShutdownDialog";
 import { HowToDialog } from "./HowToDialog";
+import { ShutdownDialog } from "./ShutdownDialog";
 
 function Logo() {
 	return (
@@ -22,22 +19,13 @@ function Logo() {
 function HelpIcon() {
 	return (
 		<svg
-			width="16"
-			height="16"
-			viewBox="0 0 16 16"
-			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
-			aria-hidden="true"
-			className="shrink-0"
+			height="16"
+			viewBox="0 -960 960 960"
+			width="16"
+			fill="currentColor"
 		>
-			<circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.5" />
-			<path
-				d="M6.25 6.25C6.25 5.28 7.03 4.5 8 4.5C8.97 4.5 9.75 5.28 9.75 6.25C9.75 7.06 9.2 7.48 8.68 7.82C8.27 8.09 8 8.36 8 8.85V9.25"
-				stroke="currentColor"
-				strokeWidth="1.5"
-				strokeLinecap="round"
-			/>
-			<circle cx="8" cy="11.5" r="0.9" fill="currentColor" />
+			<path d="M424-320q0-81 14.5-116.5T500-514q41-36 62.5-62.5T584-637q0-41-27.5-68T480-732q-51 0-77.5 31T365-638l-103-44q21-64 77-111t141-47q105 0 161.5 58.5T698-641q0 50-21.5 85.5T609-475q-49 47-59.5 71.5T539-320H424Zm56 240q-33 0-56.5-23.5T400-160q0-33 23.5-56.5T480-240q33 0 56.5 23.5T560-160q0 33-23.5 56.5T480-80Z" />
 		</svg>
 	);
 }
@@ -62,27 +50,7 @@ function PiIcon() {
 
 export function Header() {
 	const [showHowTo, setShowHowTo] = useState(false);
-	const [showShutdownConfirm, setShowShutdownConfirm] = useState(false);
-	const [shutdownPending, setShutdownPending] = useState(false);
-	const [shutdownError, setShutdownError] = useState<string | null>(null);
-	const { request } = useAuth();
-
-	async function handleConfirmShutdown() {
-		setShutdownPending(true);
-		setShutdownError(null);
-		try {
-			await shutdownWall(request);
-			setShowShutdownConfirm(false);
-		} catch (error) {
-			setShutdownError(
-				error instanceof ApiError
-					? error.message
-					: "Herunterfahren fehlgeschlagen.",
-			);
-		} finally {
-			setShutdownPending(false);
-		}
-	}
+	const [showShutdown, setShowShutdown] = useState(false);
 
 	return (
 		<header className="flex h-[72px] items-center gap-3 border-b-[0.5px] border-[#595959] bg-white px-7">
@@ -93,13 +61,10 @@ export function Header() {
 			<div className="ml-auto flex items-center gap-2">
 				<button
 					type="button"
-					onClick={() => {
-						setShutdownError(null);
-						setShowShutdownConfirm(true);
-					}}
+					onClick={() => setShowShutdown(true)}
 					aria-label="Pi herunterfahren"
 					title="Pi herunterfahren"
-					className="flex items-center gap-1.5 rounded-[8px] border border-[#e4e4e0] bg-white px-2.5 py-2 text-[13px] font-medium text-[#4b4b47] hover:bg-[#f4f4f2]"
+					className="flex items-center gap-1.5 rounded-[8px] border border-[#e4e4e0] bg-white p-2 text-xs font-medium text-[#4b4b47] hover:bg-[#f4f4f2]"
 				>
 					<PiIcon />
 					Pi
@@ -115,13 +80,8 @@ export function Header() {
 				</button>
 			</div>
 			{showHowTo && <HowToDialog onClose={() => setShowHowTo(false)} />}
-			{showShutdownConfirm && (
-				<ConfirmShutdownDialog
-					pending={shutdownPending}
-					error={shutdownError}
-					onConfirm={handleConfirmShutdown}
-					onCancel={() => setShowShutdownConfirm(false)}
-				/>
+			{showShutdown && (
+				<ShutdownDialog onClose={() => setShowShutdown(false)} />
 			)}
 		</header>
 	);

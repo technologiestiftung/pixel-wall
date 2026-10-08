@@ -23,8 +23,8 @@ if [[ -z "${LEDWALL_SETUP_PULLED:-}" ]]; then
 fi
 
 step "Setting system timezone"
-# The daily shutdown schedule (LEDWALL_SHUTDOWN_AT below) means local time;
-# a fresh Pi image otherwise defaults to UTC.
+# The daily shutdown schedule (set from the frontend, see CONTEXT.md "Power")
+# means local time; a fresh Pi image otherwise defaults to UTC.
 sudo timedatectl set-timezone Europe/Berlin
 
 step "Installing system packages"
@@ -101,22 +101,18 @@ if ! grep -qw 'isolcpus=3' "$BOOT/cmdline.txt"; then
 fi
 
 step "Installing systemd units"
-for u in ledwall-backend ledwall-display; do
+for u in ledwall-backend ledwall-display ledwall-shutdown-check; do
   sed -e "s|/home/pi/ledwall|$REPO|g" -e "s|^User=pi$|User=$SVC_USER|" \
       "$BACKEND/systemd/$u.service" | sudo tee "/etc/systemd/system/$u.service" >/dev/null
 done
-sudo install -m 644 "$BACKEND/systemd/ledwall-shutdown.service" /etc/systemd/system/
-# LEDWALL_SHUTDOWN_AT overrides the daily off-time (HH:MM, local time), e.g.:
-#   LEDWALL_SHUTDOWN_AT=22:00 ./apps/backend/setup-pi.sh
-sed "s|@SHUTDOWN_AT@|${LEDWALL_SHUTDOWN_AT:-18:00}|" "$BACKEND/systemd/ledwall-shutdown.timer" \
-  | sudo tee /etc/systemd/system/ledwall-shutdown.timer >/dev/null
+sudo install -m 644 "$BACKEND/systemd/ledwall-shutdown-check.timer" /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable ledwall-display ledwall-backend ledwall-shutdown.timer
+sudo systemctl enable ledwall-display ledwall-backend ledwall-shutdown-check.timer
 sudo systemctl restart ledwall-display ledwall-backend
-sudo systemctl restart ledwall-shutdown.timer
+sudo systemctl restart ledwall-shutdown-check.timer
 
 step "Status"
-systemctl --no-pager --lines=0 status ledwall-display ledwall-backend ledwall-shutdown.timer mosquitto || true
+systemctl --no-pager --lines=0 status ledwall-display ledwall-backend ledwall-shutdown-check.timer mosquitto || true
 ss -tln | grep -q '0.0.0.0:1883' && echo "MQTT listening on 0.0.0.0:1883" \
   || echo "WARNING: MQTT is not listening on 0.0.0.0:1883" >&2
 
@@ -126,8 +122,9 @@ Done. If this was the first run, log out and back in so $SVC_USER picks up the
 ledwall group for interactive shells. Health check:
   curl -su :<password> http://localhost:5000/api/health | python3 -m json.tool
 
-Wall shuts down daily at ${LEDWALL_SHUTDOWN_AT:-18:00} (Europe/Berlin). Turning
-it back on is physical — a mains timer or the power switch — not this script.
+Wall shuts down daily at 18:00 (Europe/Berlin) by default — adjustable from
+the frontend's Pi dialog. Turning it back on is physical — a mains timer or
+the power switch — not this script.
 EOF
 
 if (( reboot_needed )); then

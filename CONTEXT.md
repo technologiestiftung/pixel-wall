@@ -69,8 +69,11 @@ The live preview renders that same rasterized bitmap (device-pixel resolution, 3
 ## Power
 
 **Soft shutdown**:
-Gracefully halting the Raspberry Pi's OS (never a hard power cut) to turn the wall off, blanking the 4 large screens via the display driver's clean-exit handler. Triggered by a daily schedule or a manual frontend action — both do the same thing.
+Gracefully halting the Raspberry Pi's OS (never a hard power cut) to turn the wall off, blanking the 4 large screens via the display driver's clean-exit handler. Triggered either immediately from the frontend ("Jetzt herunterfahren"), or by the daily **shutdown schedule** — both do the same thing.
 _Avoid_: shutdown (ambiguous in this project — always means soft shutdown, never a hard power cut)
+
+**Shutdown schedule**:
+The one daily time (HH:MM, local) the wall soft-shuts-down on its own — editable from the same frontend dialog as the immediate trigger, defaulting to 18:00 until ever changed. Checked once a minute rather than driven by a fixed install-time setting, so changing it takes effect the same day with no redeploy.
 
 **Off** (ESP32 gap):
 A soft shutdown does not reach the 3 small screens. Once the Pi — and the MQTT broker it hosts — goes down, they keep showing their last content indefinitely rather than going blank. This is an accepted gap, not a bug (see `docs/adr/0005-soft-shutdown-leaves-esp32-screens-lit.md`).

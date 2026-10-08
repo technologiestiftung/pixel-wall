@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
+from . import compose, config, power, screens as screen_inventory, state as state_store, uploads as upload_library
 from .auth import BasicAuthMiddleware
 from .control import SESSION_HEADER, ControlLeaseMiddleware, lease as control_lease
 from .mask import MaskFormatError
@@ -18,6 +18,7 @@ from .models import (
     MqttStatus,
     ScreensResponse,
     ShutdownResponse,
+    ShutdownScheduleModel,
     StateResponse,
     UploadLibrary,
     UploadModel,
@@ -28,7 +29,6 @@ from .models import (
     WeatherStatus,
 )
 from .mqtt import publish_frames, publisher
-from .power import shutdown_now
 from .weather import live_weather
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -130,11 +130,25 @@ def post_control(payload: ControlRequest) -> ControlResponse:
 
 @app.post("/api/shutdown", response_model=ShutdownResponse, tags=["system"])
 def post_shutdown() -> ShutdownResponse:
-    """Soft-shuts down the Raspberry Pi — see CONTEXT.md "Power" and
+    """Soft-shuts down the Raspberry Pi right now — see CONTEXT.md "Power" and
     docs/adr/0005-soft-shutdown-leaves-esp32-screens-lit.md. The same action
-    the daily ledwall-shutdown.timer takes, triggered on demand."""
-    shutdown_now()
+    ledwall-shutdown-check.timer takes on its own schedule, triggered on
+    demand."""
+    power.shutdown_now()
     return ShutdownResponse(status="shutting down")
+
+
+@app.get("/api/shutdown-schedule", response_model=ShutdownScheduleModel, tags=["system"])
+def get_shutdown_schedule() -> ShutdownScheduleModel:
+    """The daily soft-shutdown time the frontend's schedule dialog shows —
+    defaults to 18:00 until ever set. See CONTEXT.md "Power"."""
+    return ShutdownScheduleModel(at=power.get_shutdown_at())
+
+
+@app.put("/api/shutdown-schedule", response_model=ShutdownScheduleModel, tags=["system"])
+def put_shutdown_schedule(payload: ShutdownScheduleModel) -> ShutdownScheduleModel:
+    power.set_shutdown_at(payload.at)
+    return payload
 
 
 @app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])
