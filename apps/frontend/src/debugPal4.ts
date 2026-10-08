@@ -104,9 +104,7 @@ document.querySelectorAll<HTMLButtonElement>("button.preset").forEach((btn) => {
 });
 
 function currentTemplate() {
-	return (
-		TEMPLATES.find((t) => t.id === templateSelect.value) ?? TEMPLATES[0]
-	);
+	return TEMPLATES.find((t) => t.id === templateSelect.value) ?? TEMPLATES[0];
 }
 
 function buildContent(): AnimationContent {
@@ -194,8 +192,7 @@ function paintDecodedFrame(
 			} else {
 				const stride = Math.ceil(decoded.mask.widthPx / 8);
 				const bitSet =
-					(decoded.mask.bits[y * stride + (x >> 3)] & (0x80 >> (x & 7))) !==
-					0;
+					(decoded.mask.bits[y * stride + (x >> 3)] & (0x80 >> (x & 7))) !== 0;
 				if (!bitSet) {
 					continue;
 				}

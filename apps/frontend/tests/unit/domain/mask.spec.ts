@@ -293,7 +293,10 @@ describe("pal4FromImageData", () => {
 		const background: [number, number, number] = [30, 55, 145];
 		const shape = [200, 80, 40]; // ample contrast; share is the only variable here
 		const data = pixels([
-			[...Array(985).fill([...background, 255]), ...Array(15).fill([...shape, 255])],
+			[
+				...Array(985).fill([...background, 255]),
+				...Array(15).fill([...shape, 255]),
+			],
 		]);
 		const image = pal4FromImageData(data, {
 			widthPx: 1000,

@@ -168,13 +168,12 @@
 	<body>
 		<h1>pal4 debug — Vorschau vs. gesendetes Bild</h1>
 		<p class="lead">
-			Links: dieselbe Vorschau wie im Editor (echte Farben, nie
-			quantisiert). Rechts: exakt die Farbpalette, die
-			<code>pal4FromImageData</code> aus denselben Pixeln baut — das ist
-			(bis auf Fenster-/Rahmen-Zuschnitt) was tatsächlich an die
-			Pixel-Screens geschickt wird. Unten lässt sich der
-			Zusammenführungs-Radius live verändern, um den Low-Contrast-Bug
-			gezielt zu reproduzieren.
+			Links: dieselbe Vorschau wie im Editor (echte Farben, nie quantisiert).
+			Rechts: exakt die Farbpalette, die
+			<code>pal4FromImageData</code> aus denselben Pixeln baut — das ist (bis
+			auf Fenster-/Rahmen-Zuschnitt) was tatsächlich an die Pixel-Screens
+			geschickt wird. Unten lässt sich der Zusammenführungs-Radius live
+			verändern, um den Low-Contrast-Bug gezielt zu reproduzieren.
 		</p>
 
 		<div class="panel">
@@ -205,16 +204,8 @@
 					</div>
 				</div>
 				<div class="field">
-					<label for="mergeDistance"
-						>Merge-Radius (crispMergeDistance)</label
-					>
-					<input
-						type="number"
-						id="mergeDistance"
-						value="10"
-						min="0"
-						max="80"
-					/>
+					<label for="mergeDistance">Merge-Radius (crispMergeDistance)</label>
+					<input type="number" id="mergeDistance" value="10" min="0" max="80" />
 				</div>
 				<div class="field">
 					<span id="status">bereit</span>
@@ -241,17 +232,16 @@
 			<div class="canvasBlock">
 				<h2>Vorschau (echte Farben)</h2>
 				<p class="hint">
-					Was im Editor zu sehen ist — nie quantisiert, kann nicht
-					den Bug zeigen.
+					Was im Editor zu sehen ist — nie quantisiert, kann nicht den Bug
+					zeigen.
 				</p>
 				<canvas id="trueCanvas" width="64" height="64"></canvas>
 			</div>
 			<div class="canvasBlock">
 				<h2>Gesendetes Bild (pal4, Standard-Radius)</h2>
 				<p class="hint">
-					Läuft durch <code>contentToWire</code> — exakt der Pfad,
-					den der echte Export auch nimmt, mit dem aktuellen
-					Produktions-Radius (10).
+					Läuft durch <code>contentToWire</code> — exakt der Pfad, den der echte
+					Export auch nimmt, mit dem aktuellen Produktions-Radius (10).
 				</p>
 				<canvas id="wireCanvas" width="64" height="64"></canvas>
 				<div class="swatches" id="wireSwatches"></div>
@@ -259,8 +249,8 @@
 			<div class="canvasBlock">
 				<h2>Gesendetes Bild (frei wählbarer Radius)</h2>
 				<p class="hint">
-					Dieselbe Quantisierung, aber mit dem Radius oben links —
-					auf 24 stellen, um den alten Fehler zu reproduzieren.
+					Dieselbe Quantisierung, aber mit dem Radius oben links — auf 24
+					stellen, um den alten Fehler zu reproduzieren.
 				</p>
 				<canvas id="customCanvas" width="64" height="64"></canvas>
 				<div class="swatches" id="customSwatches"></div>
