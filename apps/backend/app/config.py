@@ -18,6 +18,14 @@ STATE_FILE = Path(os.environ.get("LEDWALL_STATE_FILE", "/var/lib/ledwall/state.j
 #: the code (see app/uploads.py).
 UPLOADS_DIR = Path(os.environ.get("LEDWALL_UPLOADS_DIR", BASE_DIR / "uploads"))
 
+#: The daily soft-shutdown time (see app/power.py, shutdown_schedule.py and
+#: CONTEXT.md "Power"). Lives alongside STATE_FILE so it's writable by `pi` via
+#: the same `ledwall` group (see systemd/README.md) — changing it needs no
+#: extra privilege; only the shutdown itself does.
+SHUTDOWN_AT_FILE = Path(
+    os.environ.get("LEDWALL_SHUTDOWN_AT_FILE", STATE_FILE.with_name("shutdown_at"))
+)
+
 HOST = os.environ.get("LEDWALL_HOST", "0.0.0.0")
 PORT = int(os.environ.get("LEDWALL_PORT", "5000"))
 

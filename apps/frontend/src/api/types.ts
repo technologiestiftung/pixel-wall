@@ -126,6 +126,17 @@ export interface ControlResponse {
 	controller: boolean;
 }
 
+/** POST /api/shutdown — see apps/backend/app/power.py and CONTEXT.md "Power". */
+export interface ShutdownResponse {
+	status: string;
+}
+
+/** GET/PUT /api/shutdown-schedule — the daily soft-shutdown time (HH:MM,
+ * local), defaulting to "18:00" until ever set. See CONTEXT.md "Power". */
+export interface ShutdownScheduleDto {
+	at: string;
+}
+
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };

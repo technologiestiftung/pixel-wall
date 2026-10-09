@@ -443,6 +443,42 @@ def test_limits_advertises_both_formats(api):
     assert body["bitmap"]["formats"] == ["mask1", "pal4"]
 
 
+# ------------------------------------------------------------------ shutdown
+
+
+def test_shutdown_triggers_a_soft_shutdown(api, monkeypatch):
+    """See CONTEXT.md "Power" — app/power.py is covered on its own; this only
+    checks the endpoint wires up to it."""
+    calls = []
+    monkeypatch.setattr("app.power.shutdown_now", lambda: calls.append(True))
+
+    response = api.post("/api/shutdown")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "shutting down"
+    assert calls == [True]
+
+
+def test_shutdown_schedule_defaults_to_six_pm(api):
+    assert api.get("/api/shutdown-schedule").json() == {"at": "18:00"}
+
+
+def test_shutdown_schedule_can_be_changed(api):
+    response = api.put("/api/shutdown-schedule", json={"at": "22:30"})
+
+    assert response.status_code == 200
+    assert response.json() == {"at": "22:30"}
+    assert api.get("/api/shutdown-schedule").json() == {"at": "22:30"}
+
+
+def test_shutdown_schedule_rejects_a_malformed_time(api):
+    response = api.put("/api/shutdown-schedule", json={"at": "25:99"})
+
+    assert response.status_code == 422
+    # The bad value must not have been written over whatever was there.
+    assert api.get("/api/shutdown-schedule").json() == {"at": "18:00"}
+
+
 # --------------------------------------------------------------- retired API
 
 

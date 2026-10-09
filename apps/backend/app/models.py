@@ -344,6 +344,16 @@ class ControlResponse(BaseModel):
     controller: bool
 
 
+class ShutdownResponse(BaseModel):
+    status: str
+
+
+class ShutdownScheduleModel(BaseModel):
+    """The daily soft-shutdown time — see app/power.py and CONTEXT.md "Power"."""
+
+    at: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
 class HealthResponse(BaseModel):
     status: str
     state_file: str

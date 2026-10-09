@@ -1,0 +1,9 @@
+[Unit]
+Description=Pixel Wall soft shutdown schedule check
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/pi/ledwall/apps/backend
+Environment=LEDWALL_SHUTDOWN_AT_FILE=/var/lib/ledwall/shutdown_at
+ExecStart=/usr/bin/python3 /home/pi/ledwall/apps/backend/ledwall_shutdown_check.py

@@ -5,6 +5,8 @@ import type {
 	ApplyResponse,
 	ControlResponse,
 	ScreensResponse,
+	ShutdownResponse,
+	ShutdownScheduleDto,
 	StateResponse,
 	WeatherDto,
 } from "./types";
@@ -71,4 +73,25 @@ export function deleteUpload(request: Requester, id: string): Promise<void> {
 
 export function getWeather(request: Requester): Promise<WeatherDto> {
 	return request<WeatherDto>("/api/weather");
+}
+
+/** See CONTEXT.md "Power" — there is no corresponding "turn on" call. */
+export function shutdownWall(request: Requester): Promise<ShutdownResponse> {
+	return request<ShutdownResponse>("/api/shutdown", { method: "POST" });
+}
+
+export function getShutdownSchedule(
+	request: Requester,
+): Promise<ShutdownScheduleDto> {
+	return request<ShutdownScheduleDto>("/api/shutdown-schedule");
+}
+
+export function setShutdownSchedule(
+	request: Requester,
+	at: string,
+): Promise<ShutdownScheduleDto> {
+	return request<ShutdownScheduleDto>("/api/shutdown-schedule", {
+		method: "PUT",
+		body: JSON.stringify({ at }),
+	});
 }
