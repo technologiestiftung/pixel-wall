@@ -64,6 +64,23 @@ export function displayScreenId(id: string): string {
 	return String(Number(id));
 }
 
+/** The 4 large screen ids — Pfadtext's one fixed eligible selection (see
+ * CONTEXT.md "Content" and domain/pfadtextPath.ts). */
+export const LARGE_SCREEN_IDS = SCREEN_SPECS.filter(
+	(spec) => spec.kind === "large",
+).map((spec) => spec.id);
+
+/** Whether `screenIds` is exactly the 4 large screens, in any order — the one
+ * selection shape Pfadtext is offered for and survives being saved against
+ * (see domain/mapping.ts's layersForGroup). */
+export function isAllLargeScreensSelection(screenIds: string[]): boolean {
+	if (screenIds.length !== LARGE_SCREEN_IDS.length) {
+		return false;
+	}
+	const ids = new Set(screenIds);
+	return LARGE_SCREEN_IDS.every((id) => ids.has(id));
+}
+
 export function specById(specs: ScreenSpec[], id: string): ScreenSpec {
 	const spec = specs.find((s) => s.id === id);
 	if (!spec) {

@@ -140,6 +140,56 @@ describe("layersForGroup", () => {
 		});
 	});
 
+	describe("path-mode text (Pfadtext)", () => {
+		const pathTextOf = () => ({
+			background: "#000000",
+			foreground: {
+				type: "text" as const,
+				mode: "path" as const,
+				pathRunning: false,
+				pathPosition: "middle" as const,
+				value: "Hallo",
+				fontSizePx: 16,
+				fontFamily: "sans-serif",
+				fontWeight: "400",
+				color: "#FFFFFF",
+				hAlign: "center" as const,
+				vAlign: "center" as const,
+			},
+		});
+
+		test("drops Pfadtext when the selection is fewer than all 4 large screens", () => {
+			const layers = pathTextOf();
+			expect(
+				layersForGroup(layers, {
+					kind: "large",
+					screenIds: ["04", "05", "06"],
+				}),
+			).toEqual({ background: "#000000", foreground: null });
+		});
+
+		test("drops Pfadtext across a mixed canvas", () => {
+			const layers = pathTextOf();
+			expect(
+				layersForGroup(layers, {
+					kind: "large",
+					screenIds: ["04", "05", "06", "07"],
+					canvasScreenIds: ["04", "05", "06", "07", "01"],
+				}),
+			).toEqual({ background: "#000000", foreground: null });
+		});
+
+		test("keeps Pfadtext for exactly the 4 large screens, in any order", () => {
+			const layers = pathTextOf();
+			expect(
+				layersForGroup(layers, {
+					kind: "large",
+					screenIds: ["07", "04", "06", "05"],
+				}),
+			).toBe(layers);
+		});
+	});
+
 	test("rescales text to the small pitch within a mixed canvas", () => {
 		const scaled = layersForGroup(layers, {
 			kind: "small",

@@ -165,11 +165,25 @@ function fillSlot(
 	return slotX;
 }
 
-/** Computes a sane frame count from a template's authored loop length and a
- * requested sample rate — shared by the wire encoder and the live preview so
- * both build the exact same strip. */
+/** `frames.frameCount`'s hard wire-format ceiling — docs/wire-format.md
+ * "frames" ("1-255") and the backend's FramesModel both reject anything past
+ * it. Every built-in animated template's authored loopMs stays well under
+ * this at ANIMATION_FPS by construction (the longest today is 15s, 240
+ * frames), so this has never bound them; running Pfadtext's loop length is
+ * user-influenceable (speed, text length) via render/pathText.ts's
+ * pathTextTiming, and can exceed it. */
+const MAX_FRAME_COUNT = 255;
+
+/** Computes a sane frame count from a loop length and a requested sample
+ * rate — shared by the wire encoder and the live preview so both build the
+ * exact same strip. Clamped to MAX_FRAME_COUNT: past that, the loop keeps
+ * its real duration (frameDurationMs grows instead) but is sampled more
+ * coarsely, rather than producing a frameCount the wire format rejects. */
 export function frameCountFor(loopMs: number, fps: number): number {
-	return Math.max(1, Math.round((loopMs / 1000) * fps));
+	return Math.min(
+		MAX_FRAME_COUNT,
+		Math.max(1, Math.round((loopMs / 1000) * fps)),
+	);
 }
 
 /**

@@ -330,7 +330,10 @@ function AnimationTemplatePicker({
 	);
 }
 
-function TemplateTile({
+/** Also reused by TextPanel.tsx for the Pfadtext path picker — same tile
+ * chrome (dark rounded box, selection badge), just a different kind of
+ * preview inside. */
+export function TemplateTile({
 	label,
 	selected,
 	onSelect,

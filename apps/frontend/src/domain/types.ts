@@ -23,7 +23,12 @@ export type VerticalAlign = "top" | "center" | "bottom";
 
 export interface TextContent {
 	type: "text";
-	mode: "static" | "scrolling";
+	/** "path" is Pfadtext — see CONTEXT.md "Content" and
+	 * docs/adr/0005-pfadtext-motion-via-frame-strip.md. Offered only when the
+	 * selection is exactly the 4 large screens (see
+	 * domain/layout.ts's isAllLargeScreensSelection); dropped otherwise (see
+	 * domain/mapping.ts's layersForGroup). */
+	mode: "static" | "scrolling" | "path";
 	value: string;
 	fontSizePx: number;
 	fontFamily: string;
@@ -32,19 +37,42 @@ export interface TextContent {
 	 * pixels — see render/wire.ts, which sends text as `pal4` rather than a
 	 * `mask1` coverage mask + flat colour. */
 	color: string;
+	/** For "scrolling", the usual left/right. For "path" with `pathRunning`,
+	 * the same field is reused for travel along the path (the editor relabels
+	 * the two options "Vorwärts"/"Rückwärts" there, since the path isn't
+	 * horizontal — see render/pathText.ts). */
 	direction?: "left" | "right";
 	speedPxPerSec?: number;
-	/** Pause between Lauftext loop repeats, in milliseconds — see
-	 * domain/content.ts's LOOP_PAUSE_MS for the default. Ignored for static text. */
+	/** Pause between Lauftext/running-Pfadtext loop repeats, in milliseconds —
+	 * see domain/content.ts's LOOP_PAUSE_MS for the default. Ignored for static
+	 * text and static Pfadtext. */
 	pauseMs?: number;
 	/** Where the text sits within the (possibly multi-screen) composite.
 	 * Horizontal alignment only applies to static text — scrolling text's
-	 * horizontal position is driven by the animation itself. */
+	 * horizontal position is driven by the animation itself. Meaningless for
+	 * "path" (see `pathPosition`), which keeps these around unused rather than
+	 * making them optional just for that mode. */
 	hAlign: HorizontalAlign;
 	vAlign: VerticalAlign;
 	/** Inset from whichever edge(s) `hAlign`/`vAlign` push the text toward, in
-	 * device pixels. Has no effect on an axis aligned to "center". */
+	 * device pixels. Has no effect on an axis aligned to "center", or when
+	 * `mode` is "path" (no meaning on a curve). */
 	paddingPx?: number;
+	/** Only meaningful when `mode` is "path". false (default): the text is
+	 * laid out once at `pathPosition`. true: it travels along the path like
+	 * Lauftext scrolls, looping with the same pause behaviour (see
+	 * render/pathText.ts's pathTextTiming). */
+	pathRunning?: boolean;
+	/** Only meaningful when `mode` is "path" and `pathRunning` is false —
+	 * replaces hAlign/vAlign/paddingPx, which have no meaning on a curve.
+	 * Defaults to "middle" when unset. */
+	pathPosition?: "start" | "middle" | "end";
+	/** Only meaningful when `mode` is "path" — which of the fixed built-in
+	 * curved paths (domain/pfadtextPath.ts's PFADTEXT_PATHS) this Pfadtext
+	 * follows. Defaults to DEFAULT_PFADTEXT_PATH_ID when unset, so content
+	 * saved before multiple paths existed keeps showing the same shape it
+	 * always did. */
+	pathId?: string;
 }
 
 export interface AnimationContent {

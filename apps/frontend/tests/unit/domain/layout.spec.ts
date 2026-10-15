@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
 	displayScaleForKind,
+	isAllLargeScreensSelection,
 	MM_TO_PX,
 	pitchMmPerPx,
 } from "../../../src/domain/layout";
@@ -40,5 +41,30 @@ describe("displayScaleForKind", () => {
 		expect(
 			large.pixelSize * displayScaleForKind("large", MM_TO_PX),
 		).toBeCloseTo(large.physicalSizeMm * MM_TO_PX);
+	});
+});
+
+describe("isAllLargeScreensSelection", () => {
+	test("is true for the 4 large ids in any order", () => {
+		expect(isAllLargeScreensSelection(["04", "05", "06", "07"])).toBe(true);
+		expect(isAllLargeScreensSelection(["07", "04", "06", "05"])).toBe(true);
+	});
+
+	test("is false for a subset", () => {
+		expect(isAllLargeScreensSelection(["04", "05", "06"])).toBe(false);
+	});
+
+	test("is false for the 4 large ids plus a small screen", () => {
+		expect(isAllLargeScreensSelection(["04", "05", "06", "07", "01"])).toBe(
+			false,
+		);
+	});
+
+	test("is false for a small-only selection", () => {
+		expect(isAllLargeScreensSelection(["01", "02", "03"])).toBe(false);
+	});
+
+	test("is false for an empty selection", () => {
+		expect(isAllLargeScreensSelection([])).toBe(false);
 	});
 });
