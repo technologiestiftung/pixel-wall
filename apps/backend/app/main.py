@@ -1,10 +1,11 @@
 import logging
+import subprocess
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import compose, config, screens as screen_inventory, state as state_store, uploads as upload_library
+from . import compose, config, screens as screen_inventory, state as state_store, system, uploads as upload_library
 from .auth import BasicAuthMiddleware
 from .control import SESSION_HEADER, ControlLeaseMiddleware, lease as control_lease
 from .mask import MaskFormatError
@@ -17,6 +18,7 @@ from .models import (
     HealthResponse,
     MqttStatus,
     ScreensResponse,
+    ShutdownResponse,
     StateResponse,
     UploadLibrary,
     UploadModel,
@@ -124,6 +126,26 @@ def post_control(payload: ControlRequest) -> ControlResponse:
     """Claims or renews control of the wall for one browser session — the
     editor calls it as a heartbeat. See app/control.py."""
     return ControlResponse(controller=control_lease.claim(payload.sessionId, payload.takeover))
+
+
+@app.post("/api/shutdown", response_model=ShutdownResponse, tags=["system"])
+def post_shutdown() -> ShutdownResponse:
+    """Blanks the small screens and powers off the Pi. Saved content is kept
+    and shows again on the next boot — see app/system.py."""
+    if not config.SHUTDOWN_ENABLED:
+        raise HTTPException(status_code=403, detail="shutdown is disabled on this backend")
+
+    blanked = publisher.publish_power("off")
+    try:
+        system.power_off()
+    except (OSError, subprocess.SubprocessError) as error:
+        stderr = getattr(error, "stderr", None)
+        logger.error("poweroff failed: %s %s", error, stderr or "")
+        publisher.publish_power("on")
+        raise HTTPException(status_code=500, detail=f"could not power off: {stderr or error}")
+
+    logger.warning("powering off on request from the web interface")
+    return ShutdownResponse(smallScreensBlanked=blanked)
 
 
 @app.get("/api/screens", response_model=ScreensResponse, tags=["wall"])

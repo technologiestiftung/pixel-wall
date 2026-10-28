@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useControl } from "../../auth/ControlContext";
 import { HowToDialog } from "./HowToDialog";
+import { ShutdownDialog } from "./ShutdownDialog";
 
 function Logo() {
 	return (
@@ -38,8 +40,37 @@ function HelpIcon() {
 	);
 }
 
+function PowerIcon() {
+	return (
+		<svg
+			width="16"
+			height="16"
+			viewBox="0 0 16 16"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			aria-hidden="true"
+			className="shrink-0"
+		>
+			<path
+				d="M4.7 4.2C3.36 5.15 2.5 6.72 2.5 8.5C2.5 11.54 4.96 14 8 14C11.04 14 13.5 11.54 13.5 8.5C13.5 6.72 12.64 5.15 11.3 4.2"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M8 2V8"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 export function Header() {
+	const { isController } = useControl();
 	const [showHowTo, setShowHowTo] = useState(false);
+	const [showShutdown, setShowShutdown] = useState(false);
 
 	return (
 		<header className="flex h-[72px] items-center gap-3 border-b-[0.5px] border-[#595959] bg-white px-7">
@@ -56,7 +87,24 @@ export function Header() {
 			>
 				<HelpIcon />
 			</button>
+			<button
+				type="button"
+				onClick={() => setShowShutdown(true)}
+				disabled={!isController}
+				aria-label="Wand ausschalten"
+				title={
+					isController
+						? "Wand ausschalten"
+						: "Ein anderes Gerät steuert gerade die Wand"
+				}
+				className="flex items-center rounded-[8px] border border-[#e4e4e0] bg-white p-2 text-[13px] font-medium text-[#4b4b47] hover:bg-[#f4f4f2] disabled:cursor-not-allowed disabled:opacity-40"
+			>
+				<PowerIcon />
+			</button>
 			{showHowTo && <HowToDialog onClose={() => setShowHowTo(false)} />}
+			{showShutdown && (
+				<ShutdownDialog onClose={() => setShowShutdown(false)} />
+			)}
 		</header>
 	);
 }

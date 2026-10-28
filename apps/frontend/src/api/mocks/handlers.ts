@@ -32,6 +32,10 @@ export const handlers = [
 		HttpResponse.json({ controller: true }),
 	),
 
+	http.post(`${API_BASE}/shutdown`, () =>
+		HttpResponse.json({ smallScreensBlanked: true }),
+	),
+
 	http.get(`${API_BASE}/screens`, () =>
 		HttpResponse.json({ screens: SCREEN_SPECS }),
 	),

@@ -126,6 +126,11 @@ export interface ControlResponse {
 	controller: boolean;
 }
 
+/** POST /api/shutdown — see apps/backend/app/system.py. */
+export interface ShutdownResponse {
+	smallScreensBlanked: boolean;
+}
+
 export interface HealthResponse {
 	status: string;
 	auth: { enabled: boolean };

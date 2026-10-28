@@ -1,0 +1,13 @@
+// Lets the backend power off the Pi for the shutdown button in the web
+// interface (app/system.py). It runs unprivileged with NoNewPrivileges, so it
+// cannot sudo. The -multiple-sessions variant is what logind asks for while
+// someone is logged in over SSH.
+polkit.addRule(function (action, subject) {
+	if (
+		(action.id == "org.freedesktop.login1.power-off" ||
+			action.id == "org.freedesktop.login1.power-off-multiple-sessions") &&
+		subject.isInGroup("ledwall")
+	) {
+		return polkit.Result.YES;
+	}
+});

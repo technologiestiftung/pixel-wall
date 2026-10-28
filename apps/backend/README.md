@@ -451,6 +451,34 @@ Nothing on a panel reads it: a screen showing an upload carries its own copy in
 `auth.enabled` is what the frontend reads to decide whether to show a password
 gate.
 
+### `POST /api/shutdown` → `200`
+
+The power button in the web interface. No body; returns
+`{"smallScreensBlanked": true}`.
+
+1. Publishes `off` (not retained) to `ledwall/power`, and the ESP32 blanks its
+   three panels. `smallScreensBlanked` is `false` if the broker did not take
+   it; the Pi powers off anyway.
+2. Runs `systemctl poweroff`. `ledwall-display` clears the large panels as
+   systemd stops it.
+
+Nothing saved is changed. On the next boot the Pi reads the state file and the
+ESP32 gets its retained screen topics again, so the wall comes back showing
+what it showed before. Turning it back on needs someone to unplug the Pi and
+plug it in again.
+
+Like every write, it needs the control lease (`423` otherwise). It returns
+`403` unless `LEDWALL_SHUTDOWN_ENABLED=1`, which only
+[`ledwall-backend.service`](./systemd/ledwall-backend.service) sets, so
+`npm run dev:api` on a Linux machine cannot power that machine off.
+
+The backend runs unprivileged with `NoNewPrivileges`, so it cannot `sudo`.
+[`pi-config/ledwall-shutdown.rules`](./pi-config/ledwall-shutdown.rules) is a
+polkit rule that lets the `ledwall` group power off the Pi; `setup-pi.sh`
+installs it to `/etc/polkit-1/rules.d/`. If logind refuses anyway, the endpoint
+publishes `on` so the ESP32 shows its screens again, and returns `500` with
+logind's error.
+
 ### Status codes
 
 | Code  | When                                                       |
@@ -458,9 +486,11 @@ gate.
 | `200` | success                                                    |
 | `307` | `/` redirects to `/docs`                                   |
 | `401` | missing or wrong password, when `LEDWALL_PASSWORD` is set  |
+| `403` | `/api/shutdown` without `LEDWALL_SHUTDOWN_ENABLED=1`       |
 | `405` | a retired route — `PUT`/`PATCH /api/state` no longer exist |
 | `422` | payload failed validation (see above)                      |
-| `500` | the state file could not be written                        |
+| `423` | another browser session holds the control lease            |
+| `500` | the state file could not be written, or poweroff failed    |
 
 ## Display script
 

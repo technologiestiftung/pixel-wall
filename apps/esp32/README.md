@@ -61,6 +61,13 @@ multi-colour template artwork. A decoder dispatches on the block's first byte
 (`0x50` for `mask1`, `0x51` for `pal4`) and **must reject anything else, keeping
 the last good frame** rather than attempting to render it.
 
+The board also subscribes to `ledwall/power`, which is **not** retained. The
+backend publishes `off` just before it powers off the Pi, and the board drops
+all three screens so the panels go black. The retained screen topics are left
+alone, so after the next (re)connect the board shows its saved content again.
+`on` means the poweroff failed: the board reconnects, and the broker replays
+the retained screens.
+
 `PubSubClient`'s default buffer is 256 bytes. The sketch must call
 `setBufferSize(16384)` — a filmstrip will not fit in less, and an oversized
 message is dropped silently.

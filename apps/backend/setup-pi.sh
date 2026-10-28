@@ -24,7 +24,7 @@ fi
 
 step "Installing system packages"
 sudo apt update
-sudo apt install -y python3-venv mosquitto mosquitto-clients
+sudo apt install -y python3-venv mosquitto mosquitto-clients polkitd
 sudo systemctl enable --now mosquitto
 sudo pip3 install --break-system-packages Pillow
 
@@ -64,6 +64,9 @@ listener 1883 0.0.0.0
 allow_anonymous true
 EOF
 sudo systemctl restart mosquitto
+
+step "Allowing the backend to power off the Pi"
+sudo install -m 644 "$BACKEND/pi-config/ledwall-shutdown.rules" /etc/polkit-1/rules.d/
 
 step "Applying Pi boot settings for the matrix"
 BOOT=/boot/firmware
