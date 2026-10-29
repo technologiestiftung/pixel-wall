@@ -33,6 +33,7 @@
 #define MQTT_HOST "192.168.4.236"
 #define MQTT_PORT 1883
 #define MQTT_TOPIC_PREFIX "ledwall/screen/"
+#define MQTT_POWER_TOPIC "ledwall/power"
 #define MQTT_CLIENT_ID "pixel-wall-esp32"
 
 #define PANEL_RES_X 32
@@ -74,6 +75,7 @@ PubSubClient mqtt(net);
 PixelWallScreen screens[SCREEN_COUNT];
 int brightnessPercent = 60;
 unsigned long lastReconnect = 0;
+bool replayRequested = false;
 unsigned long startedAt = 0;
 unsigned long lastFrame = 0;
 
@@ -124,7 +126,32 @@ static int screenIndexFor(const char *topic) {
 	return -1;
 }
 
+/* "off" is sent just before the Pi powers down: drop every screen so the
+ * panels paint black, but leave the retained topics alone, so the saved
+ * content comes back on the next connect. "on" means the poweroff failed;
+ * reconnecting makes the broker replay the retained screens. */
+static void onPowerMessage(const byte *payload, unsigned int length) {
+	if (length == 3 && memcmp(payload, "off", 3) == 0) {
+		Serial.println("power: off, blanking all screens");
+		for (int index = 0; index < SCREEN_COUNT; index++) {
+			pixelWallScreenFree(&screens[index]);
+			pixelWallScreenInit(&screens[index]);
+			pendingDraws[index] = DMA_BUFFER_COUNT;
+		}
+	} else if (length == 2 && memcmp(payload, "on", 2) == 0) {
+		Serial.println("power: on, replaying saved screens");
+		// Not from inside this callback: PubSubClient is still reading the
+		// packet that called it.
+		replayRequested = true;
+	}
+}
+
 static void onMessage(char *topic, byte *payload, unsigned int length) {
+	if (strcmp(topic, MQTT_POWER_TOPIC) == 0) {
+		onPowerMessage(payload, length);
+		return;
+	}
+
 	int index = screenIndexFor(topic);
 	if (index < 0) {
 		Serial.printf("ignoring unknown topic %s\n", topic);
@@ -325,6 +352,8 @@ static bool connectMQTT() {
 		mqtt.subscribe(topic);
 		Serial.printf("mqtt: subscribed to %s\n", topic);
 	}
+	mqtt.subscribe(MQTT_POWER_TOPIC);
+	Serial.printf("mqtt: subscribed to %s\n", MQTT_POWER_TOPIC);
 	return true;
 }
 
@@ -381,6 +410,12 @@ void loop() {
 		}
 	} else {
 		mqtt.loop();
+	}
+
+	if (replayRequested) {
+		replayRequested = false;
+		mqtt.disconnect();
+		lastReconnect = 0;
 	}
 
 	// Redraw only when the frame can actually differ: after a new message,

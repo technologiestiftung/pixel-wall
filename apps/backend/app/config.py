@@ -35,6 +35,13 @@ MQTT_TOPIC_PREFIX = os.environ.get("LEDWALL_MQTT_TOPIC_PREFIX", "ledwall/screen"
 MQTT_USERNAME = os.environ.get("LEDWALL_MQTT_USERNAME") or None
 MQTT_PASSWORD = os.environ.get("LEDWALL_MQTT_PASSWORD") or None
 MQTT_ENABLED = os.environ.get("LEDWALL_MQTT_ENABLED", "1") != "0"
+#: Not retained: the ESP32 must blank only when it hears the shutdown live,
+#: never again after a reboot (see app/system.py).
+MQTT_POWER_TOPIC = os.environ.get("LEDWALL_MQTT_POWER_TOPIC", "ledwall/power")
+
+#: Off unless the Pi's systemd unit turns it on, so `npm run dev:api` on a
+#: Linux laptop cannot power the laptop off.
+SHUTDOWN_ENABLED = os.environ.get("LEDWALL_SHUTDOWN_ENABLED", "0") == "1"
 
 #: Live weather (see app/weather.py). The location defaults to CityLAB Berlin;
 #: Bright Sky picks the nearest DWD station to it.

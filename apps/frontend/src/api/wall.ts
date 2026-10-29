@@ -5,6 +5,7 @@ import type {
 	ApplyResponse,
 	ControlResponse,
 	ScreensResponse,
+	ShutdownResponse,
 	StateResponse,
 	WeatherDto,
 } from "./types";
@@ -26,6 +27,10 @@ export function claimControl(
 		method: "POST",
 		body: JSON.stringify({ sessionId, takeover }),
 	});
+}
+
+export function shutDown(request: Requester): Promise<ShutdownResponse> {
+	return request<ShutdownResponse>("/api/shutdown", { method: "POST" });
 }
 
 export function getScreens(request: Requester): Promise<ScreensResponse> {

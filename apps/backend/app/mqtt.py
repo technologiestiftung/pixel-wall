@@ -66,24 +66,38 @@ class MqttPublisher:
         """One retained message per screen, so a device that reboots recovers its
         own content without the backend being up. Binary, not JSON — see
         docs/wire-format.md "MQTT envelope"."""
-        if self._client is None:
-            return False
+        return self._publish(topic_for(screen_id), payload, retain=True) is not None
 
+    def publish_power(self, command: str, timeout_s: float = 2.0) -> bool:
+        """Waits for the broker to take the message, because the caller is
+        about to power off the machine the broker runs on."""
+        result = self._publish(config.MQTT_POWER_TOPIC, command.encode(), retain=False)
+        if result is None:
+            return False
         try:
-            with self._lock:
-                result = self._client.publish(
-                    topic_for(screen_id), payload, qos=1, retain=True
-                )
+            result.wait_for_publish(timeout=timeout_s)
         except Exception as error:
             self._record_error(str(error))
             return False
+        return result.is_published()
+
+    def _publish(self, topic: str, payload: bytes, retain: bool) -> Optional[Any]:
+        if self._client is None:
+            return None
+
+        try:
+            with self._lock:
+                result = self._client.publish(topic, payload, qos=1, retain=retain)
+        except Exception as error:
+            self._record_error(str(error))
+            return None
 
         if result.rc != 0:
             self._record_error(f"publish returned rc={result.rc}")
-            return False
+            return None
 
         self._last_error = None
-        return True
+        return result
 
     def _on_connect(self, client: Any, userdata: Any, flags: Any, rc: int) -> None:
         if rc == 0:

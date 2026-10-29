@@ -338,6 +338,12 @@ class ControlRequest(BaseModel):
     takeover: bool = False
 
 
+class ShutdownResponse(BaseModel):
+    #: False when the ESP32 could not be told to blank (broker down or MQTT
+    #: disabled); the Pi powers off regardless.
+    smallScreensBlanked: bool
+
+
 class ControlResponse(BaseModel):
     #: Whether this session now controls the wall. False means another
     #: session holds it and this one can only watch.
