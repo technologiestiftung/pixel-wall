@@ -308,6 +308,42 @@ describe("pal4FromImageData", () => {
 		expect(image.indices[999]).toBe(2);
 	});
 
+	it("crisp: anti-aliased blends against a non-black background don't fragment the real colour's slot", () => {
+		// Regression test for the failure mode CRISP_MIN_DISTANCE_SQ alone
+		// can't fix: once a background is painted directly into the canvas
+		// (not left transparent), the edge between it and a shape still
+		// anti-aliases in RGB, but always at alpha 255 — so the
+		// SOLID_ALPHA_THRESHOLD filter above can no longer tell those blend
+		// pixels apart from the shape's real colour. Summed across many
+		// frames of a strip, several different blend ratios can each
+		// individually clear CRISP_MIN_SHARE and look like distinct "real"
+		// colours, burning through the 16-slot cap on fragments of what a
+		// person would see as one red shape. These two blend colours are the
+		// exact navy/red mix at t≈0.3 and t≈0.78 of the way from the real red
+		// towards this background (the second is lifted from an actual
+		// decoded raute-pixel-aufbau frame strip) — both must collapse into
+		// the one real red slot rather than each minting their own.
+		const background: [number, number, number] = [30, 55, 145];
+		const red = [254, 68, 65];
+		const blendNearRed = [97, 59, 121]; // ~30% of the way from red to background
+		const blendNearBackground = [205, 65, 82]; // ~78% of the way from red to background
+		const data = pixels([
+			[
+				...Array(900).fill([...background, 255]),
+				...Array(60).fill([...red, 255]),
+				...Array(15).fill([...blendNearRed, 255]),
+				...Array(10).fill([...blendNearBackground, 255]),
+			],
+		]);
+		const image = pal4FromImageData(data, {
+			widthPx: 985,
+			heightPx: 1,
+			crisp: true,
+			background,
+		});
+		expect(image.palette).toEqual([[0, 0, 0], background, red]);
+	});
+
 	it("caps the palette at 16 entries, keeping the most frequent colours", () => {
 		// Colour `n` (1-20, grayscale) appears `n` times, so frequency ranks
 		// exactly by colour value with no ties.

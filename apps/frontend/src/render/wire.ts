@@ -117,7 +117,7 @@ async function contentToPal4Wire(
 				{ widthPx: width, heightPx: height },
 				{ frameCount: timing.frameCount, background },
 			);
-			return framesWire(strip, timing, { width, height });
+			return framesWire(strip, timing, { width, height, background });
 		}
 	}
 
@@ -129,7 +129,7 @@ async function contentToPal4Wire(
 				{ widthPx: width, heightPx: height },
 				{ frameCount: timing.frameCount, background },
 			);
-			return framesWire(strip, timing, { width, height });
+			return framesWire(strip, timing, { width, height, background });
 		}
 		// Static Pfadtext falls through to the generic drawContentToCanvas path
 		// below, exactly like static/scrolling text.
@@ -182,9 +182,9 @@ async function contentToPal4Wire(
 function framesWire(
 	strip: HTMLCanvasElement | null,
 	timing: { frameCount: number; frameDurationMs: number },
-	size: { width: number; height: number },
+	size: { width: number; height: number; background: string | null },
 ): WireContentDto {
-	const { width, height } = size;
+	const { width, height, background } = size;
 	const { frameCount, frameDurationMs } = timing;
 	const frames: FramesDto = {
 		frameCount,

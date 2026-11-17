@@ -424,6 +424,21 @@ export function pal4FromImageData(
 	// nearest existing entry is exactly the bug where a shape silently
 	// recolours to (or vanishes into) a similarly-coloured background.
 	const CRISP_MIN_DISTANCE_SQ = crispMergeDistance * crispMergeDistance;
+	// Once a background is baked into the canvas (opaque, not transparent),
+	// every anti-aliased edge between it and a shape still blends in RGB —
+	// but always at alpha 255, so the SOLID_ALPHA_THRESHOLD filter above can
+	// no longer tell a blend fringe from a real colour (that filter is the
+	// whole reason this used to be a non-issue: a blend against a genuinely
+	// transparent backdrop showed up as reduced alpha, not a new RGB). Across
+	// a many-frame strip, enough of those fringe pixels can each individually
+	// clear CRISP_MIN_SHARE to look like several distinct "real" colours,
+	// starving the artwork's actual colours of palette slots. A fringe pixel
+	// is, by construction, a point on the straight line between the shape's
+	// real colour and the background, so catching "lies on a line to
+	// `background` through an already-admitted colour" finds these without
+	// needing CRISP_MIN_DISTANCE_SQ itself to be loose enough to also (wrongly)
+	// merge two deliberately different, low-contrast colours.
+	const BACKGROUND_BLEND_TOLERANCE_SQ = 8 * 8;
 	const palette: number[][] = [[0, 0, 0]];
 	for (const [key, count] of byFrequencyDesc) {
 		if (palette.length >= PAL4_MAX_COLORS) {
@@ -435,11 +450,17 @@ export function pal4FromImageData(
 				break;
 			}
 			const nearDuplicate = palette.some(
-				([pr, pg, pb]) =>
-					(colour[0] - pr) ** 2 +
-						(colour[1] - pg) ** 2 +
-						(colour[2] - pb) ** 2 <
-					CRISP_MIN_DISTANCE_SQ,
+				(entry) =>
+					(colour[0] - entry[0]) ** 2 +
+						(colour[1] - entry[1]) ** 2 +
+						(colour[2] - entry[2]) ** 2 <
+						CRISP_MIN_DISTANCE_SQ ||
+					isBackgroundBlend(
+						colour,
+						entry,
+						background,
+						BACKGROUND_BLEND_TOLERANCE_SQ,
+					),
 			);
 			if (nearDuplicate) {
 				continue;
@@ -488,6 +509,44 @@ export function pal4FromImageData(
 	}
 
 	return { widthPx, heightPx, palette, indices };
+}
+
+/**
+ * True when `candidate` sits close to the straight line segment between
+ * `endpoint` and `background` — the RGB signature of anti-aliasing where
+ * `endpoint`'s edge meets an opaque background fill (see the comment above
+ * `BACKGROUND_BLEND_TOLERANCE_SQ`). `t` is where on that segment the
+ * candidate's projection falls (0 = at `endpoint`, 1 = at `background`); a
+ * real blend fringe is strictly *between* the two, so `t` close to either
+ * end is rejected rather than treated as a loose match — `background` itself
+ * is always exactly at `t = 1` of a segment ending at it, so without this a
+ * candidate equal to `background` would always "blend-match" every other
+ * palette entry and never get its own slot.
+ */
+function isBackgroundBlend(
+	candidate: number[],
+	endpoint: number[],
+	background: [number, number, number],
+	toleranceSq: number,
+): boolean {
+	const ex = background[0] - endpoint[0];
+	const ey = background[1] - endpoint[1];
+	const ez = background[2] - endpoint[2];
+	const lengthSq = ex * ex + ey * ey + ez * ez;
+	if (lengthSq === 0) {
+		return false;
+	}
+	const cx = candidate[0] - endpoint[0];
+	const cy = candidate[1] - endpoint[1];
+	const cz = candidate[2] - endpoint[2];
+	const t = (cx * ex + cy * ey + cz * ez) / lengthSq;
+	if (t < 0.03 || t > 0.97) {
+		return false;
+	}
+	const dx = candidate[0] - (endpoint[0] + t * ex);
+	const dy = candidate[1] - (endpoint[1] + t * ey);
+	const dz = candidate[2] - (endpoint[2] + t * ez);
+	return dx * dx + dy * dy + dz * dz < toleranceSq;
 }
 
 function nearestPaletteIndex(
