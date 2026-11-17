@@ -13,6 +13,7 @@ import type { AppliedRender } from "../state/reducer";
 import { useCurrentWeather } from "../state/useCurrentWeather";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { useFontsVersion } from "./fonts";
+import { pathTextTiming, renderPathTextFrameStrip } from "./pathText";
 import { createCanvas, rasterizeContent } from "./rasterize";
 import {
 	drawTemperature,
@@ -85,6 +86,26 @@ export function ContentLayer({ render }: ContentLayerProps) {
 				offsetYPx={offsetYPx}
 			/>
 		);
+	}
+
+	if (foreground?.type === "text" && foreground.mode === "path") {
+		const timing = pathTextTiming(foreground);
+		if (timing) {
+			return (
+				<PathTextBitmap
+					content={foreground}
+					frameCount={timing.frameCount}
+					frameDurationMs={timing.frameDurationMs}
+					backgroundHex={layers.background}
+					compositeWidthPx={compositeWidthPx}
+					compositeHeightPx={compositeHeightPx}
+					offsetXPx={offsetXPx}
+					offsetYPx={offsetYPx}
+				/>
+			);
+		}
+		// Static Pfadtext falls through to StaticBitmap below — already generic
+		// via rasterizeContent (see render/rasterize.ts's drawStaticPathText).
 	}
 
 	// No bitmap ever crosses the wire for Game of Life (see CONTEXT.md
@@ -508,5 +529,68 @@ function FrameStripImage({
 				top: -offsetYPx,
 			}}
 		/>
+	);
+}
+
+/**
+ * Live preview of running Pfadtext: builds the same frame strip
+ * render/wire.ts sends to the wall (via render/pathText.ts) and steps
+ * through it with the same `FrameStripImage` sprite-sheet technique as
+ * `AnimatedBitmap` above — the two differ only in which module builds the
+ * strip (an SVG template's own animation vs. glyphs walked along
+ * PFADTEXT_PATH).
+ */
+function PathTextBitmap({
+	content,
+	frameCount,
+	frameDurationMs,
+	backgroundHex,
+	compositeWidthPx,
+	compositeHeightPx,
+	offsetXPx,
+	offsetYPx,
+}: {
+	content: TextContent;
+	frameCount: number;
+	frameDurationMs: number;
+	backgroundHex: string | null;
+	compositeWidthPx: number;
+	compositeHeightPx: number;
+	offsetXPx: number;
+	offsetYPx: number;
+}) {
+	const fontsVersion = useFontsVersion();
+	const [stripUrl, setStripUrl] = useState<string | null>(null);
+	useEffect(() => {
+		const canvas = renderPathTextFrameStrip(
+			content,
+			{ widthPx: compositeWidthPx, heightPx: compositeHeightPx },
+			{ frameCount, background: backgroundHex },
+		);
+		setStripUrl(canvas ? canvas.toDataURL("image/png") : null);
+	}, [
+		JSON.stringify(content),
+		backgroundHex,
+		compositeWidthPx,
+		compositeHeightPx,
+		frameCount,
+		fontsVersion,
+	]);
+
+	if (stripUrl === null) {
+		return null;
+	}
+
+	return (
+		<div className="absolute inset-0 overflow-hidden">
+			<FrameStripImage
+				src={stripUrl}
+				frameCount={frameCount}
+				frameDurationMs={frameDurationMs}
+				frameWidthPx={compositeWidthPx}
+				offsetXPx={offsetXPx}
+				offsetYPx={offsetYPx}
+			/>
+		</div>
 	);
 }

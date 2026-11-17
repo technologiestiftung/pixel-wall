@@ -17,6 +17,7 @@ import { base64ToBytes } from "../lib/base64";
 import type { AnimationContent, Content, TextContent } from "../domain/types";
 import { animationTiming, renderAnimationFrameStrip } from "./animatedTemplate";
 import { waitForFont } from "./fonts";
+import { pathTextTiming, renderPathTextFrameStrip } from "./pathText";
 import { drawContentToCanvas, hasCanvasSupport } from "./rasterize";
 import { waitForTemplateImage, waitForUploadImage } from "./templateImages";
 
@@ -111,12 +112,27 @@ async function contentToPal4Wire(
 	if (content.type === "animation") {
 		const timing = animationTiming(content);
 		if (timing) {
-			return animationToFramesWire(content, timing, {
-				width,
-				height,
-				background,
-			});
+			const strip = await renderAnimationFrameStrip(
+				content,
+				{ widthPx: width, heightPx: height },
+				{ frameCount: timing.frameCount, background },
+			);
+			return framesWire(strip, timing, { width, height });
 		}
+	}
+
+	if (content.type === "text" && content.mode === "path") {
+		const timing = pathTextTiming(content);
+		if (timing) {
+			const strip = renderPathTextFrameStrip(
+				content,
+				{ widthPx: width, heightPx: height },
+				{ frameCount: timing.frameCount, background },
+			);
+			return framesWire(strip, timing, { width, height });
+		}
+		// Static Pfadtext falls through to the generic drawContentToCanvas path
+		// below, exactly like static/scrolling text.
 	}
 
 	if (content.type === "animation" && hasCanvasSupport()) {
@@ -150,35 +166,31 @@ async function contentToPal4Wire(
 }
 
 /**
- * Builds the `pal4` envelope for an animated Animation/Bild template: a wide
- * strip of `frameCount` samples of its own CSS animation (see
- * render/animatedTemplate.ts), quantized once as a single palette/frame so
- * a device can crop whichever `compositeWidthPx`-wide slot the elapsed time
- * says to show — the frame-strip counterpart of Lauftext's filmstrip (see
- * docs/wire-format.md `frames`).
+ * Builds the `pal4` envelope around an already-rendered frame strip — shared
+ * by an animated Animation/Bild template (render/animatedTemplate.ts) and
+ * running Pfadtext (render/pathText.ts), which both produce a
+ * `frameCount`-wide strip of `width`×`height` slots the same way: quantized
+ * once as a single palette/frame so a device can crop whichever
+ * `compositeWidthPx`-wide slot the elapsed time says to show — the
+ * frame-strip counterpart of Lauftext's filmstrip (see docs/wire-format.md
+ * `frames`).
  *
  * `width`/`height` here are one frame's size (the composite each screen's
  * window is measured against), not the strip's — the returned `widthPx` is
  * `width * frameCount`, matching what `data` actually contains.
  */
-async function animationToFramesWire(
-	content: AnimationContent,
+function framesWire(
+	strip: HTMLCanvasElement | null,
 	timing: { frameCount: number; frameDurationMs: number },
-	size: { width: number; height: number; background: string | null },
-): Promise<WireContentDto> {
-	const { width, height, background } = size;
+	size: { width: number; height: number },
+): WireContentDto {
+	const { width, height } = size;
 	const { frameCount, frameDurationMs } = timing;
 	const frames: FramesDto = {
 		frameCount,
 		frameDurationMs,
 		compositeWidthPx: width,
 	};
-
-	const strip = await renderAnimationFrameStrip(
-		content,
-		{ widthPx: width, heightPx: height },
-		{ frameCount, background },
-	);
 	const stripWidth = width * frameCount;
 
 	return {
