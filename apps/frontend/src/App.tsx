@@ -1,6 +1,6 @@
-import { AuthProvider } from "./auth/AuthContext";
+import { ConnectionGate } from "./auth/ConnectionGate";
+import { ConnectionProvider } from "./auth/ConnectionContext";
 import { ControlProvider } from "./auth/ControlContext";
-import { PasswordGate } from "./auth/PasswordGate";
 import { ControlBanner } from "./components/Header/ControlBanner";
 import { Header } from "./components/Header/Header";
 import { Menu } from "./components/Menu/Menu";
@@ -9,8 +9,8 @@ import { WallProvider } from "./state/WallProvider";
 
 function App() {
 	return (
-		<AuthProvider>
-			<PasswordGate>
+		<ConnectionProvider>
+			<ConnectionGate>
 				<ControlProvider>
 					<WallProvider>
 						<div className="flex h-screen flex-col">
@@ -23,8 +23,8 @@ function App() {
 						</div>
 					</WallProvider>
 				</ControlProvider>
-			</PasswordGate>
-		</AuthProvider>
+			</ConnectionGate>
+		</ConnectionProvider>
 	);
 }
 

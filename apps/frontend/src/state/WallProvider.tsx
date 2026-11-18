@@ -11,7 +11,7 @@ import {
 	type WallAction,
 	type WallState,
 } from "./reducer";
-import { useAuth } from "../auth/AuthContext";
+import { useConnection } from "../auth/ConnectionContext";
 import { useWallSync } from "./useWallSync";
 
 const WallStateContext = createContext<WallState | null>(null);
@@ -19,7 +19,7 @@ const WallDispatchContext = createContext<Dispatch<WallAction> | null>(null);
 
 export function WallProvider({ children }: { children: ReactNode }) {
 	const [state, dispatch] = useReducer(wallReducer, initialWallState);
-	const { request } = useAuth();
+	const { request } = useConnection();
 	useWallSync(dispatch, request, state.generation);
 
 	return (

@@ -35,36 +35,30 @@ in [../backend/README.md](../backend/README.md), and served live at `/docs`.
 | `src/state/`      | `WallProvider`, the reducer, selectors and data-syncing hooks             |
 | `src/components/` | UI: `Header`, `Menu` (edit panel), `Preview` (wall stage)                 |
 | `src/api/`        | Typed API calls and the MSW mock backend                                  |
-| `src/auth/`       | Password gate and the edit-control lease                                  |
+| `src/auth/`       | Connection gate and the edit-control lease                               |
 | `src/lib/`        | `apiFetch` and session helpers                                            |
 
 Domain vocabulary (screen, selection, layers, …) is defined in
 [CONTEXT.md](../../CONTEXT.md).
 
-## Authentication
+## Connectivity
 
-The API is behind a single shared password (no username). A cross-origin
-`fetch()` never triggers the browser's own password prompt, so this app
-collects the password itself:
+The backend runs unauthenticated; there is no login step. Instead, the app
+only needs to know whether the Pi can be reached at all:
 
-| File                        | Role                                                                |
-| --------------------------- | ------------------------------------------------------------------- |
-| `src/lib/api.ts`            | `apiFetch`, `ApiError` (carries the status), base URL               |
-| `src/auth/AuthContext.tsx`  | holds the password, probes on load, exposes `request` and `signOut` |
-| `src/auth/PasswordGate.tsx` | the unlock form; renders its children once unlocked                 |
+| File                              | Role                                                           |
+| ---------------------------------- | --------------------------------------------------------------- |
+| `src/lib/api.ts`                   | `apiFetch`, `ApiError` (carries the status), base URL          |
+| `src/auth/ConnectionContext.tsx`   | probes `/api/health` on load and retries, exposes `request`    |
+| `src/auth/ConnectionGate.tsx`      | renders its children once connected, otherwise a status screen |
 
-`App.tsx` wraps everything in `AuthProvider` + `PasswordGate`, so wall controls
-you add inside it only ever render signed in. Use `request()` from `useAuth()`
-for API calls — it attaches the header and signs out automatically on a `401`,
-so an expired or changed password returns the user to the form.
+`App.tsx` wraps everything in `ConnectionProvider` + `ConnectionGate`, so wall
+controls you add inside it only ever render once the Pi answers. Use
+`request()` from `useConnection()` for API calls.
 
-On load the provider first tries an unauthenticated read: if the backend runs
-without a password it skips the gate entirely rather than asking for one that
-does not exist.
-
-The password is kept in `sessionStorage`, so it survives a reload but not
-closing the tab. Never put it in `.env` — Vite bakes those values into the
-built bundle.
+If the initial probe fails — the Pi is off, or this device is on a different
+network — `ConnectionGate` shows a "not connected" screen instead of the app,
+and `ConnectionContext` keeps retrying in the background until it succeeds.
 
 ## Tests
 

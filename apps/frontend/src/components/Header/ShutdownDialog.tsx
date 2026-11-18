@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { shutDown } from "../../api/wall";
-import { useAuth } from "../../auth/AuthContext";
+import { useConnection } from "../../auth/ConnectionContext";
 import { Dialog } from "../Dialog";
 
 type ShutdownStatus = "idle" | "pending" | "done" | "error";
@@ -10,7 +10,7 @@ interface ShutdownDialogProps {
 }
 
 export function ShutdownDialog({ onClose }: ShutdownDialogProps) {
-	const { request } = useAuth();
+	const { request } = useConnection();
 	const [status, setStatus] = useState<ShutdownStatus>("idle");
 	const [error, setError] = useState<string | null>(null);
 

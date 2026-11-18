@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createUpload, deleteUpload, getUploads } from "../api/wall";
-import { useAuth } from "../auth/AuthContext";
+import { useConnection } from "../auth/ConnectionContext";
 import type { LibraryUpload, UploadedMedia } from "../domain/types";
 
 /**
@@ -10,7 +10,7 @@ import type { LibraryUpload, UploadedMedia } from "../domain/types";
  * heavier than the rest of the state.
  */
 export function useUploadLibrary() {
-	const { request } = useAuth();
+	const { request } = useConnection();
 	const [uploads, setUploads] = useState<LibraryUpload[] | null>(null);
 	const [loadError, setLoadError] = useState<string | null>(null);
 

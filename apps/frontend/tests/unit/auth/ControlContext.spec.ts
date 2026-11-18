@@ -11,8 +11,8 @@ import type { Requester } from "../../../src/api/wall";
 const request = (async () => undefined) as unknown as Requester;
 
 vi.mock("../../../src/api/wall", () => ({ claimControl: vi.fn() }));
-vi.mock("../../../src/auth/AuthContext", () => ({
-	useAuth: () => ({ request }),
+vi.mock("../../../src/auth/ConnectionContext", () => ({
+	useConnection: () => ({ request }),
 }));
 
 const { claimControl } = await import("../../../src/api/wall");

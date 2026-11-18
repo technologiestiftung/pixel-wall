@@ -1,5 +1,5 @@
 import { applyChanges } from "../api/wall";
-import { useAuth } from "../auth/AuthContext";
+import { useConnection } from "../auth/ConnectionContext";
 import { useControl } from "../auth/ControlContext";
 import { buildApplyRequest } from "../domain/apply";
 import { DEFAULT_LAYOUT } from "../domain/layout";
@@ -16,7 +16,7 @@ export function useApplyChanges() {
 	const state = useWallState();
 	const { specs, selection, applyStatus, applyError } = state;
 	const dispatch = useWallDispatch();
-	const { request } = useAuth();
+	const { request } = useConnection();
 	const { isController } = useControl();
 	const hasChanges = draftHasChanges(state);
 	const busy = applyStatus === "pending";

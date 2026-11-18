@@ -166,8 +166,8 @@ into a module-level constant, and nothing re-reads it. The restart takes under
 a second and does not interrupt the wall — `ledwall-display` is a separate unit
 reading the state file, and keeps scrolling throughout.
 
-Anyone holding the old password in a browser tab stays in until their next
-request, then gets a 401 and the password gate again.
+Anyone holding the old password in a non-browser client stays in until their
+next request, then gets a 401.
 
 ## Finding the Pi's IP
 
@@ -206,8 +206,9 @@ other screen untouched.
 Authentication is **optional**: the middleware is active only when
 `LEDWALL_PASSWORD` is set. Leave it unset for a trusted LAN and the API is open
 to anyone on the network — the service logs a warning at startup and
-`/api/health` reports `auth.enabled: false`, which is how the frontend decides
-whether to show its password gate.
+`/api/health` reports `auth.enabled: false`. The web frontend does not read
+this field or send credentials (see the note under `GET /api/health` below),
+so set a password only for consumers that speak HTTP Basic directly.
 
 When it is set, every route — the API, `/docs`, `/openapi.json` and `/` — is
 behind that single shared password.
@@ -225,10 +226,11 @@ LEDWALL_PASSWORD=something-long
 
 Restart with `sudo systemctl restart ledwall-backend` to pick up a change.
 
-**Calling it from the frontend.** A browser only shows its own password prompt
-for a navigation, not for a cross-origin `fetch()`. A frontend served from
-anywhere other than the Pi itself must collect the password and send the header
-itself:
+**Calling it from a browser-based client.** A browser only shows its own
+password prompt for a navigation, not for a cross-origin `fetch()`. A client
+served from anywhere other than the Pi itself must collect the password and
+send the header itself (the pixel-wall web frontend does not do this — see
+the `auth.enabled` note above):
 
 ```js
 const auth = "Basic " + btoa(`:${password}`); // empty username, colon required
@@ -448,8 +450,11 @@ Nothing on a panel reads it: a screen showing an upload carries its own copy in
 }
 ```
 
-`auth.enabled` is what the frontend reads to decide whether to show a password
-gate.
+`auth.enabled` reflects whether `LEDWALL_PASSWORD` is set on this backend. The
+web frontend no longer reads it or prompts for a password — it does not send
+credentials — so turning a password on currently locks the frontend out
+(it shows a "Raspberry Pi not connected" screen) rather than asking for one.
+Backend consumers that do send Basic auth, such as `curl`, are unaffected.
 
 ### `POST /api/shutdown` → `200`
 

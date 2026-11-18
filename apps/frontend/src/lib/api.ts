@@ -18,15 +18,7 @@ export class ApiError extends Error {
 	}
 }
 
-/** The API has no username, so the Basic credentials are ":<password>". */
-function authHeader(password: string): string {
-	return `Basic ${btoa(`:${password}`)}`;
-}
-
 function errorMessage(status: number): string {
-	if (status === 401) {
-		return "Wrong password";
-	}
 	if (status === 423) {
 		return "Die Wand wird gerade von einem anderen Gerät gesteuert.";
 	}
@@ -35,7 +27,6 @@ function errorMessage(status: number): string {
 
 export async function apiFetch<T>(
 	path: string,
-	password: string | null,
 	init: FetchInit = {},
 ): Promise<T> {
 	const headers = new Headers(init.headers);
@@ -43,10 +34,6 @@ export async function apiFetch<T>(
 
 	if (init.body !== undefined) {
 		headers.set("Content-Type", "application/json");
-	}
-
-	if (password !== null) {
-		headers.set("Authorization", authHeader(password));
 	}
 
 	// Only writes are checked against the control lease, and a custom header

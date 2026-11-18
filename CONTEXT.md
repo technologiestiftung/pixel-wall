@@ -56,7 +56,7 @@ Switching content tabs is _not_ gated by this dialog: Text, Animation/Bild and H
 
 ## Client sync
 
-Authentication is optional: the backend enforces HTTP Basic only when `LEDWALL_PASSWORD` is set, so an internal/kiosk deployment on a trusted local network can run without it while a shared network can turn it on. The frontend shows its password gate only when `GET /api/health` reports `auth.enabled`. If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.
+The backend's HTTP Basic auth (behind `LEDWALL_PASSWORD`) is a backend-only concern now — the web frontend sends no credentials and has no login step. Instead it probes `GET /api/health` on load and shows a "Raspberry Pi not connected" screen (retrying in the background) whenever that fails, which covers both the Pi being off and this device being on a different network. If the app is open in multiple tabs/devices, they stay in sync via lightweight polling (e.g. on window focus / short interval) rather than a live push channel — brief staleness in a non-active tab is acceptable.
 
 ## Rendering split
 

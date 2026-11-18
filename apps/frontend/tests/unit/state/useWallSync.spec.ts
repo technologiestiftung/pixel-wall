@@ -26,7 +26,7 @@ function deferred<T>() {
 }
 
 // A stable reference, reused across renders — like the real `request` from
-// `useAuth()`, which is memoized. An inline arrow function here would give
+// `useConnection()`, which is memoized. An inline arrow function here would give
 // the sync effect a new dependency on every render and restart the poll,
 // masking the exact race this test exists to catch.
 const request = (async () => undefined) as unknown as Requester;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getWeather } from "../api/wall";
 import type { WeatherDto } from "../api/types";
-import { useAuth } from "../auth/AuthContext";
+import { useConnection } from "../auth/ConnectionContext";
 
 /** The backend fetches Bright Sky every 10 minutes; polling more often than
  * that would only ever see the same reading. */
@@ -22,7 +22,7 @@ function isComplete(reading: WeatherDto | null): boolean {
  * once per tile. null while loading, or when the backend can't be reached.
  */
 export function useCurrentWeather(): WeatherDto | null {
-	const { request } = useAuth();
+	const { request } = useConnection();
 	const [reading, setReading] = useState<WeatherDto | null>(null);
 
 	useEffect(() => {

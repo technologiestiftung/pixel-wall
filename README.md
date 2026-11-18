@@ -100,17 +100,11 @@ Copy [`apps/frontend/.env.example`](./apps/frontend/.env.example) to
 To work on the frontend without any backend, set `VITE_USE_MOCKS=1` in
 `apps/frontend/.env` to use the in-memory mock API.
 
-### Password
+### Connectivity
 
-The backend runs unauthenticated unless a password is set, and the frontend
-then skips its password gate on purpose. To exercise the login screen locally,
-create `apps/backend/app/.env`:
-
-```
-LEDWALL_PASSWORD=demo123
-```
-
-All backend settings are listed in
+The backend runs unauthenticated, and the frontend has no login step — it
+only probes `/api/health` to show a "not connected" screen when the Pi is
+unreachable. All backend settings are listed in
 [`apps/backend/.env.example`](./apps/backend/.env.example). The API contract is
 documented in [apps/backend/README.md](./apps/backend/README.md) and served
 live at `/docs`.

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { claimControl } from "../api/wall";
 import { sessionId } from "../lib/session";
-import { useAuth } from "./AuthContext";
+import { useConnection } from "./ConnectionContext";
 
 /** Well inside the backend's 30 s lease (LEDWALL_CONTROL_TTL_S). */
 const HEARTBEAT_MS = 10_000;
@@ -29,7 +29,7 @@ const ControlContext = createContext<ControlContextValue>({
 });
 
 export function ControlProvider({ children }: { children: ReactNode }) {
-	const { request } = useAuth();
+	const { request } = useConnection();
 	const [isController, setIsController] = useState(true);
 	const [takingOver, setTakingOver] = useState(false);
 
